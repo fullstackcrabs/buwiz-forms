@@ -9,6 +9,10 @@ errors the run must end with and `expect_error_fields` the `;`-separated fields 
 the receipt is ok, every value written by a `form.fill` step reads back from a later `form.fields` step, and the
 last `form.validate` step reports exactly the expected errors. Writes OUT/<nn>-<case>/receipt.json (and PNGs with
 --screenshots), OUT/results.json and OUT/results.md. Exit 1 if any run fails.
+
+The taxpayer in the data must already exist: on a fresh scratch database run add-tax-profile.json for that TIN
+first (profile.save needs a name to create one). Use a fresh database, since a draft left for the same period
+by an earlier run keeps its own header values.
 """
 import argparse, csv, json, os, platform, re, subprocess, sys, time
 
@@ -44,11 +48,15 @@ def check(receipt, plan, row):
             boxes = {b["key"]: b.get("value") for b in results[step["id"]].get("boxes", [])}
         elif op.get("name") in ("form.validate", "filing.validate"):
             validate = results[step["id"]]
-    if written and boxes is not None:
+    if written and boxes is None:
+        why.append("no form.fields step after form.fill, so the written values were not read back")
+    elif written:
         for key, value in written.items():
             if not same(value, boxes.get(key)):
                 why.append(f"{key}: wrote {value!r}, form shows {boxes.get(key)!r}")
-    if validate is not None and row.get("expect_errors", "") != "":
+    if validate is None and row.get("expect_errors", "") != "":
+        why.append("no form.validate step, so expect_errors was not checked")
+    elif validate is not None and row.get("expect_errors", "") != "":
         fields = sorted(e["field"] for e in validate.get("field_errors", []))
         want = sorted(f for f in row.get("expect_error_fields", "").split(";") if f)
         if validate.get("errors") != int(row["expect_errors"]) or (want and fields != want):
