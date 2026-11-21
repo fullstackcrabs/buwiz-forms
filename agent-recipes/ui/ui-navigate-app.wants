@@ -1,0 +1,30 @@
+# Every screen of the app through the real sidebar, panel, account menu and settings rail.
+click nav-home
+wait_until home-tile-drafts --timeout-ms 5000 --screenshot
+click nav-library
+wait_until library-search --timeout-ms 5000 --screenshot
+click nav-calendar
+wait_until calendar-taxpayers-trigger --timeout-ms 5000 --screenshot
+click nav-filings
+wait_until filings-search --timeout-ms 5000 --screenshot
+click tb-panel
+wait_until panel-open-profile --timeout-ms 5000
+click panel-open-profile
+wait_until tp-profile-years --timeout-ms 5000 --screenshot
+click panel-open-forms
+wait_until tp-forms-edit --timeout-ms 5000 --screenshot
+click panel-open-templates
+wait_until tp-template-1701-create --timeout-ms 5000 --screenshot
+click account-row
+wait_until menu-account --timeout-ms 5000
+click menu-account
+wait_until settings-nav-general --timeout-ms 5000 --screenshot
+click settings-nav-account
+click settings-nav-transfer
+click settings-nav-jobs
+click settings-nav-keyboard
+click settings-nav-computer
+click tb-panel
+wait_until panel-open-profile --absent --timeout-ms 5000
+click nav-home
+wait_until home-tile-drafts --timeout-ms 5000
