@@ -489,8 +489,12 @@ fn serve(wait: bool) -> Result<(), ExitCode> {
              No Op::Yield. launchd KeepAlive is optional."
         );
 
+        // Poll fast while a client is sending steps back to back (a recipe
+        // run), and fall back to the idle interval once it goes quiet.
+        let mut last_request = None::<std::time::Instant>;
         while !shutdown.load(std::sync::atomic::Ordering::SeqCst) {
             for posted in mailbox.take() {
+                last_request = Some(std::time::Instant::now());
                 let req = posted.request.clone();
                 let mut guard = host.lock().expect("host");
                 let resp = request_log::handle_request_logged(&mut *guard, req, None, None);
@@ -505,7 +509,8 @@ fn serve(wait: bool) -> Result<(), ExitCode> {
             if host.lock().expect("host").should_quit() {
                 break;
             }
-            thread::sleep(Duration::from_millis(50));
+            let busy = last_request.is_some_and(|at| at.elapsed() < Duration::from_millis(500));
+            thread::sleep(Duration::from_millis(if busy { 1 } else { 50 }));
         }
         if let Ok(guard) = db.lock()
             && let Err(error) = guard.checkpoint()
