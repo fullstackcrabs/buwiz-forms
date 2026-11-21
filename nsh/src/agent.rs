@@ -261,15 +261,15 @@ mod live {
         }
     }
 
-    /// The address to bind for the one the environment asked for. Loopback only. Where the window's own control plane
-    /// (NSH's, the same `GPUI_AGENT_ADDR`) is in this process, it binds first and this takes another port.
+    /// The address to bind for the one the environment asked for. Loopback only. The window's own control plane
+    /// (NSH's development host on every platform, the same `GPUI_AGENT_ADDR`) binds first, and this takes another port.
     fn choose(requested: SocketAddr) -> Result<SocketAddr, String> {
         if !is_loopback_addr(requested) {
             return Err(format!(
                 "the NSH app's agent listens on loopback only; GPUI_AGENT_ADDR {requested} is not loopback"
             ));
         }
-        if cfg!(target_os = "macos") && std::net::TcpListener::bind(requested).is_err() {
+        if std::net::TcpListener::bind(requested).is_err() {
             return Ok(SocketAddr::new(requested.ip(), 0));
         }
         Ok(resolve_addr(requested))
