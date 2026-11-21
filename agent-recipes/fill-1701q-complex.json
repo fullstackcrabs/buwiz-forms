@@ -1,6 +1,6 @@
 {
   "v": 1,
-  "name": "bir-fill-1701q-complex",
+  "name": "bir-fill-1701q-graduated",
   "app": "bir-shell",
   "params": [
     "tin",
@@ -13,7 +13,6 @@
     "birth_day",
     "birth_year",
     "citizenship",
-    "tax_rate",
     "deduction",
     "sales",
     "cost_of_sales",
@@ -77,7 +76,7 @@
           "frm1701q:txtBirthDay": "$birth_day",
           "frm1701q:txtBirthYear": "$birth_year",
           "frm1701q:txtCitizenship": "$citizenship",
-          "frm1701q:optTaxRate": "$tax_rate",
+          "frm1701q:optTaxRate": "Graduated",
           "frm1701q:optMethodOfDeduction": "$deduction",
           "frm1701q:txt36A": "$sales",
           "frm1701q:txt37A": "$cost_of_sales",
