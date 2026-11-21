@@ -1,0 +1,68 @@
+{
+  "v": 1,
+  "name": "bir-navigate-app",
+  "app": "bir-shell",
+  "steps": [
+    {
+      "id": "home",
+      "op": "invoke",
+      "name": "nav.go",
+      "args": {
+        "page": "home"
+      }
+    },
+    {
+      "id": "library",
+      "op": "invoke",
+      "name": "nav.go",
+      "args": {
+        "page": "library"
+      }
+    },
+    {
+      "id": "calendar",
+      "op": "invoke",
+      "name": "nav.go",
+      "args": {
+        "page": "calendar"
+      }
+    },
+    {
+      "id": "filings",
+      "op": "invoke",
+      "name": "nav.go",
+      "args": {
+        "page": "filings"
+      }
+    },
+    {
+      "id": "profile",
+      "op": "invoke",
+      "name": "nav.go",
+      "args": {
+        "page": "profile"
+      }
+    },
+    {
+      "id": "settings",
+      "op": "invoke",
+      "name": "nav.go",
+      "args": {
+        "page": "settings"
+      }
+    },
+    {
+      "id": "dues",
+      "op": "invoke",
+      "name": "dues.list",
+      "args": {
+        "filter": "upcoming"
+      }
+    },
+    {
+      "id": "info",
+      "op": "invoke",
+      "name": "app.info"
+    }
+  ]
+}

@@ -1022,6 +1022,9 @@ impl AgentHost for Session {
             auth: HelloAuth::None,
             bundle_id: None,
             executable: None,
+            features: Vec::new(),
+            framework: None,
+            device: None,
         }
     }
 
@@ -1575,6 +1578,7 @@ mod tests {
                     mode: ScreenshotMode::Viewport,
                     target: None,
                     max_height_px: None,
+                    inline: false,
                 },
             ),
             None,

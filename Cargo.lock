@@ -1794,10 +1794,12 @@ dependencies = [
 
 [[package]]
 name = "gpui-agent"
-version = "0.1.0"
-source = "git+https://github.com/hexuria/gpui-agent?rev=dab85991d700b8f3410cbaacbc5d9f90568c7ee3#dab85991d700b8f3410cbaacbc5d9f90568c7ee3"
+version = "0.4.0"
+source = "git+https://github.com/fullstackcrabs/gpui-agent?rev=4e91018366cf5af413e3aa6b01a87e260b69b09a#4e91018366cf5af413e3aa6b01a87e260b69b09a"
 dependencies = [
+ "base64 0.22.1",
  "hmac 0.12.1",
+ "log",
  "png 0.17.16",
  "serde",
  "serde_json",

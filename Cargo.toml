@@ -54,7 +54,7 @@ rusqlite = { version = "0.32" }
 
 # gpui-agent control plane. One rev for bir-shell (`agent` feature) and
 # bir-mcp, so both sides speak one protocol and one discovery format.
-gpui-agent = { version = "0.1.0", git = "https://github.com/hexuria/gpui-agent", rev = "dab85991d700b8f3410cbaacbc5d9f90568c7ee3" }
+gpui-agent = { version = "0.4.0", git = "https://github.com/fullstackcrabs/gpui-agent", rev = "4e91018366cf5af413e3aa6b01a87e260b69b09a" }
 
 # Error handling
 thiserror = "2"

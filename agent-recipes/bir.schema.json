@@ -1,0 +1,339 @@
+{
+  "schemas": [
+    {
+      "name": "app.info",
+      "kind": "invoke",
+      "description": "App, mode and taxpayer profiles.",
+      "effects": [
+        "read"
+      ],
+      "idempotent": true,
+      "verified": true,
+      "required": [],
+      "args": {},
+      "keywords": [
+        "info",
+        "profiles"
+      ]
+    },
+    {
+      "name": "nav.go",
+      "kind": "invoke",
+      "description": "Show a page: home, library, calendar, filings, profile, settings.",
+      "effects": [
+        "write"
+      ],
+      "idempotent": true,
+      "verified": true,
+      "required": [
+        "page"
+      ],
+      "args": {
+        "page": {
+          "type": "string",
+          "required": true
+        }
+      },
+      "keywords": [
+        "navigate",
+        "open",
+        "page"
+      ]
+    },
+    {
+      "name": "profile.list",
+      "kind": "invoke",
+      "description": "List taxpayer profiles.",
+      "effects": [
+        "read"
+      ],
+      "idempotent": true,
+      "verified": true,
+      "required": [],
+      "args": {},
+      "keywords": [
+        "profiles",
+        "taxpayers"
+      ]
+    },
+    {
+      "name": "profile.save",
+      "kind": "invoke",
+      "description": "Create or update a taxpayer profile.",
+      "effects": [
+        "write"
+      ],
+      "idempotent": true,
+      "verified": true,
+      "required": [
+        "tin"
+      ],
+      "args": {
+        "tin": {
+          "type": "string",
+          "required": true
+        },
+        "tin_root": {
+          "type": "string",
+          "required": false
+        },
+        "name": {
+          "type": "string",
+          "required": false
+        },
+        "birth_date": {
+          "type": "string",
+          "required": false
+        },
+        "rdo_code": {
+          "type": "string",
+          "required": false
+        },
+        "registered_address": {
+          "type": "string",
+          "required": false
+        },
+        "address": {
+          "type": "string",
+          "required": false
+        },
+        "zip_code": {
+          "type": "string",
+          "required": false
+        },
+        "zip": {
+          "type": "string",
+          "required": false
+        },
+        "phone": {
+          "type": "string",
+          "required": false
+        },
+        "email": {
+          "type": "string",
+          "required": false
+        },
+        "taxpayer_type": {
+          "type": "string",
+          "required": false
+        }
+      },
+      "keywords": [
+        "add",
+        "create",
+        "profile",
+        "taxpayer"
+      ]
+    },
+    {
+      "name": "profile.set",
+      "kind": "invoke",
+      "description": "Select the working taxpayer profile.",
+      "effects": [
+        "write"
+      ],
+      "idempotent": true,
+      "verified": true,
+      "required": [],
+      "args": {
+        "tin": {
+          "type": "string",
+          "required": false
+        },
+        "q": {
+          "type": "string",
+          "required": false
+        },
+        "view": {
+          "type": "string",
+          "required": false
+        }
+      },
+      "keywords": [
+        "select",
+        "switch",
+        "profile"
+      ]
+    },
+    {
+      "name": "dues.list",
+      "kind": "invoke",
+      "description": "List due filings.",
+      "effects": [
+        "read"
+      ],
+      "idempotent": true,
+      "verified": true,
+      "required": [],
+      "args": {
+        "filter": {
+          "type": "string",
+          "required": false
+        },
+        "scope": {
+          "type": "string",
+          "required": false
+        }
+      },
+      "keywords": [
+        "dues",
+        "deadlines"
+      ]
+    },
+    {
+      "name": "form.open",
+      "kind": "invoke",
+      "description": "Open a form draft for a taxpayer and period.",
+      "effects": [
+        "write"
+      ],
+      "idempotent": false,
+      "verified": true,
+      "required": [
+        "code"
+      ],
+      "args": {
+        "code": {
+          "type": "string",
+          "required": true
+        },
+        "year": {
+          "type": "integer",
+          "required": false
+        },
+        "period": {
+          "type": "integer",
+          "required": false
+        },
+        "tin": {
+          "type": "string",
+          "required": false
+        }
+      },
+      "keywords": [
+        "open",
+        "start",
+        "form",
+        "return"
+      ]
+    },
+    {
+      "name": "form.fields",
+      "kind": "invoke",
+      "description": "List the open form's boxes.",
+      "effects": [
+        "read"
+      ],
+      "idempotent": true,
+      "verified": true,
+      "required": [],
+      "args": {},
+      "keywords": [
+        "fields",
+        "boxes"
+      ]
+    },
+    {
+      "name": "form.fill",
+      "kind": "invoke",
+      "description": "Fill boxes on the open form.",
+      "effects": [
+        "write"
+      ],
+      "idempotent": true,
+      "verified": true,
+      "required": [
+        "fields"
+      ],
+      "args": {
+        "fields": {
+          "type": "object",
+          "required": true
+        },
+        "source": {
+          "type": "string",
+          "required": false
+        }
+      },
+      "keywords": [
+        "fill",
+        "enter",
+        "form"
+      ]
+    },
+    {
+      "name": "form.needs_you",
+      "kind": "invoke",
+      "description": "What the open form still needs from the user.",
+      "effects": [
+        "read"
+      ],
+      "idempotent": true,
+      "verified": true,
+      "required": [],
+      "args": {},
+      "keywords": []
+    },
+    {
+      "name": "form.validate",
+      "kind": "invoke",
+      "description": "Validate the open form.",
+      "effects": [
+        "read"
+      ],
+      "idempotent": true,
+      "verified": true,
+      "required": [],
+      "args": {},
+      "keywords": [
+        "validate",
+        "check"
+      ]
+    },
+    {
+      "name": "form.context",
+      "kind": "invoke",
+      "description": "Profile and period context of the open form.",
+      "effects": [
+        "read"
+      ],
+      "idempotent": true,
+      "verified": true,
+      "required": [],
+      "args": {},
+      "keywords": []
+    },
+    {
+      "name": "form.save_draft",
+      "kind": "invoke",
+      "description": "Save the open form as a draft.",
+      "effects": [
+        "write"
+      ],
+      "idempotent": true,
+      "verified": true,
+      "required": [],
+      "args": {},
+      "keywords": [
+        "save",
+        "draft"
+      ]
+    },
+    {
+      "name": "form.dismiss",
+      "kind": "invoke",
+      "description": "Close the open form without saving.",
+      "effects": [
+        "write"
+      ],
+      "idempotent": true,
+      "verified": true,
+      "required": [],
+      "args": {},
+      "keywords": [
+        "close",
+        "dismiss"
+      ]
+    }
+  ]
+}

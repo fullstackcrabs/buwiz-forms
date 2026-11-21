@@ -82,7 +82,7 @@ pub fn format_request_log_line(
 fn op_kind(op: &Op) -> &'static str {
     match op {
         Op::Hello => "hello",
-        Op::Snapshot => "snapshot",
+        Op::Snapshot { .. } => "snapshot",
         Op::Click { .. } => "click",
         Op::Type { .. } => "type",
         Op::SetValue { .. } => "set_value",
@@ -95,6 +95,13 @@ fn op_kind(op: &Op) -> &'static str {
         Op::Assert { .. } => "assert",
         Op::Keybinding { .. } => "keybinding",
         Op::Keybindings => "keybindings",
+        Op::Revision => "revision",
+        Op::Events { .. } => "events",
+        Op::Blob { .. } => "blob",
+        Op::Press { .. } => "press",
+        Op::Scroll { .. } => "scroll",
+        Op::Hover { .. } => "hover",
+        _ => "other",
     }
 }
 
@@ -174,6 +181,7 @@ mod tests {
             &Op::SetValue {
                 target: "profile-tin".into(),
                 value: "00000000000002".into(),
+                expect_fingerprint: None,
             },
             true,
             None,
@@ -193,6 +201,7 @@ mod tests {
                 target: "profile-name".into(),
                 text: "Juan Dela Cruz".into(),
                 delivery: Default::default(),
+                expect_fingerprint: None,
             },
             true,
             None,
@@ -208,6 +217,7 @@ mod tests {
                 mode: Default::default(),
                 target: None,
                 max_height_px: None,
+                inline: false,
             },
             false,
             Some("screenshot_unavailable"),
