@@ -51,7 +51,7 @@ must not be used for remote binds.
 
 The session (every `invoke`), the UI-command queue, the opt-in rules, the batch drain and the headless daemon with its CLI are UI-free and
 live in `crates/bir-app-api/src/agent/` (cargo features `agent`, and `headless` for the daemon): one copy, used by the gpui shell, by
-`bir-headless` and by the NSH app. `bir-shell` keeps only the gpui glue (`src/agent/mod.rs`: the drain timer, 1 ms while a request arrived in the last 500 ms and 32 ms when idle, and the semantic tree of the
+`bir-headless` and by the NSH app. `bir-shell` keeps only the gpui glue (`src/agent/mod.rs`: the drain timer, which waits `bir_app_api::agent::drain_interval`: 1 ms while a request arrived in the last 500 ms and 32 ms when idle, and the semantic tree of the
 script view). Their tests run with `cargo test -p bir-app-api --features headless --lib agent::` (the four safety variables).
 
 ## NSH app

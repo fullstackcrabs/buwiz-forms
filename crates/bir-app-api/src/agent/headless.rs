@@ -599,11 +599,7 @@ mod tests {
 /// answered one at a time, in arrival order, on the one thread that owns the
 /// database, so the system model is unaffected.
 fn drain_interval(since_last_request: Option<Duration>) -> Duration {
-    const BUSY_WINDOW: Duration = Duration::from_millis(500);
-    match since_last_request {
-        Some(elapsed) if elapsed < BUSY_WINDOW => Duration::from_millis(1),
-        _ => Duration::from_millis(50),
-    }
+    super::drain_interval(since_last_request, Duration::from_millis(50))
 }
 
 #[cfg(test)]

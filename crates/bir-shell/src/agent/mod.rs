@@ -52,9 +52,12 @@ pub(crate) fn start(window: &mut Window, cx: &mut App, root: Entity<ShellRoot>) 
                     shutdown.store(true, Ordering::SeqCst);
                     break;
                 }
-                let busy = last_request.is_some_and(|at| at.elapsed() < Duration::from_millis(500));
+                let wait = bir_app_api::agent::drain_interval(
+                    last_request.map(|at| at.elapsed()),
+                    Duration::from_millis(32),
+                );
                 cx.background_executor()
-                    .timer(Duration::from_millis(if busy { 1 } else { 32 }))
+                    .timer(wait)
                     .await;
             }
         })
