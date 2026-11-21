@@ -65,7 +65,11 @@ def main():
     if a.mode == "recipe":
         shots = ["--screenshot-dir", a.screenshot_dir, "--screenshot-flagged"] if a.screenshot_dir else []
         ms, out = run(base + ["recipe", "run", a.recipe] + extra + shots)
-        receipt = json.loads(out.stdout)
+        # A run that never reached the host (no token, nothing listening) prints no receipt, only the error.
+        try:
+            receipt = json.loads(out.stdout)
+        except json.JSONDecodeError:
+            receipt = {}
         row["step_ms"] = {s["id"]: s.get("elapsed_ms") for s in receipt.get("steps", [])}
         row["host_ms"] = receipt.get("elapsed_ms")
         if out.returncode != 0:
@@ -73,7 +77,8 @@ def main():
     else:
         ms, row["step_ms"] = 0.0, {}
         for step in plan["steps"]:
-            one, out = run(base + cli_args(step["op"]))
+            # `recipe run` sends an action without a read-back, so the single calls skip theirs too.
+            one, out = run(base + ["--no-read-back"] + cli_args(step["op"]))
             ms += one
             row["step_ms"][step["id"]] = round(one)
             if out.returncode != 0:
