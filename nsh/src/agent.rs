@@ -360,6 +360,20 @@ mod live {
     pub(super) fn drain() -> bool {
         RUNNING.with(|slot| slot.borrow().as_ref().is_some_and(Listener::drain))
     }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn a_taken_address_gives_another_loopback_port_and_a_remote_one_is_refused() {
+            let held = std::net::TcpListener::bind("127.0.0.1:0").expect("a loopback port");
+            let taken = held.local_addr().expect("its address");
+            let chosen = Listener::choose(taken).expect("loopback is accepted");
+            assert_eq!((chosen.ip(), chosen.port()), (taken.ip(), 0), "the system picks a free port");
+            assert!(Listener::choose("192.0.2.1:17421".parse().expect("an address")).is_err());
+        }
+    }
 }
 
 #[cfg(test)]

@@ -1093,6 +1093,9 @@ nsh-run db=env_var_or_default("BIR_DATABASE_PATH", "") *args="": (_nsh-db-guard 
 # tree, press, type, screenshot) on GPUI_AGENT_ADDR, and the app's data plane (app.info, profile.*, form.*) on the port it reports.
 # target is macos, linux, windows, ios (Simulator) or android (emulator; then `adb forward tcp:<port> tcp:<port>`).
 # GPUI_AGENT_TOKEN must be set by the caller (never printed). Dry-run dev mode as nsh-run: nothing is sent anywhere.
+# Unix hosts only (bash, and the database guard is [unix]): on Windows set the same variables in PowerShell and run `nsh run`
+# with $env:CARGO naming a wrapper that does what nsh/agent/cargo-with-agent.sh does.
+[unix]
 nsh-run-agent target db=env_var_or_default("BIR_DATABASE_PATH", "") *args="": (_nsh-db-guard db)
     #!/usr/bin/env bash
     set -euo pipefail
