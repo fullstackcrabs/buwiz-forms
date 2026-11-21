@@ -70,7 +70,6 @@
       "name": "form.fill",
       "args": {
         "fields": {
-          "frm1701q:AmendedRtn": "N",
           "frm1701q:txtSheets": "$sheets",
           "frm1701q:optType": "$filer_type",
           "frm1701q:optATC": "$atc",
