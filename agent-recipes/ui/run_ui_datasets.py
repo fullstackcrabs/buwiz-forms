@@ -31,6 +31,11 @@ def shown(amount):
     return f"{float(amount):,.2f}"
 
 
+def shown_tin(tin):
+    """A 14 digit TIN as the app shows it: 123-456-788-00000."""
+    return "-".join((tin[0:3], tin[3:6], tin[6:9], tin[9:]))
+
+
 class Agent:
     def __init__(self, cli, addr):
         self.base = [cli, "--addr", addr]
@@ -193,6 +198,9 @@ def main():
             fill, pill = agent.variant(fill), agent.variant(pill)
             for name in (agent.variant("ui-new-1701q.wants"), fill, pill):
                 if name == fill:
+                    # The dialog starts a return for the taxpayer the app has selected: it must be the data set's.
+                    if not agent.find(lambda n: shown_tin(row["tin"]) in (n.get("value") or "", n.get("name") or "")):
+                        raise RuntimeError(f"the Start a return dialog is not for {shown_tin(row['tin'])}: select that taxpayer first")
                     agent.pick("new-return-period-trigger", f"Q{row['period']} {row['year']}")
                 receipt = agent.recipe(name, params, None if a.no_screenshots else os.path.join(out, str(len(parts) + 1) + '-' + name[3:].split('.')[0]))
                 json.dump(receipt, open(os.path.join(out, os.path.splitext(name)[0] + ".json"), "w"), indent=1)
