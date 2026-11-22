@@ -20,6 +20,7 @@
 pub mod carry;
 pub mod draft_locks;
 pub mod probe;
+pub mod recipe;
 
 pub use draft_locks::{draft_locks, live_locks};
 
