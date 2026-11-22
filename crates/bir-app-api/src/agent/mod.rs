@@ -283,6 +283,7 @@ pub fn tree_from_debug(debug: Option<&str>) -> UiTree {
         platform: PlatformKind::Desktop,
         ready: true,
         nodes: vec![UiNode::window("window", "eBIRForms").with_children(children)],
+        rev: None,
     }
 }
 

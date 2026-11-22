@@ -489,8 +489,12 @@ fn serve(wait: bool) -> Result<(), ExitCode> {
              No Op::Yield. launchd KeepAlive is optional."
         );
 
+        // Poll fast while a client is sending steps back to back (a recipe
+        // run), and fall back to the idle interval once it goes quiet.
+        let mut last_request = None::<std::time::Instant>;
         while !shutdown.load(std::sync::atomic::Ordering::SeqCst) {
             for posted in mailbox.take() {
+                last_request = Some(std::time::Instant::now());
                 let req = posted.request.clone();
                 let mut guard = host.lock().expect("host");
                 let resp = request_log::handle_request_logged(&mut *guard, req, None, None);
@@ -505,7 +509,7 @@ fn serve(wait: bool) -> Result<(), ExitCode> {
             if host.lock().expect("host").should_quit() {
                 break;
             }
-            thread::sleep(Duration::from_millis(50));
+            thread::sleep(drain_interval(last_request.map(|at| at.elapsed())));
         }
         if let Ok(guard) = db.lock()
             && let Err(error) = guard.checkpoint()
@@ -585,5 +589,50 @@ mod tests {
         assert!(Cli::try_parse_from(["bir-headless", "--wait"]).is_ok());
         assert!(Cli::try_parse_from(["bir-headless", "serve", "--detach"]).is_ok());
         assert!(Cli::try_parse_from(["bir-headless", "logs", "--tail", "20"]).is_ok());
+    }
+}
+
+/// How long the serve loop sleeps between mailbox drains, given the time
+/// since the last request (`None` before the first one).
+///
+/// Only the wait between drains changes: requests are still taken and
+/// answered one at a time, in arrival order, on the one thread that owns the
+/// database, so the system model is unaffected.
+fn drain_interval(since_last_request: Option<Duration>) -> Duration {
+    const BUSY_WINDOW: Duration = Duration::from_millis(500);
+    match since_last_request {
+        Some(elapsed) if elapsed < BUSY_WINDOW => Duration::from_millis(1),
+        _ => Duration::from_millis(50),
+    }
+}
+
+#[cfg(test)]
+mod drain_interval_tests {
+    use super::drain_interval;
+    use std::time::Duration;
+
+    #[test]
+    fn idle_until_first_request() {
+        assert_eq!(drain_interval(None), Duration::from_millis(50));
+    }
+
+    #[test]
+    fn fast_while_busy_then_back_to_idle() {
+        assert_eq!(
+            drain_interval(Some(Duration::ZERO)),
+            Duration::from_millis(1)
+        );
+        assert_eq!(
+            drain_interval(Some(Duration::from_millis(499))),
+            Duration::from_millis(1)
+        );
+        assert_eq!(
+            drain_interval(Some(Duration::from_millis(500))),
+            Duration::from_millis(50)
+        );
+        assert_eq!(
+            drain_interval(Some(Duration::from_secs(60))),
+            Duration::from_millis(50)
+        );
     }
 }

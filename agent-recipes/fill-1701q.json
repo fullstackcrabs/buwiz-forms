@@ -1,0 +1,99 @@
+{
+  "v": 1,
+  "name": "bir-fill-1701q",
+  "app": "bir-shell",
+  "params": [
+    "tin",
+    "year",
+    "period",
+    "sheets"
+  ],
+  "steps": [
+    {
+      "id": "select",
+      "op": "invoke",
+      "name": "profile.set",
+      "args": {
+        "tin": "$tin"
+      }
+    },
+    {
+      "id": "open",
+      "op": "invoke",
+      "name": "form.open",
+      "args": {
+        "code": "1701Q",
+        "year": "$year",
+        "period": "$period",
+        "tin": "$tin"
+      },
+      "needs": [
+        "select"
+      ]
+    },
+    {
+      "id": "fields",
+      "op": "invoke",
+      "name": "form.fields",
+      "needs": [
+        "open"
+      ]
+    },
+    {
+      "id": "context",
+      "op": "invoke",
+      "name": "form.context",
+      "needs": [
+        "open"
+      ]
+    },
+    {
+      "id": "fill",
+      "op": "invoke",
+      "name": "form.fill",
+      "args": {
+        "fields": {
+          "frm1701q:txtSheets": "$sheets"
+        },
+        "source": "ai"
+      },
+      "needs": [
+        "fields",
+        "context"
+      ]
+    },
+    {
+      "id": "validate",
+      "op": "invoke",
+      "name": "form.validate",
+      "needs": [
+        "fill"
+      ]
+    },
+    {
+      "id": "needs",
+      "op": "invoke",
+      "name": "form.needs_you",
+      "needs": [
+        "fill"
+      ]
+    },
+    {
+      "id": "save",
+      "op": "invoke",
+      "name": "form.save_draft",
+      "needs": [
+        "validate",
+        "needs"
+      ]
+    },
+    {
+      "id": "close",
+      "op": "invoke",
+      "name": "form.dismiss",
+      "needs": [
+        "save"
+      ]
+    }
+  ]
+}
