@@ -1023,8 +1023,8 @@ nsh-test *args="":
     fi
     echo "nsh-test: every test file passed (nsh/verify left out)"
 
-# Windows: as the Unix recipe and CI's Windows job (.github/workflows/nsh.yml): with arguments, exactly `nsh test <arguments>`; with none,
-# the Rust tests once, then every tracked *.test.ts and *.test.tsx outside nsh/verify, one headless run per file.
+# Windows: as the Unix recipe and CI's Windows job (.github/workflows/nsh.yml): with a path in the arguments, exactly `nsh test <arguments>`;
+# with none, the Rust tests once (those a --filter names), then every tracked *.test.ts and *.test.tsx outside nsh/verify, one headless run per file.
 [windows]
 nsh-test *args="":
     #!pwsh -NoProfile
@@ -1035,15 +1035,27 @@ nsh-test *args="":
     Remove-Item Env:BIR_SFTP_LIVE -ErrorAction SilentlyContinue
     Remove-Item Env:BIR_DATABASE_PATH -ErrorAction SilentlyContinue
     Set-Location nsh
-    $given = "{{args}}"
-    if ($given.Trim()) { nsh test {{args}}; exit $LASTEXITCODE }
+    $given = @'
+    {{args}}
+    '@
+    $hasPath = $false; $skip = $false; $filter = @()
+    $words = @($given -split '\s+' | Where-Object { $_ })
+    for ($i = 0; $i -lt $words.Count; $i++) {
+        $word = $words[$i]
+        if ($skip) { $skip = $false; continue }
+        if ($word -eq '--filter') { $skip = $true; if ($i + 1 -lt $words.Count) { $filter = @($words[$i + 1].Trim('"', "'")) } }
+        elseif ($word -like '--filter=*') { $filter = @($word.Substring(9).Trim('"', "'")) }
+        elseif ($word -in '--junit', '--target', '--browser', '--web-host', '--display') { $skip = $true }
+        elseif ($word -notlike '-*') { $hasPath = $true }
+    }
+    if ($hasPath) { nsh test {{args}}; exit $LASTEXITCODE }
     $failed = @()
-    cargo test --manifest-path Cargo.toml --no-fail-fast
+    cargo test --manifest-path Cargo.toml --no-fail-fast @filter
     if ($LASTEXITCODE -ne 0) { $failed += 'rust crate' }
     [string[]]$files = git ls-files -- '*.test.ts' '*.test.tsx' | Where-Object { $_ -notlike 'verify/*' }
     [Array]::Sort($files, [StringComparer]::Ordinal)
     foreach ($file in $files) {
-        nsh test "./$file"
+        nsh test "./$file" {{args}}
         if ($LASTEXITCODE -ne 0) { $failed += $file }
     }
     if ($failed.Count -gt 0) {
@@ -1132,10 +1144,10 @@ _nsh-db-guard db:
 # in a test environment.
 [private]
 [windows]
-_nsh-db-guard db:
+_nsh-db-guard $db:
     #!pwsh -NoProfile
     $ErrorActionPreference = 'Stop'
-    $db = {{quote(db)}}
+    $db = $env:db
     if (-not $db) { exit 0 }
     $script = @'
     import ctypes
@@ -1249,7 +1261,7 @@ nsh-run-agent target db=env_var_or_default("BIR_DATABASE_PATH", "") *args="": (_
 # Windows: the same in PowerShell (target windows, or android with the emulator and adb on this machine). $CARGO is
 # nsh/agent/cargo-with-agent.cmd, the counterpart of cargo-with-agent.sh.
 [windows]
-nsh-run-agent target db=env_var_or_default("BIR_DATABASE_PATH", "") *args="": (_nsh-db-guard db)
+nsh-run-agent target $db=env_var_or_default("BIR_DATABASE_PATH", "") *args="": (_nsh-db-guard db)
     #!pwsh -NoProfile
     $ErrorActionPreference = 'Stop'
     $env:PATH = "$HOME\BuwizNsh\tools\bin;$env:PATH"
@@ -1260,8 +1272,10 @@ nsh-run-agent target db=env_var_or_default("BIR_DATABASE_PATH", "") *args="": (_
     Remove-Item Env:BIR_SFTP_LIVE -ErrorAction SilentlyContinue
     $env:GPUI_AGENT = '1'
     if (-not $env:GPUI_AGENT_ADDR) { $env:GPUI_AGENT_ADDR = '127.0.0.1:17421' }
-    $db = {{quote(db)}}
-    if ($db) { $env:BIR_DATABASE_PATH = $db } else { Remove-Item Env:BIR_DATABASE_PATH -ErrorAction SilentlyContinue }
+    # The parameter arrives as an environment variable (PowerShell cannot read just's quoting of an apostrophe); a relative
+    # path is the one the guard checked, from here, not from nsh/.
+    $db = $env:db
+    if ($db) { $env:BIR_DATABASE_PATH = [IO.Path]::GetFullPath($db, $root) } else { Remove-Item Env:BIR_DATABASE_PATH -ErrorAction SilentlyContinue }
     $env:CARGO = "$root\nsh\agent\cargo-with-agent.cmd"
     Set-Location nsh
     nsh run --target {{target}} {{args}}
