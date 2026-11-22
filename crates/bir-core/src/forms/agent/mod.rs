@@ -1448,11 +1448,19 @@ fn fill_box(
     write_bound_box(kind, def, draft, key, value)
 }
 
-/// Why [`fill`] refuses `key` on any draft, or `None` when it may write it:
-/// the same gate, so host-written boxes, aliases and group locks count.
+/// Why [`fill`] refuses `key` on a new return, or `None` when it may write
+/// it: the same gate, so host-written boxes, aliases and group locks count,
+/// and the computed penalty boxes, locked until Edit opens them in the app.
 pub fn fill_refusal(kind: AgentFormKind, key: &str) -> Option<String> {
     let def = kind.definition();
-    gate(def, key, None).map(|verdict| verdict.fill_reason(def, key))
+    gate(def, key, None)
+        .map(|verdict| verdict.fill_reason(def, key))
+        .or_else(|| {
+            draft_locks::penalties::computed_groups(kind)
+                .iter()
+                .any(|group| group.keys.iter().any(|k| k == key))
+                .then(|| format!("`{key}` is {}", draft_locks::penalties::LOCK))
+        })
 }
 
 /// The page's draft-dependent lock on `key` ([`draft_locks::draft_lock`]

@@ -162,10 +162,16 @@ gpui_agent_rev() {
     sed -n 's/.*gpui-agent?rev=\([0-9a-fA-F]\{7,64\}\)#.*/\1/p' Cargo.lock 2>/dev/null | head -1
 }
 
+gpui_agent_repo() {
+    # The repository that source line names: the pinned rev lives there.
+    sed -n 's/.*"git+\(https:[^?"]*gpui-agent\)?rev=.*/\1/p' Cargo.lock 2>/dev/null | head -1
+}
+
 install_gpui_agent() {
-    local rev
+    local rev repo
     rev="$(gpui_agent_rev)"
-    if [ -z "$rev" ]; then
+    repo="$(gpui_agent_repo)"
+    if [ -z "$rev" ] || [ -z "$repo" ]; then
         warn "could not read gpui-agent rev from Cargo.lock — run from the repo root"
         return 0
     fi
@@ -178,7 +184,7 @@ install_gpui_agent() {
         fi
     fi
     log "Installing gpui-agent CLI at pinned rev ${rev:0:7}"
-    cargo install --git https://github.com/hexuria/gpui-agent --rev "$rev" gpui-agent-cli
+    cargo install --git "$repo" --rev "$rev" gpui-agent-cli
 }
 
 # ---------------------------------------------------------------------------
