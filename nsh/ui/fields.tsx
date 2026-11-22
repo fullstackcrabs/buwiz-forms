@@ -10,7 +10,7 @@ import { AppButton } from "./buttons";
 import type { IconName } from "./icons";
 import { cx, TOUCH } from "./look";
 import {
-  DATE_ERROR, digitsOnly, formatIso, formatLongDate, formatMDY, formatMoney, formatTinDigits, intMask, type Mask, moneyMask, moneyPlain,
+  DATE_ERROR, digitsOnly, editBase, formatIso, formatLongDate, formatMDY, formatMoney, formatTinDigits, intMask, type Mask, moneyMask, moneyPlain,
   isZeroAmount, parseTypedDate, PERCENT_MASK, reconcile, sameAmount, shownMoney, TIN_LENGTH, TIN_MASK, type TextSelection,
 } from "./mask";
 import { Chip } from "./status";
@@ -212,14 +212,6 @@ const CLICK_MS = 500;
  * selected so the first digit replaces it (typing at the caret of "0.00" gave "1,000.00" for 100); a box focused by its own
  * focus() (the form's step, which NSH gives a caret at the end) is selected whole.
  */
-/** `next` is `prev` with the selection `from` replaced by what was typed (nothing else differs). */
-function editFits(prev: string, next: string, from: TextSelection): boolean {
-  const a = Math.min(from.start, from.end);
-  const b = Math.max(from.start, from.end);
-  const grew = next.length - (prev.length - (b - a));
-  return a >= 0 && b <= prev.length && grew >= 0 && next.slice(0, a) === prev.slice(0, a) && next.slice(a + grew) === prev.slice(b);
-}
-
 function MaskedField(props: MaskedProps) {
   let input: InputRef | undefined;
   const focused = signal(false);
@@ -280,16 +272,7 @@ function MaskedField(props: MaskedProps) {
     const typed = editTyped;
     editFrom = undefined;
     editTyped = false;
-    // What the edit was made on, and from where: the text shown, or the box's own when the selection fits only that; a
-    // selection that fits neither (the caret an answer moved is not reported) leaves what was added at the end.
-    let on = prev;
-    let at = from;
-    const end = (t: string) => ({ start: t.length, end: t.length });
-    if (boxText !== undefined && boxText !== prev && !(from && editFits(prev, raw, from))) {
-      if (from && editFits(boxText, raw, from)) on = boxText;
-      else if (raw.length > prev.length && raw.startsWith(prev)) at = end(prev);
-      else if (raw.length > boxText.length && raw.startsWith(boxText)) [on, at] = [boxText, end(boxText)];
-    }
+    const [on, at] = editBase(prev, boxText, raw, from);
     const next = reconcile(on, raw, props.mask, undefined, at, typed);
     // An edit that changes nothing is taken back: what the box holds after it is the text shown.
     boxText = next.rejected || next.text === prev ? next.text : raw;
