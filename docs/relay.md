@@ -88,6 +88,17 @@ its entries override baked defaults per key; omitted keys retain their baked
 values. Both sources must validate before any configuration is applied.
 A missing file is fine: the baked defaults still apply.
 
+Neither source accepts a secret. `GPUI_AGENT_TOKEN` in particular is refused in
+`BUWIZ_ANDROID_DEV_ENV` and in `dev.env` (startup fails, as for any unknown
+key): a baked value can be read out of the built library by anyone given the
+build. `just nsh-run-agent android` bakes only the switches
+(`GPUI_AGENT=1`, `GPUI_AGENT_ADDR`, the dry-run settings) and hands the token
+over at run time: once the development host is installed it writes
+`files/nsh/dev.goldcoders.bir.nsh/agent-token` with `adb shell run-as`, the
+token on standard input (not in any process's arguments, not an intent extra).
+The app's data plane waits up to 10 s for that file when `GPUI_AGENT=1`, reads
+it once and deletes it; without it the listener is refused.
+
 Android installs these values in bir-core's process-wide configuration store
 before the door starts its database or workers; it does not modify the process
 environment. Core, account-gate and transport readers consult that store before
@@ -135,7 +146,8 @@ dismisses an unsubmitted preview as documented in the migration lifecycle model.
 
 Only these keys are accepted:
 `EBIR_TEST_ENV`, `BIR_AUTH_BYPASS`, `BUWIZ_NO_KEYCHAIN`, `BIR_SFTP_DRY_RUN`,
-`BIR_RELAY_URL`. The format is literal `KEY=VALUE`, with surrounding whitespace
+`BIR_RELAY_URL`, and the agent data plane's `GPUI_AGENT` and `GPUI_AGENT_ADDR`
+(never its token, see above). The format is literal `KEY=VALUE`, with surrounding whitespace
 trimmed; blank lines and full-line `#` comments are allowed. No `export`,
 quoting, variable expansion or inline comments. Unknown/duplicate keys,
 malformed lines, invalid UTF-8 or files over 16 KiB refuse startup. A missing
