@@ -1,0 +1,57 @@
+# ui-fill-1701q-dataset.wants for a data set that takes the optional standard deduction (deduction=O): the form then has no boxes
+# for the cost of sales (37A) and the itemized deductions (39A), so they are not typed.
+# Step 2 of a data set run (params as in ../fill-1701q-dataset.json, one per column of ../datasets/1701q.csv, plus what run_ui_datasets.py derives:
+# the two *_opt tick box indexes and the two *_shown amounts as the form formats them): opens the return the New return dialog names, checks the template's answers arrived, and
+# types the data set into the real boxes, part by part. A tick box clears when pressed while ticked, and a later quarter starts with
+# the template's answers, so each choice is made by pressing another option of its group first, then the one wanted.
+# The form scrolls with an animation and its floating pill covers the bottom rows, so the to-dos (date of birth, email, deduction method)
+# are reached with the pill's next/previous buttons, which bring each box clear of the pill before it is typed into; the last
+# boxes of Schedule I are reached with Tab, since the form scrolls a box that takes the keyboard clear of the pill.
+assert new-return-period-trigger value="Q$period $year"
+click new-return-open
+wait_until fp-frm1701q:txtSheets --timeout-ms 10000
+set_value fp-frm1701q:txtSheets $sheets
+click fp-nav-1
+wait_until fp-nav-count value="2 of 9" --timeout-ms 5000
+wait_until fp-frm1701q:txtCitizenship value=FILIPINO --timeout-ms 5000
+wait_until fp-frm1701q:optType_1 in_viewport=true --timeout-ms 5000
+assert fp-frm1701q:optForeignTaxCredits_2 checked=true
+assert fp-frm1701q:optType_2 checked=true
+click fp-frm1701q:optType_3
+click fp-frm1701q:optType_$filer_type_opt
+assert fp-frm1701q:optType_$filer_type_opt checked=true
+click fp-frm1701q:optATC_3
+click fp-frm1701q:optATC_$atc_opt
+assert fp-frm1701q:optATC_$atc_opt checked=true
+click fp-pill-next
+wait_until fp-pill-open name="All sections · 1 of 3 to do · Part I · Item 11 · Date of Birth (MM/DD/YYYY) · 3 items need attention" --timeout-ms 5000
+set_value fp-frm1701q:txtBirthMonth#date $birth_month/$birth_day/$birth_year
+click fp-pill-next
+wait_until fp-pill-open name="All sections · 1 of 2 to do · Part I · Item 12 · Email Address · 2 items need attention" --timeout-ms 5000
+click fp-pill-next
+wait_until fp-pill-open name="All sections · 2 of 2 to do · Part I · Item 16A · Method of Deduction · 2 items need attention" --timeout-ms 5000
+assert fp-frm1701q:optTaxRate_1 checked=true
+click fp-frm1701q:optMethodOfDeduction:_2
+assert fp-frm1701q:optMethodOfDeduction:_2 checked=true
+click fp-pill-prev
+wait_until fp-pill-open name="All sections · 1 of 1 to do · Part I · Item 12 · Email Address · 1 item needs attention" --timeout-ms 5000
+set_value fp-txtEmail $email
+set_value fp-frm1701q:txtCitizenship $citizenship
+click fp-nav-4
+wait_until fp-nav-count value="5 of 9" --timeout-ms 5000
+wait_until fp-frm1701q:txt36A in_viewport=true --timeout-ms 5000
+set_value fp-frm1701q:txt36A $sales
+assert fp-frm1701q:txt36A value=$sales_shown
+set_value fp-frm1701q:txt42A $prior_income
+key fp-frm1701q:txt42A Tab
+set_value fp-frm1701q:txt43Desc $non_op_desc
+key fp-frm1701q:txt43Desc Tab
+set_value fp-frm1701q:txt43A $non_op_income
+click fp-nav-6
+wait_until fp-nav-count value="7 of 9" --timeout-ms 5000
+wait_until fp-frm1701q:txt55A in_viewport=true --timeout-ms 5000
+set_value fp-frm1701q:txt55A $prior_credits
+set_value fp-frm1701q:txt56A $prior_payments
+set_value fp-frm1701q:txt58A $withheld_2307
+assert fp-frm1701q:txt58A value=$withheld_shown
+wait_until fp-save-state value="✓ Saved" --timeout-ms 10000

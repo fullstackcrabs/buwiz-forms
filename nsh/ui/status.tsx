@@ -121,7 +121,7 @@ const CHIP: Record<ChipTone, { bg: string; ink: Tone }> = {
 export function Chip(props: { label: string; tone?: ChipTone; icon?: IconName; testID?: string }) {
   const tone = () => CHIP[props.tone ?? "neutral"];
   return (
-    <View testID={props.testID} class={cx("h-5 shrink-0 flex-row items-center gap-1 rounded-full px-2", tone().bg)}>
+    <View testID={props.testID} accessibilityLabel={props.testID ? props.label : undefined} class={cx("h-5 shrink-0 flex-row items-center gap-1 rounded-full px-2", tone().bg)}>
       <If when={props.icon}>
         <Icon name={props.icon as IconName} size={12} tone={tone().ink} />
       </If>

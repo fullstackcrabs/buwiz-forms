@@ -32,8 +32,8 @@ use std::time::Duration;
 use gpui_agent::discovery::{self, PublishedHost};
 use gpui_agent::mailbox::{AgentMailbox, MailboxRequest};
 use gpui_agent::protocol::PlatformKind;
-use gpui_agent::security::from_env;
-use gpui_agent::server::spawn_mailbox_named;
+use gpui_agent::security::{AgentConfig, SecurityError, authorize_bind, from_env};
+use gpui_agent::server::{default_addr, spawn_mailbox_named};
 use gpui_agent::tree::{UiNode, UiTree, role};
 use gpui_agent::{authorize_request, handle_request, virtual_unavailable};
 use serde_json::Value;
@@ -81,7 +81,44 @@ pub fn maybe_start() -> Option<Started> {
 pub fn try_start_with(
     choose: impl FnOnce(std::net::SocketAddr) -> Result<std::net::SocketAddr, String>,
 ) -> Result<Option<Started>, String> {
-    let config = match from_env() {
+    try_start_with_token(None, choose)
+}
+
+/// The listener's configuration when the environment opted in without a token: the host's `token` stands in for it,
+/// on the address `GPUI_AGENT_ADDR` names (`requested`) or the default. Every other answer of the environment stays.
+fn with_fallback_token(
+    from_environment: Result<Option<AgentConfig>, SecurityError>,
+    requested: Option<String>,
+    token: Option<String>,
+) -> Result<Option<AgentConfig>, SecurityError> {
+    match (from_environment, token.filter(|token| !token.is_empty())) {
+        (Err(SecurityError::LoopbackRequiresToken), Some(token)) => requested
+            .map_or_else(
+                || Ok(default_addr()),
+                |raw| raw.parse().map_err(|_| SecurityError::BadAddr(raw)),
+            )
+            .and_then(|addr| authorize_bind(addr, Some(&token), false))
+            .map(|addr| {
+                Some(AgentConfig {
+                    addr,
+                    token: Some(token),
+                })
+            }),
+        (other, _) => other,
+    }
+}
+
+/// [`try_start_with`] for a host whose launcher keeps `GPUI_AGENT_TOKEN` out of the process environment (NSH's
+/// phone hosts get the window plane's token as a private file that the window plane reads and deletes): when the
+/// environment opts in (`GPUI_AGENT=1`) but carries no token, `token` is the one this listener checks. A token in
+/// the environment wins, and every other rule of the environment (the release gate, the address) still applies.
+pub fn try_start_with_token(
+    token: Option<String>,
+    choose: impl FnOnce(std::net::SocketAddr) -> Result<std::net::SocketAddr, String>,
+) -> Result<Option<Started>, String> {
+    let from_environment =
+        with_fallback_token(from_env(), std::env::var("GPUI_AGENT_ADDR").ok(), token);
+    let config = match from_environment {
         Ok(Some(config)) => config,
         Ok(None) => {
             tracing::info!("gpui-agent control plane off (set GPUI_AGENT=1 to opt in)");
@@ -448,6 +485,60 @@ mod tests {
             || panic!("no tree"),
             || panic!("the gate is asked only when a batch waits"),
         ));
+    }
+
+    #[test]
+    fn a_host_token_stands_in_only_when_the_environment_opted_in_without_one() {
+        let missing = || Err(SecurityError::LoopbackRequiresToken);
+        let given = with_fallback_token(
+            missing(),
+            Some("127.0.0.1:17441".into()),
+            Some("secret".into()),
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!(given.addr, "127.0.0.1:17441".parse().unwrap());
+        assert_eq!(given.token.as_deref(), Some("secret"));
+        let default = with_fallback_token(missing(), None, Some("secret".into()))
+            .unwrap()
+            .unwrap();
+        assert_eq!(default.addr, default_addr());
+        // No token, or an empty one, is still the environment's refusal.
+        assert!(matches!(
+            with_fallback_token(missing(), None, None),
+            Err(SecurityError::LoopbackRequiresToken)
+        ));
+        assert!(matches!(
+            with_fallback_token(missing(), None, Some(String::new())),
+            Err(SecurityError::LoopbackRequiresToken)
+        ));
+        // Off stays off, a bad address is refused, and a remote address is not opened by the host's token.
+        assert!(
+            with_fallback_token(Ok(None), None, Some("secret".into()))
+                .unwrap()
+                .is_none()
+        );
+        assert!(matches!(
+            with_fallback_token(missing(), Some("nowhere".into()), Some("secret".into())),
+            Err(SecurityError::BadAddr(_))
+        ));
+        assert!(
+            with_fallback_token(
+                missing(),
+                Some("0.0.0.0:17441".into()),
+                Some("secret".into())
+            )
+            .is_err()
+        );
+        // The environment's own configuration wins over the host's token.
+        let own = AgentConfig {
+            addr: default_addr(),
+            token: Some("env".into()),
+        };
+        let kept = with_fallback_token(Ok(Some(own)), None, Some("secret".into()))
+            .unwrap()
+            .unwrap();
+        assert_eq!(kept.token.as_deref(), Some("env"));
     }
 
     #[test]

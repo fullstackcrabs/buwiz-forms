@@ -1119,6 +1119,14 @@ nsh-run-agent target db=env_var_or_default("BIR_DATABASE_PATH", "") *args="": (_
         export BUWIZ_ANDROID_DEV_ENV="EBIR_TEST_ENV=1;BIR_AUTH_BYPASS=1;BUWIZ_NO_KEYCHAIN=1;BIR_SFTP_DRY_RUN=1;GPUI_AGENT=1;GPUI_AGENT_ADDR=127.0.0.1:$((port + 1));GPUI_AGENT_TOKEN=$GPUI_AGENT_TOKEN"
         echo "nsh-run-agent: window plane on 127.0.0.1:$port, data plane on 127.0.0.1:$((port + 1)); run: adb forward tcp:$port tcp:$port && adb forward tcp:$((port + 1)) tcp:$((port + 1))"
     fi
+    if [ "{{target}}" = ios ]; then
+        # simctl gives the app only SIMCTL_CHILD_* variables, and nsh keeps GPUI_AGENT_TOKEN out of them (its window plane reads a
+        # private file): the dry-run switches and the database go by name, the data plane's token as BIR_AGENT_TOKEN (src/agent.rs).
+        unset SIMCTL_CHILD_BIR_SFTP_LIVE SIMCTL_CHILD_BIR_DATABASE_PATH
+        export SIMCTL_CHILD_BUWIZ_NO_KEYCHAIN=1 SIMCTL_CHILD_EBIR_TEST_ENV=1 SIMCTL_CHILD_BIR_AUTH_BYPASS=1 SIMCTL_CHILD_BIR_SFTP_DRY_RUN=1
+        export SIMCTL_CHILD_BIR_AGENT_TOKEN="$GPUI_AGENT_TOKEN"
+        if [ -n "{{db}}" ]; then export SIMCTL_CHILD_BIR_DATABASE_PATH="{{db}}"; fi
+    fi
     cd nsh
     CARGO="$root/nsh/agent/cargo-with-agent.sh" exec nsh run --target {{target}} {{args}}
 

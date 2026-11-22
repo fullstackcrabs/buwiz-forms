@@ -1,0 +1,48 @@
+# Once per taxpayer, before ui-fill-1701q-dataset.wants. The taxpayer must already have a tax year that files 1701Q (the Templates tab
+# lists only those forms; run_ui_datasets.py adds the years). Saves a Form library sample as the $year Q$quarter return, answers what
+# the template carries to every quarter (filer type, citizenship, foreign tax credits, EOPT tier), and makes the taxpayer's 1701Q
+# template from it. The ATC, date of birth, email and deduction method stay to-dos of each new return: the data set fills them.
+# Citizenship sits low in Part I, so the pill's Next goes to the email above it and Tab walks the keyboard down: the form scrolls a focused box clear of its pill.
+# After a part is picked the recipe waits for the count beside the part list and for the box to be in view: the page scrolls there
+# with an animation, and a press sent while it moves can land on the sticky part header.
+# Use a year and quarter (1 to 3) no data set fills. $citizenship is given in capitals, as the form keeps it.
+click nav-library
+wait_until library-scope-all --timeout-ms 5000
+click library-scope-all
+wait_until library-1701Q --timeout-ms 5000
+click library-1701Q
+wait_until fp-save --timeout-ms 10000
+click fp-save
+wait_until sample-period-year --timeout-ms 5000
+set_value sample-period-year $year
+click sample-period-q$quarter
+click sample-period-save
+wait_until fp-save-state value="✓ Saved" --timeout-ms 10000
+click fp-nav-1
+wait_until fp-nav-count value="2 of 9" --timeout-ms 5000
+wait_until fp-frm1701q:optType_1 in_viewport=true --timeout-ms 5000
+click fp-frm1701q:optType_2
+click fp-frm1701q:optATC_2
+set_value fp-frm1701q:txtBirthMonth#date 01/15/1990
+click fp-pill-next
+wait_until fp-pill-open name="All sections · 1 of 3 to do · Part I · Item 12 · Email Address · 3 items need attention" --timeout-ms 5000
+key fp-txtEmail Tab
+set_value fp-frm1701q:txtCitizenship $citizenship
+key fp-frm1701q:txtCitizenship Tab
+click fp-frm1701q:optForeignTaxCredits_2
+assert fp-frm1701q:optType_2 checked=true
+assert fp-frm1701q:optForeignTaxCredits_2 checked=true
+click fp-nav-7
+wait_until fp-nav-count value="8 of 9" --timeout-ms 5000
+wait_until fp-ask-eopt_tier-0 in_viewport=true --timeout-ms 5000
+click fp-ask-eopt_tier-0
+click fp-ask-eopt_tier-save
+wait_until fp-ask-eopt_tier-save --absent --timeout-ms 5000
+click tb-panel
+wait_until panel-open-templates --timeout-ms 5000
+click panel-open-templates
+wait_until tp-template-1701Q-create --timeout-ms 5000
+click tp-template-1701Q-create
+wait_until tp-template-1701Q-update --timeout-ms 5000 --screenshot
+click tb-panel
+wait_until panel-open-templates --absent --timeout-ms 5000

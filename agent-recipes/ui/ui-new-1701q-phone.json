@@ -1,0 +1,100 @@
+{
+ "v": 1,
+ "name": "ui-new-1701q-phone",
+ "app": "bir-shell",
+ "params": [
+  "year"
+ ],
+ "steps": [
+  {
+   "id": "s1",
+   "op": "click",
+   "target": "nb-avatar"
+  },
+  {
+   "id": "s2",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "nb-menu-profile",
+   "needs": [
+    "s1"
+   ]
+  },
+  {
+   "id": "s3",
+   "op": "click",
+   "target": "nb-menu-profile",
+   "needs": [
+    "s2"
+   ]
+  },
+  {
+   "id": "s4",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "panel-open-forms",
+   "needs": [
+    "s3"
+   ]
+  },
+  {
+   "id": "s5",
+   "op": "click",
+   "target": "panel-open-forms",
+   "needs": [
+    "s4"
+   ]
+  },
+  {
+   "id": "s6",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "tp-years-$year",
+   "needs": [
+    "s5"
+   ]
+  },
+  {
+   "id": "s7",
+   "op": "click",
+   "target": "tp-years-$year",
+   "needs": [
+    "s6"
+   ]
+  },
+  {
+   "id": "s8",
+   "op": "click",
+   "target": "tp-new-return",
+   "needs": [
+    "s7"
+   ]
+  },
+  {
+   "id": "s9",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "new-return-1701Q",
+   "needs": [
+    "s8"
+   ]
+  },
+  {
+   "id": "s10",
+   "op": "click",
+   "target": "new-return-1701Q",
+   "needs": [
+    "s9"
+   ]
+  },
+  {
+   "id": "s11",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "new-return-template",
+   "needs": [
+    "s10"
+   ]
+  }
+ ]
+}

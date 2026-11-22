@@ -1,0 +1,14 @@
+# Step 1 of a data set run: New return > 1701Q for the tax year $year, stopping at the dialog's Period picker. The picker's options
+# have no stable id (NSH's Select gives its items no testID), so run_ui_datasets.py presses "Q$period $year" by its text between this
+# recipe and ui-fill-1701q-dataset.wants. The dialog must say Template: the return then starts from the saved 1701Q template.
+click tb-panel
+wait_until panel-open-forms --timeout-ms 5000
+click panel-open-forms
+wait_until tp-years-$year --timeout-ms 5000
+click tp-years-$year
+click tb-panel
+wait_until panel-open-forms --absent --timeout-ms 5000
+click sb-new
+wait_until new-return-1701Q --timeout-ms 5000
+click new-return-1701Q
+wait_until new-return-template --timeout-ms 5000
