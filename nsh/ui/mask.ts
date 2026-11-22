@@ -133,9 +133,18 @@ function editFits(prev: string, next: string, from: TextSelection): boolean {
   return a >= 0 && b <= prev.length && grew >= 0 && next.slice(0, a) === prev.slice(0, a) && next.slice(a + grew) === prev.slice(b);
 }
 
-/** `next` is `prev` with one run of characters taken out (a deletion). */
-function isCut(prev: string, next: string): boolean {
+/**
+ * `next` is `prev` after a deletion made from `from`: the selected run taken out, or the character on either side of a
+ * caret. Without `from`, any one run taken out.
+ */
+function isCut(prev: string, next: string, from?: TextSelection): boolean {
   if (next.length >= prev.length) return false;
+  const without = (a: number, b: number) => a >= 0 && b <= prev.length && prev.slice(0, a) + prev.slice(b) === next;
+  if (from) {
+    const a = Math.min(from.start, from.end);
+    const b = Math.max(from.start, from.end);
+    return a < b ? without(a, b) : without(a - 1, a) || without(a, a + 1);
+  }
   let head = 0;
   while (head < next.length && next[head] === prev[head]) head++;
   let tail = 0;
@@ -152,7 +161,7 @@ function isCut(prev: string, next: string): boolean {
  */
 export function editBase(prev: string, box: string | undefined, raw: string, from?: TextSelection): [string, TextSelection | undefined] {
   const end = (t: string) => ({ start: t.length, end: t.length });
-  if (box === undefined || box === prev || (from && editFits(prev, raw, from)) || isCut(prev, raw)) return [prev, from];
+  if (box === undefined || box === prev || (from && editFits(prev, raw, from)) || isCut(prev, raw, from)) return [prev, from];
   if (from && editFits(box, raw, from)) return [box, from];
   if (raw.length > prev.length && raw.startsWith(prev)) return [prev, end(prev)];
   if (raw.length > box.length && raw.startsWith(box)) return [box, end(box)];

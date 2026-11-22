@@ -427,4 +427,6 @@ test("editBase: fast keys are typed on the box's own text; a deletion from the s
   // No selection that fits either: what was added goes at the end.
   expect(editBase("1,234", "1234", "1,2345", at(0))).toEqual(["1,234", at(5)]);
   expect(editBase("12", undefined, "123", at(2))).toEqual(["12", at(2)]);
+  // A selected leading zero deleted from the box's own text is not a deletion of the shown comma.
+  expect(editBase("1,234", "01234", "1234", { start: 0, end: 1 })).toEqual(["01234", { start: 0, end: 1 }]);
 });
