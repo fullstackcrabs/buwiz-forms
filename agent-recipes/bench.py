@@ -11,6 +11,14 @@ FLOWS = [
     ("add-tax-profile", {"tin": "12345678800000", "name": "TEST", "rdo": "040", "address": "Quezon City", "zip": "1100"}),
     ("navigate-app", {}),
     ("fill-1701q", {"tin": "12345678800000", "year": "2026", "period": "1", "sheets": "3"}),
+    ("fill-1701q-complex", {
+        "tin": "12345678800000", "year": "2026", "period": "1", "sheets": "2",
+        "filer_type": "Professional", "atc": "II014", "birth_month": "01", "birth_day": "15",
+        "birth_year": "1990", "citizenship": "Filipino", "deduction": "I",
+        "sales": "250000.00", "cost_of_sales": "40000.00", "deductions": "35000.00",
+        "prior_income": "0.00", "non_op_desc": "Interest", "non_op_income": "1500.00",
+        "prior_credits": "0.00", "prior_payments": "0.00", "withheld_2307": "5000.00",
+    }),
 ]
 
 

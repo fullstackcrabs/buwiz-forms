@@ -475,3 +475,48 @@ mod tests {
         }
     }
 }
+
+/// How long a host waits between mailbox drains, given the time since the
+/// last request (`None` before the first one): 1 ms while a client is sending
+/// requests back to back, `idle` once it has been quiet for 500 ms.
+///
+/// Only the wait between drains changes: requests are still taken and
+/// answered in arrival order on the one thread that owns the database (and,
+/// on desktop, the window), so the system model is unaffected.
+pub fn drain_interval(
+    since_last_request: Option<std::time::Duration>,
+    idle: std::time::Duration,
+) -> std::time::Duration {
+    const BUSY_WINDOW: std::time::Duration = std::time::Duration::from_millis(500);
+    match since_last_request {
+        Some(elapsed) if elapsed < BUSY_WINDOW => std::time::Duration::from_millis(1),
+        _ => idle,
+    }
+}
+
+#[cfg(test)]
+mod drain_interval_tests {
+    use super::drain_interval;
+    use std::time::Duration;
+
+    const IDLE: Duration = Duration::from_millis(32);
+
+    #[test]
+    fn idle_until_first_request() {
+        assert_eq!(drain_interval(None, IDLE), IDLE);
+    }
+
+    #[test]
+    fn fast_while_busy_then_back_to_idle() {
+        assert_eq!(
+            drain_interval(Some(Duration::ZERO), IDLE),
+            Duration::from_millis(1)
+        );
+        assert_eq!(
+            drain_interval(Some(Duration::from_millis(499)), IDLE),
+            Duration::from_millis(1)
+        );
+        assert_eq!(drain_interval(Some(Duration::from_millis(500)), IDLE), IDLE);
+        assert_eq!(drain_interval(Some(Duration::from_secs(60)), IDLE), IDLE);
+    }
+}

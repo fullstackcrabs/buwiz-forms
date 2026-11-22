@@ -1,0 +1,132 @@
+{
+  "v": 1,
+  "name": "bir-fill-1701q-graduated",
+  "app": "bir-shell",
+  "params": [
+    "tin",
+    "year",
+    "period",
+    "sheets",
+    "filer_type",
+    "atc",
+    "birth_month",
+    "birth_day",
+    "birth_year",
+    "citizenship",
+    "deduction",
+    "sales",
+    "cost_of_sales",
+    "deductions",
+    "prior_income",
+    "non_op_desc",
+    "non_op_income",
+    "prior_credits",
+    "prior_payments",
+    "withheld_2307"
+  ],
+  "steps": [
+    {
+      "id": "select",
+      "op": "invoke",
+      "name": "profile.set",
+      "args": {
+        "tin": "$tin"
+      }
+    },
+    {
+      "id": "open",
+      "op": "invoke",
+      "name": "form.open",
+      "args": {
+        "code": "1701Q",
+        "year": "$year",
+        "period": "$period",
+        "tin": "$tin"
+      },
+      "needs": [
+        "select"
+      ]
+    },
+    {
+      "id": "fields",
+      "op": "invoke",
+      "name": "form.fields",
+      "needs": [
+        "open"
+      ]
+    },
+    {
+      "id": "context",
+      "op": "invoke",
+      "name": "form.context",
+      "needs": [
+        "open"
+      ]
+    },
+    {
+      "id": "fill",
+      "op": "invoke",
+      "name": "form.fill",
+      "args": {
+        "fields": {
+          "frm1701q:txtSheets": "$sheets",
+          "frm1701q:optType": "$filer_type",
+          "frm1701q:optATC": "$atc",
+          "frm1701q:txtBirthMonth": "$birth_month",
+          "frm1701q:txtBirthDay": "$birth_day",
+          "frm1701q:txtBirthYear": "$birth_year",
+          "frm1701q:txtCitizenship": "$citizenship",
+          "frm1701q:optTaxRate": "Graduated",
+          "frm1701q:optMethodOfDeduction": "$deduction",
+          "frm1701q:txt36A": "$sales",
+          "frm1701q:txt37A": "$cost_of_sales",
+          "frm1701q:txt39A": "$deductions",
+          "frm1701q:txt42A": "$prior_income",
+          "frm1701q:txt43Desc": "$non_op_desc",
+          "frm1701q:txt43A": "$non_op_income",
+          "frm1701q:txt55A": "$prior_credits",
+          "frm1701q:txt56A": "$prior_payments",
+          "frm1701q:txt58A": "$withheld_2307"
+        },
+        "source": "ai"
+      },
+      "needs": [
+        "fields",
+        "context"
+      ]
+    },
+    {
+      "id": "validate",
+      "op": "invoke",
+      "name": "form.validate",
+      "needs": [
+        "fill"
+      ]
+    },
+    {
+      "id": "needs",
+      "op": "invoke",
+      "name": "form.needs_you",
+      "needs": [
+        "fill"
+      ]
+    },
+    {
+      "id": "save",
+      "op": "invoke",
+      "name": "form.save_draft",
+      "needs": [
+        "validate",
+        "needs"
+      ]
+    },
+    {
+      "id": "close",
+      "op": "invoke",
+      "name": "form.dismiss",
+      "needs": [
+        "save"
+      ]
+    }
+  ]
+}
