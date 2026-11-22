@@ -143,6 +143,7 @@ export function Tabs(props: { tabs: TabItem[]; value: string; onChange: (value: 
       <Each of={props.tabs} key={(t) => t.value}>
         {(t) => (
           <Tab
+            testID={props.testID ? `${props.testID}-${t().value}` : undefined}
             selected={t().value === props.value}
             onPress={() => props.onChange(t().value)}
             accessibilityLabel={t().label}

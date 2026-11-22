@@ -1,0 +1,23 @@
+# Phone layout (Android): as ui-start-1701q-template.wants. Start the 1701Q return for $year / quarter $period from the
+# taxpayer's saved 1701Q template and stop on the open form, its first box ($sheets) typed and autosaved, so the data
+# plane (fill-1701q-visible.json) can fill the form this window shows. Reaches the taxpayer's Forms page through
+# the account menu (nb-avatar, nb-menu-profile, panel-open-forms), which the phone shows on every page.
+click nb-avatar
+wait_until nb-menu-profile --timeout-ms 5000
+click nb-menu-profile
+wait_until panel-open-forms --timeout-ms 5000
+click panel-open-forms
+wait_until tp-years-$year --timeout-ms 5000
+click tp-years-$year
+click tp-new-return
+wait_until new-return-1701Q --timeout-ms 5000
+click new-return-1701Q
+click new-return-period-trigger
+wait_until new-return-period-opt-$period --timeout-ms 5000
+click new-return-period-opt-$period
+wait_until new-return-period-opt-$period --absent --timeout-ms 5000
+click new-return-open
+wait_until fp-pill --timeout-ms 10000
+wait_until fp-frm1701q:txtSheets --timeout-ms 5000
+set_value fp-frm1701q:txtSheets $sheets
+wait_until fp-save-state name="✓ Saved" --timeout-ms 10000 --screenshot

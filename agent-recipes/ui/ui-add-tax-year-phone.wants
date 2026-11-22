@@ -1,0 +1,11 @@
+# Phone layout: add tax year $year to the taxpayer's branch, copying the forms of the year shown. Starts and ends on the
+# taxpayer's Forms page (home-tp-<tin> from Home; sign-up ends there). A year the branch already has is not offered.
+wait_until tp-add-year-open --timeout-ms 5000
+click tp-add-year-open
+wait_until tp-add-year-select-trigger --timeout-ms 5000
+click tp-add-year-select-trigger
+wait_until tp-add-year-select-opt-$year --timeout-ms 5000
+click tp-add-year-select-opt-$year
+wait_until tp-add-year-select-opt-$year --absent --timeout-ms 5000
+click tp-add-year-add
+wait_until tp-years-$year --timeout-ms 5000 --screenshot

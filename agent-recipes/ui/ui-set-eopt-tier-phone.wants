@@ -1,0 +1,21 @@
+# Phone layout: set the EOPT tier of tax year $year to $tier (Micro | Small | Medium | Large) on the taxpayer's Profile
+# tab, so a late return's penalty rows are not left as a to-do. Starts and ends on the taxpayer's Forms page.
+# The facts are below the fold, a row that was never on screen is not in the tree and a recipe has no scroll op, so the
+# three sections above are folded first and unfolded again at the end.
+click tp-tabs-profile
+wait_until tp-profile-years-$year --timeout-ms 5000
+click tp-profile-years-$year
+click tp-sec-taxpayer-toggle
+click tp-sec-branch-toggle
+click tp-sec-taxtypes-toggle
+wait_until tp-fact-eopt_tier-edit --timeout-ms 5000
+click tp-fact-eopt_tier-edit
+wait_until tp-fact-eopt_tier-choice-$tier --timeout-ms 5000
+click tp-fact-eopt_tier-choice-$tier
+click tp-fact-eopt_tier-save
+wait_until tp-fact-eopt_tier-save --absent --timeout-ms 5000 --screenshot
+click tp-sec-taxtypes-toggle
+click tp-sec-branch-toggle
+click tp-sec-taxpayer-toggle
+click tp-tabs-forms
+wait_until tp-years-$year --timeout-ms 5000

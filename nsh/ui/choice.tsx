@@ -510,7 +510,7 @@ export function MultiCombo(props: MultiComboProps) {
         <AppButton label="Select all" variant="ghost" size="sm" testID={props.testID ? `${props.testID}-all` : undefined} onPress={selectAll} />
         <AppButton label="Clear" variant="ghost" size="sm" testID={props.testID ? `${props.testID}-clear` : undefined} onPress={clear} />
       </View>
-      <Scroll class="max-h-75" contentClass="gap-0.5">
+      <Scroll keyboardShouldPersistTaps="handled" class="max-h-75" contentClass="gap-0.5">
         <If when={found().length === 0}>
           <Text variant="meta" tone="fg3" class="p-2">Nothing matches.</Text>
         </If>
