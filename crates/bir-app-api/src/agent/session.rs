@@ -14,7 +14,7 @@ use bir_core::forms::{
 use bir_core::profile::TaxpayerProfile;
 use bir_core::profile::TaxpayerType;
 use bir_core::tax_profile::{
-    BranchFacts, BranchField, BranchUpdate, FieldSetting, NewTaxpayer, TaxpayerUpdate,
+    BranchFacts, BranchField, BranchUpdate, FieldSetting, FormTemplate, NewTaxpayer, TaxpayerUpdate,
 };
 use chrono::Datelike;
 use gpui_agent::protocol::{DeliveryMode, HelloAuth, HelloInfo, Op, PlatformKind};
@@ -151,6 +151,11 @@ impl Session {
             "form.needs_you" => self.form_needs_you(),
             "filing.validate" | "form.validate" => self.form_validate(),
             "form.context" => self.form_context(),
+            "form.schema" => self.form_schema(args),
+            "form.check" => self.form_check(args),
+            "template.list" => self.template_list(args),
+            "template.get" => self.template_get(args),
+            "recipe.generate" => self.recipe_generate(args),
             "form.review_in_app" => self.form_review_in_app(),
             "form.send" => self.form_send(),
             "form.save_draft" => self.form_save_draft(),
@@ -713,6 +718,215 @@ impl Session {
         })))
     }
 
+    fn form_schema(&self, args: &Value) -> Result<DispatchResult, String> {
+        let kind = form_kind(args, "form.schema")?;
+        Ok(DispatchResult::json(agent::recipe::form_schema(kind)))
+    }
+
+    /// The taxpayer an invoke names (`args.tin` / `args.q`), else the
+    /// selected one.
+    fn taxpayer(&self, args: &Value, invoke: &str) -> Result<String, String> {
+        match self.resolve_tin(args)? {
+            TinQuery::Missing => self
+                .selected_tin
+                .clone()
+                .ok_or_else(|| format!("{invoke} requires a taxpayer (args.tin or profile.set)")),
+            TinQuery::NotFound { query } => Err(format!("{invoke} taxpayer not found for {query}")),
+            TinQuery::Ambiguous { query, .. } => Err(format!(
+                "{invoke} taxpayer {query} is ambiguous; use args.tin as 14 digits"
+            )),
+            TinQuery::One { tin, .. } => Ok(tin),
+        }
+    }
+
+    /// A dry run of `form.open` + `form.fill` + `form.validate` on a fresh
+    /// in-memory return: nothing is saved, opened or shown.
+    fn form_check(&self, args: &Value) -> Result<DispatchResult, String> {
+        let kind = form_kind(args, "form.check")?;
+        let year = require_year(args, "form.check")?;
+        let period = optional_u8(args, "period").unwrap_or(0);
+        let tin = self.taxpayer(args, "form.check")?;
+        let fields = match args.get("fields") {
+            None | Some(Value::Null) => Map::new(),
+            Some(Value::Object(object)) => object.clone(),
+            Some(_) => return Err("form.check requires args.fields as an object".into()),
+        };
+        let strict = args.get("strict").and_then(Value::as_bool) == Some(true);
+        let db = self.lock_db()?;
+        let profile = load_profile(&db, &tin, year)?;
+        let mut from_profile = profile_context(&db, kind, &profile, year, period)?;
+        // As `form.open` does: a later 2551Q quarter holds its filed Q1's
+        // Item 13 answer.
+        if kind == AgentFormKind::Form2551Q {
+            let mut typed: bir_core::forms::form_2551q::Form2551QDraft =
+                serde_json::from_value(from_profile.draft).map_err(|error| error.to_string())?;
+            agent::draft_locks::item_13::refresh(&db, &mut typed)
+                .map_err(|error| error.to_string())?;
+            from_profile.draft = serde_json::to_value(typed).map_err(|error| error.to_string())?;
+        }
+        drop(db);
+        let mut draft = from_profile.draft.clone();
+        let mut applied = Vec::new();
+        let mut refused = Map::new();
+        for (key, value) in &fields {
+            match agent::fill(kind, &mut draft, key, value, Some(&from_profile)) {
+                Ok(()) => applied.push(key.clone()),
+                Err(why) => {
+                    refused.insert(key.clone(), Value::String(why));
+                }
+            }
+        }
+        agent::compute(kind, &mut draft)?;
+        let errors = agent::validate(kind, &mut draft)?;
+        let map = agent::field_map(kind, &draft)?;
+        let def = kind.definition();
+        let computed: Map<String, Value> = def
+            .boxes
+            .iter()
+            .filter(|entry| entry.computed && entry.group.is_none())
+            .filter_map(|entry| {
+                let value = def.box_value(&entry.key, &map);
+                (!agent::carry::is_blank_value(&value)).then(|| (entry.key.clone(), json!(value)))
+            })
+            .collect();
+        let ok = errors.is_empty() && refused.is_empty();
+        if strict && !ok {
+            let mut problems: Vec<String> = refused
+                .iter()
+                .map(|(key, why)| format!("{key}: {}", why.as_str().unwrap_or_default()))
+                .collect();
+            problems.extend(
+                errors
+                    .iter()
+                    .map(|(field, message)| format!("{field}: {message}")),
+            );
+            return Err(format!(
+                "form.check failed, nothing was written: {}",
+                problems.join("; ")
+            ));
+        }
+        Ok(DispatchResult::json(json!({
+            "form": kind.form_code(),
+            "year": year,
+            "period": period,
+            "tin": tin,
+            "ok": ok,
+            "saved": false,
+            "applied": applied,
+            "refused": refused,
+            "errors": errors.len(),
+            "field_errors": field_errors(&errors),
+            "computed": computed,
+        })))
+    }
+
+    fn template_list(&self, args: &Value) -> Result<DispatchResult, String> {
+        let tin = self.taxpayer(args, "template.list")?;
+        let db = self.lock_db()?;
+        let templates: Vec<Value> = db
+            .list_form_templates(&tin)
+            .map_err(|error| error.to_string())?
+            .iter()
+            .map(|template| template_json(template, false))
+            .collect();
+        Ok(DispatchResult::json(
+            json!({"tin": tin, "templates": templates}),
+        ))
+    }
+
+    /// One form's template. With `args.expect_stamp` it fails unless the
+    /// template is still the one a recipe was generated from.
+    fn template_get(&self, args: &Value) -> Result<DispatchResult, String> {
+        let kind = form_kind(args, "template.get")?;
+        let tin = self.taxpayer(args, "template.get")?;
+        let db = self.lock_db()?;
+        let template = db
+            .get_form_template(&tin, kind.form_code())
+            .map_err(|error| error.to_string())?;
+        drop(db);
+        let stamp = agent::recipe::template_stamp(template.as_ref());
+        if let Some(expected) = optional_str(args, "expect_stamp")
+            && expected != stamp
+        {
+            return Err(format!(
+                "template for Form {} changed since this recipe was generated (expected {expected}, now {stamp}); run recipe.generate again",
+                kind.form_code()
+            ));
+        }
+        let mut out = match &template {
+            Some(template) => template_json(template, true),
+            None => json!({"form": kind.form_code(), "stamp": stamp}),
+        };
+        if let Value::Object(object) = &mut out {
+            object.insert("tin".into(), json!(tin));
+            object.insert("exists".into(), json!(template.is_some()));
+        }
+        Ok(DispatchResult::json(out))
+    }
+
+    /// The taxpayer's own recipe for a form, from its box definitions,
+    /// their template and their previous return. Read-only.
+    fn recipe_generate(&self, args: &Value) -> Result<DispatchResult, String> {
+        let kind = form_kind(args, "recipe.generate")?;
+        let tin = self.taxpayer(args, "recipe.generate")?;
+        let year = optional_year(args).unwrap_or(u16::MAX);
+        let period = args
+            .get("period")
+            .and_then(json_u64)
+            .map_or(u32::MAX, |period| period as u32);
+        let options = agent::recipe::Options {
+            check: agent::recipe::CheckMode::parse(args.get("check").and_then(Value::as_str))?,
+            include_unused: args.get("include_unused").and_then(Value::as_bool) == Some(true),
+            keep_open: args.get("keep_open").and_then(Value::as_bool) == Some(true),
+        };
+        let db = self.lock_db()?;
+        let template = db
+            .get_form_template(&tin, kind.form_code())
+            .map_err(|error| error.to_string())?;
+        let mut previous = Vec::new();
+        let mut before = (year, period);
+        while previous.len() < RECIPE_HISTORY {
+            let Some(earlier) = db
+                .previous_return(&tin, kind.form_code(), before.0, before.1)
+                .map_err(|error| error.to_string())?
+            else {
+                break;
+            };
+            before = (earlier.taxable_year, earlier.period);
+            previous.push(earlier);
+        }
+        drop(db);
+        let drafts: Vec<Value> = previous
+            .iter()
+            .map(|earlier| earlier.draft.clone())
+            .collect();
+        let generated = agent::recipe::generate(&agent::recipe::Inputs {
+            kind,
+            tin: &tin,
+            template: template.as_ref(),
+            previous: &drafts,
+            options,
+        })?;
+        Ok(DispatchResult::json(json!({
+            "form": kind.form_code(),
+            "tin": tin,
+            "recipe": generated.recipe,
+            "input_schema": generated.input_schema,
+            "template_stamp": generated.template_stamp,
+            "from": {
+                "template": template.as_ref().map(|template| template.source.to_db()),
+                "previous_returns": previous.iter().map(|earlier| json!({
+                    "id": earlier.id,
+                    "year": earlier.taxable_year,
+                    "period": earlier.period,
+                })).collect::<Vec<_>>(),
+            },
+            "constants": generated.constants,
+            "params": generated.params,
+            "left_out": generated.left_out,
+        })))
+    }
+
     fn form_save_draft(&mut self) -> Result<DispatchResult, String> {
         let open = self
             .open
@@ -1083,6 +1297,33 @@ fn profile_context(
     let values =
         serde_json::to_value(agent::field_map(kind, &draft)?).map_err(|error| error.to_string())?;
     Ok(FromProfile { draft, values })
+}
+
+/// How many earlier returns `recipe.generate` reads.
+const RECIPE_HISTORY: usize = 8;
+
+fn form_kind(args: &Value, invoke: &str) -> Result<AgentFormKind, String> {
+    let code = args
+        .get("code")
+        .and_then(Value::as_str)
+        .ok_or_else(|| format!("{invoke} requires args.code"))?;
+    AgentFormKind::from_code(code).ok_or_else(|| format!("unknown form `{code}`"))
+}
+
+fn template_json(template: &FormTemplate, with_fields: bool) -> Value {
+    let mut out = json!({
+        "form": template.form_code,
+        "stamp": agent::recipe::template_stamp(Some(template)),
+        "source": template.source.to_db(),
+        "updated_at": template.updated_at,
+        "pinned": template.pinned().len(),
+        "stops_on": template.stops_on(),
+    });
+    if with_fields && let Value::Object(object) = &mut out {
+        object.insert("answers".into(), json!(template.pinned()));
+        object.insert("stops".into(), json!(template.stop_edits()));
+    }
+    out
 }
 
 fn view_from_page(page: &str) -> Result<&'static str, String> {
@@ -1693,6 +1934,297 @@ mod tests {
         let saved = call(&mut session, "form.save_draft", json!({})).unwrap();
         assert_eq!(saved["saved"], true);
         assert_eq!(saved["form"], "1701Q");
+    }
+
+    #[test]
+    fn recipe_is_generated_from_the_template_and_the_previous_return() {
+        let mut session = session();
+        save_scratch(&mut session);
+        let blank = call(&mut session, "recipe.generate", json!({"code": "1701Q"})).unwrap();
+        assert_eq!(blank["template_stamp"], "none", "{blank}");
+        assert!(blank["constants"].as_object().unwrap().is_empty());
+        let required = |made: &Value| -> Vec<String> {
+            serde_json::from_value(made["input_schema"]["required"].clone()).unwrap()
+        };
+
+        call(
+            &mut session,
+            "form.open",
+            json!({"code": "1701Q", "year": 2026, "period": 1, "tin": TIN}),
+        )
+        .unwrap();
+        let filled = call(
+            &mut session,
+            "form.fill",
+            json!({"fields": {
+                "frm1701q:txtCitizenship": "FILIPINO",
+                "frm1701q:optTaxRate": "Graduated",
+                "frm1701q:optMethodOfDeduction": "I",
+                "frm1701q:txt36A": "250000.00",
+            }}),
+        )
+        .unwrap();
+        assert!(filled.get("refused").is_none(), "{filled}");
+        call(&mut session, "form.save_draft", json!({})).unwrap();
+        call(&mut session, "form.dismiss", json!({})).unwrap();
+        session
+            .lock_db()
+            .unwrap()
+            .snapshot_template_from_latest_return(TIN, "1701Q")
+            .unwrap();
+
+        let listed = call(&mut session, "template.list", json!({"tin": TIN})).unwrap();
+        assert_eq!(listed["templates"][0]["form"], "1701Q", "{listed}");
+        let generated = call(
+            &mut session,
+            "recipe.generate",
+            json!({"code": "1701Q", "tin": TIN}),
+        )
+        .unwrap();
+        // An election the history answered is asked every time, never defaulted.
+        assert!(required(&generated).contains(&"opttaxrate".to_string()));
+        let rate = &generated["input_schema"]["properties"]["opttaxrate"];
+        assert!(rate.get("default").is_none(), "{rate}");
+        assert_eq!(generated["from"]["previous_returns"][0]["period"], 1);
+        let stamp = generated["template_stamp"].as_str().unwrap().to_string();
+        assert_ne!(stamp, "none");
+        assert_eq!(listed["templates"][0]["stamp"], stamp.as_str());
+        assert_eq!(
+            generated["constants"]["frm1701q:txtCitizenship"], "FILIPINO",
+            "{generated}"
+        );
+        let recipe = &generated["recipe"];
+        let fill = recipe["steps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|step| step["id"] == "fill")
+            .unwrap();
+        assert_eq!(
+            fill["args"]["fields"]["frm1701q:txtCitizenship"],
+            "FILIPINO"
+        );
+        assert_eq!(
+            fill["args"]["fields"]["frm1701q:txt36A"], "$txt36a",
+            "{generated:#}"
+        );
+        let sales = recipe["params"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|param| param["name"] == "txt36a")
+            .unwrap();
+        assert!(
+            sales.get("default").is_none(),
+            "an amount is never carried: {sales}"
+        );
+        assert!(sales["pattern"].is_string(), "{sales}");
+        assert_eq!(
+            generated["input_schema"]["properties"]["txt36a"]["x-box"],
+            "frm1701q:txt36A"
+        );
+        let names: Vec<&str> = recipe["params"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|param| param["name"].as_str().unwrap())
+            .collect();
+        for placeholder in fill["args"]["fields"].as_object().unwrap().values() {
+            if let Some(name) = placeholder.as_str().unwrap().strip_prefix('$') {
+                assert!(names.contains(&name), "{name} is declared");
+            }
+        }
+
+        let fresh = call(
+            &mut session,
+            "template.get",
+            json!({"code": "1701Q", "tin": TIN, "expect_stamp": stamp}),
+        )
+        .unwrap();
+        assert_eq!(fresh["exists"], true, "{fresh}");
+        session
+            .lock_db()
+            .unwrap()
+            .set_template_stop(TIN, "1701Q", "frm1701q:txtCitizenship", Some(true))
+            .unwrap();
+        let stale = call(
+            &mut session,
+            "template.get",
+            json!({"code": "1701Q", "tin": TIN, "expect_stamp": stamp}),
+        )
+        .unwrap_err();
+        assert!(stale.contains("run recipe.generate again"), "{stale}");
+        let again = call(
+            &mut session,
+            "recipe.generate",
+            json!({"code": "1701Q", "tin": TIN}),
+        )
+        .unwrap();
+        assert!(
+            again["constants"].get("frm1701q:txtCitizenship").is_none(),
+            "a stop is asked, not pinned: {again}"
+        );
+        assert!(
+            again["input_schema"]["required"]
+                .as_array()
+                .unwrap()
+                .contains(&json!("txtcitizenship")),
+            "{again}"
+        );
+    }
+
+    /// A later 2551Q quarter's dry run starts from the filed Q1's Item 13,
+    /// as `form.open` does.
+    #[test]
+    fn check_of_a_later_2551q_quarter_holds_the_filed_q1_item_13() {
+        let mut session = session();
+        save_scratch(&mut session);
+        let later = json!({"code": "2551Q", "year": 2026, "period": 2, "tin": TIN});
+        let before = call(&mut session, "form.check", later.clone()).unwrap();
+        {
+            let db = session.lock_db().unwrap();
+            let profile = load_profile(&db, TIN, 2026).unwrap();
+            let mut q1 = Form2551QDraft::new_from_effective_profile(&profile, 2026, 1);
+            q1.item_13_election = bir_core::forms::form_2551q::Item13Election::Graduated;
+            let id = db.save_2551q_draft(&q1).unwrap();
+            q1.id = Some(id);
+            q1.status = FilingStatus::Submitted;
+            db.conn_for_tests()
+                .execute(
+                    "UPDATE form_drafts SET status = 'Submitted', data_json = ?1 WHERE id = ?2",
+                    (serde_json::to_string(&q1).unwrap(), id),
+                )
+                .unwrap();
+        }
+        let after = call(&mut session, "form.check", later).unwrap();
+        let unanswered = |checked: &Value| {
+            checked["field_errors"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|error| error["field"] == "item_13_election")
+        };
+        assert!(unanswered(&before), "{before}");
+        assert!(!unanswered(&after), "{after}");
+    }
+
+    /// A stop on a computed penalty box is not an input: `fill` refuses the
+    /// box until Edit opens it in the app, so a strict check could not pass.
+    #[test]
+    fn a_penalty_stop_is_not_a_recipe_input() {
+        let mut session = session();
+        save_scratch(&mut session);
+        let key = "frm2551Qv2018:txt20";
+        session
+            .lock_db()
+            .unwrap()
+            .set_template_stop(TIN, "2551Q", key, Some(true))
+            .unwrap();
+        let generated = call(
+            &mut session,
+            "recipe.generate",
+            json!({"code": "2551Q", "tin": TIN}),
+        )
+        .unwrap();
+        assert!(
+            !generated["recipe"].to_string().contains(key),
+            "{generated}"
+        );
+        let schema = call(&mut session, "form.schema", json!({"code": "2551Q"})).unwrap();
+        let entry = schema["boxes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|entry| entry["key"] == key)
+            .unwrap();
+        assert_eq!(entry["fillable"], false, "{entry}");
+    }
+
+    /// Every value `form.schema` offers for a fillable box is one `fill` takes.
+    #[test]
+    fn schema_choices_are_the_ones_fill_accepts() {
+        let mut session = session();
+        save_scratch(&mut session);
+        let mut wrong = Vec::new();
+        for kind in AgentFormKind::all() {
+            let code = kind.form_code();
+            let schema = call(&mut session, "form.schema", json!({"code": code})).unwrap();
+            for entry in schema["boxes"].as_array().unwrap() {
+                let (Some(key), Some(values)) =
+                    (entry["key"].as_str(), entry["value"]["enum"].as_array())
+                else {
+                    continue;
+                };
+                if entry["fillable"] != true {
+                    continue;
+                }
+                for value in values {
+                    let checked = call(
+                        &mut session,
+                        "form.check",
+                        json!({"code": code, "year": 2026, "period": 1, "tin": TIN,
+                               "fields": {key: value}}),
+                    );
+                    match checked {
+                        Ok(checked) if checked["refused"].get(key).is_none() => {}
+                        Ok(checked) => {
+                            wrong.push(format!("{code} {key}={value}: {}", checked["refused"][key]))
+                        }
+                        Err(error) => wrong.push(format!("{code} {key}={value}: {error}")),
+                    }
+                }
+            }
+        }
+        assert!(
+            wrong.is_empty(),
+            "{} refused:\n{}",
+            wrong.len(),
+            wrong.join("\n")
+        );
+    }
+
+    #[test]
+    fn form_check_validates_without_writing() {
+        let mut session = session();
+        save_scratch(&mut session);
+        while session.commands.pop().is_some() {}
+        let schema = call(&mut session, "form.schema", json!({"code": "1701Q"})).unwrap();
+        let sales = schema["boxes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|entry| entry["key"] == "frm1701q:txt36A")
+            .unwrap_or_else(|| panic!("{schema}"));
+        assert_eq!(sales["fillable"], true, "{sales}");
+        assert_eq!(sales["carry"], "amount", "{sales}");
+        let checked = call(
+            &mut session,
+            "form.check",
+            json!({"code": "1701Q", "year": 2026, "period": 1, "tin": TIN,
+                   "fields": {"frm1701q:txt36A": "250000.00", "note": "nope"}}),
+        )
+        .unwrap();
+        assert_eq!(checked["saved"], false);
+        assert_eq!(checked["ok"], false, "{checked}");
+        assert_eq!(checked["applied"], json!(["frm1701q:txt36A"]), "{checked}");
+        assert!(checked["refused"]["note"].is_string(), "{checked}");
+        let strict = call(
+            &mut session,
+            "form.check",
+            json!({"code": "1701Q", "year": 2026, "period": 1, "tin": TIN,
+                   "fields": {"note": "nope"}, "strict": true}),
+        )
+        .unwrap_err();
+        assert!(strict.contains("nothing was written"), "{strict}");
+        assert!(session.open.is_none(), "form.check opens nothing");
+        assert!(session.commands.pop().is_none(), "form.check shows nothing");
+        let db = session.lock_db().unwrap();
+        assert!(
+            db.previous_return(TIN, "1701Q", u16::MAX, u32::MAX)
+                .unwrap()
+                .is_none(),
+            "form.check saves no draft"
+        );
     }
 
     #[test]

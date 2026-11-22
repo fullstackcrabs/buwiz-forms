@@ -239,6 +239,10 @@ install_gpui_agent() {
         'gpui-agent[[:space:]]*=[[:space:]]*\{[^}]*rev[[:space:]]*=[[:space:]]*"([0-9a-fA-F]{7,64})"' | head -1 || true)"
     rev="$(printf '%s' "$declaration" | sed -nE 's/.*rev[[:space:]]*=[[:space:]]*"([0-9a-fA-F]{7,64})".*/\1/p')"
     [ -n "$rev" ] || die "gpui-agent rev pin not found in repository-root Cargo.toml"
+    # The pinned rev lives in the repository the manifest names (it may be a fork).
+    local repo
+    repo="$(printf '%s' "$declaration" | sed -nE 's/.*git[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p')"
+    [ -n "$repo" ] || die "gpui-agent git URL not found in repository-root Cargo.toml"
     if command -v gpui-agent >/dev/null 2>&1; then
         installed_rev="$(cargo install --list 2>/dev/null | sed -n \
             's/.*gpui-agent?rev=\([0-9a-fA-F]\{7,64\}\)#.*/\1/p' | head -1)"
@@ -249,7 +253,7 @@ install_gpui_agent() {
         warn "installed gpui-agent revision ${installed_rev:-unknown} does not match ${rev:0:7}; reinstalling"
     fi
     log "Installing gpui-agent CLI @ $rev (matches the app's pinned host crate)"
-    cargo install --git https://github.com/hexuria/gpui-agent --rev "$rev" gpui-agent-cli
+    cargo install --git "$repo" --rev "$rev" gpui-agent-cli
 }
 
 # ---------------------------------------------------------------------------

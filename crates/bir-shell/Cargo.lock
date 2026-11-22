@@ -4110,7 +4110,7 @@ dependencies = [
 [[package]]
 name = "gpui-agent"
 version = "0.4.0"
-source = "git+https://github.com/fullstackcrabs/gpui-agent?rev=4e91018366cf5af413e3aa6b01a87e260b69b09a#4e91018366cf5af413e3aa6b01a87e260b69b09a"
+source = "git+https://github.com/fullstackcrabs/gpui-agent?rev=81151a3c95c9aecff7ecd092cf1cbc9581bdb59b#81151a3c95c9aecff7ecd092cf1cbc9581bdb59b"
 dependencies = [
  "base64 0.22.1",
  "hmac 0.12.1",
