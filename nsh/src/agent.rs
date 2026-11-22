@@ -205,7 +205,7 @@ mod live {
     use std::sync::atomic::{AtomicBool, Ordering};
 
     use bir_app_api::agent::{
-        APP, Session, UiQueue, drain_gated, resolve_addr, tree_from_debug, try_start_with,
+        APP, Session, UiQueue, drain_gated, resolve_addr, tree_from_debug,
     };
     use gpui_agent::discovery::{self, HostRecord, PublishedHost};
     use gpui_agent::mailbox::AgentMailbox;
@@ -299,7 +299,7 @@ mod live {
     pub fn listen() -> Result<Option<Listener>, String> {
         crate::door::call("system_info", Vec::new())?;
         #[cfg(not(target_os = "android"))]
-        let started = try_start_with(choose)?;
+        let started = bir_app_api::agent::try_start_with(choose)?;
         #[cfg(target_os = "android")]
         let started = match settings_config(crate::dev_env::ENABLED, |name| bir_core::config::var(name).ok())? {
             Some(config) => bir_app_api::agent::try_start_config(config, choose)?,

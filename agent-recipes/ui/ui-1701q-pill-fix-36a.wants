@@ -7,7 +7,8 @@ click fp-nav-0
 wait_until fp-pill-small name="1 to do · Page 1" --timeout-ms 5000
 click fp-pill-next
 wait_until fp-pill-small name="1 of 1 to do · Part V" --timeout-ms 5000
-assert fp-msg-4:5 name="Item 36A takes whole pesos only." --screenshot
+click fp-check
+wait_until fp-msg-4:5 name="Item 36A takes whole pesos only." --timeout-ms 10000 --screenshot
 click fp-nav-0
 wait_until fp-pill-small name="1 to do · Page 1" --timeout-ms 5000
 click fp-nav-attention

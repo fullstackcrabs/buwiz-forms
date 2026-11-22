@@ -1,0 +1,21 @@
+{
+  "v": 1,
+  "name": "bir-save-close-form",
+  "app": "bir-shell",
+  "params": [],
+  "steps": [
+    {
+      "id": "save",
+      "op": "invoke",
+      "name": "form.save_draft"
+    },
+    {
+      "id": "close",
+      "op": "invoke",
+      "name": "form.dismiss",
+      "needs": [
+        "save"
+      ]
+    }
+  ]
+}

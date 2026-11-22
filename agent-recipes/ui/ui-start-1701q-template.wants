@@ -1,0 +1,25 @@
+# Start the 1701Q return for $year / quarter $period from the taxpayer's saved 1701Q template, in the real window, and
+# stop on the open form. The boxes are then filled by the data plane (fill-1701q-visible.json: form.fill writes into the
+# form this window shows), and ui-1701q-pill-*.wants walk the pill. Same setup as ui-fill-1701q-dataset.wants, which
+# types every box through the window instead. Starts and ends with the tax-profile panel closed.
+# The first box ($sheets) is typed in the window and its autosave awaited before the recipe ends: a new return is not
+# stored until its first save (a plain return has no Save button), and form.open on the data
+# plane stores one of its own for a period that has none. The window would keep its unstored copy and its next save
+# would be refused ("a 1701Q return for this period is already stored").
+click tb-panel
+wait_until panel-open-forms --timeout-ms 5000
+click panel-open-forms
+wait_until tp-years-$year --timeout-ms 5000
+click tp-years-$year
+click tp-new-return
+wait_until new-return-1701Q --timeout-ms 5000
+click new-return-1701Q
+click new-return-period-trigger
+wait_until new-return-period-opt-$period --timeout-ms 5000
+click new-return-period-opt-$period
+click new-return-open
+wait_until fp-pill --timeout-ms 10000
+click tb-panel
+wait_until fp-nav-0 --timeout-ms 5000
+set_value fp-frm1701q:txtSheets $sheets
+wait_until fp-save-state name="✓ Saved" --timeout-ms 10000 --screenshot

@@ -1,0 +1,10 @@
+{
+  "v": 1,
+  "name": "bir-set-profile-email",
+  "app": "bir-shell",
+  "params": ["tin", "email"],
+  "steps": [
+    { "id": "profile", "op": "invoke", "name": "profile.save", "args": { "tin": "$tin", "email": "$email" } },
+    { "id": "select", "op": "invoke", "name": "profile.set", "args": { "tin": "$tin" }, "needs": ["profile"] }
+  ]
+}
