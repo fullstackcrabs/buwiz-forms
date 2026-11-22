@@ -6,11 +6,20 @@ setlocal
 set "real=%NSH_REAL_CARGO%"
 if not defined real set "real=cargo"
 if /I not "%~1"=="build" goto pass
-rem nsh names the manifest with either slash, even both (...\nsh\.nsh/rust\Cargo.toml): compare with one kind.
-set given=%*
-set given=%given:/=\%
-set given=%given:"=%
-if "%given:.nsh\rust\Cargo.toml=%"=="%given%" goto pass
+rem Each argument is read without its quotes into a quoted assignment and compared with delayed expansion, so a path
+rem with & or a space is only text. nsh names the manifest with either slash, even both (...\nsh\.nsh/rust\Cargo.toml).
+set "hit="
+setlocal enabledelayedexpansion
+:scan
+if "%~1"=="" goto scanned
+set "a=%~1"
+set "a=!a:/=\!"
+if not "!a:.nsh\rust\Cargo.toml=!"=="!a!" set "hit=1"
+shift
+goto scan
+:scanned
+endlocal & set "hit=%hit%"
+if not defined hit goto pass
 "%real%" %* --features app_nsh_app_ebirforms/agent
 exit /b %errorlevel%
 :pass
