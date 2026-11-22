@@ -33,6 +33,14 @@ def main():
     ap.add_argument("--include-unused", action="store_true",
                     help="keep boxes the history never filled as optional params")
     ap.add_argument("--history", default="2", help="how many leading rows to file first as the taxpayer's history")
+    ap.add_argument("--tin", help="use this existing taxpayer (and whatever it already filed) instead of adding the data set's")
+    ap.add_argument("--generate-arg", action="append", default=[], metavar="NAME=JSON",
+                    help="extra recipe.generate argument, e.g. keep_open=true or check='\"report\"'")
+    ap.add_argument("--recipe-from", metavar="DIR",
+                    help="run the recipe an earlier call wrote to DIR instead of generating one")
+    ap.add_argument("--expect-stop", metavar="STEP", help="every run must stop at this step (a stale recipe: template)")
+    ap.add_argument("--shot-cmd", metavar="CMD", help="shell command run after each row; {out} is the PNG to write")
+    ap.add_argument("--pause-ms", type=int, default=0, help="pause after each row, outside the timed run")
     a = ap.parse_args()
     schema = ["--schema", os.path.join(HERE, "bir.schema.json")]
     os.makedirs(a.out, exist_ok=True)
@@ -47,13 +55,13 @@ def main():
     rows = list(csv.DictReader(open(a.data, encoding="utf-8")))
     first, _, last = a.rows.partition("-")
     seeds = rows[: int(a.history)]
-    seed = seeds[0]
-    tin = seed["tin"]
-    cli("--addr", a.addr, "recipe", "run", os.path.join(HERE, "add-tax-profile.json"), *schema, "--set", f"tin={tin}",
-        "--set", "name=TEST TAXPAYER", "--set", "rdo=040", "--set", "address=1 TEST ST", "--set", "zip=1000")
+    tin = a.tin or rows[0]["tin"]
+    if not a.tin:
+        cli("--addr", a.addr, "recipe", "run", os.path.join(HERE, "add-tax-profile.json"), *schema, "--set", f"tin={tin}",
+            "--set", "name=TEST TAXPAYER", "--set", "rdo=040", "--set", "address=1 TEST ST", "--set", "zip=1000")
     hand = json.load(open(os.path.join(HERE, "fill-1701q-dataset.json")))
     for seed in seeds:
-        sets = [x for p in hand["params"] for x in ("--set", f"{p}={seed[p]}")]
+        sets = [x for p in hand["params"] for x in ("--set", f"{p}={tin if p == 'tin' else seed[p]}")]
         history = cli("--addr", a.addr, "recipe", "run", os.path.join(HERE, "fill-1701q-dataset.json"), *schema, *sets)
         if not history.get("ok"):
             sys.exit(f"history run failed: {history}")
@@ -62,8 +70,15 @@ def main():
     fill = next(step for step in hand["steps"] if step.get("name") == "form.fill")
     fixed = {box: value for box, value in fill["args"]["fields"].items() if not str(value).startswith("$")}
     more = ["--arg", "include_unused=true"] if a.include_unused else []
-    made = cli("--addr", a.addr, "invoke", "recipe.generate", "--arg", "code=\"1701Q\"", "--arg", f"tin=\"{tin}\"", *more)
-    made = made.get("result", made)
+    more += [x for arg in a.generate_arg for x in ("--arg", arg)]
+    if a.recipe_from:
+        made = json.load(open(os.path.join(a.recipe_from, "generated.json")))
+    else:
+        made = cli("--addr", a.addr, "invoke", "recipe.generate", "--arg", "code=\"1701Q\"", "--arg", f"tin=\"{tin}\"", *more)
+        if not made.get("ok", True):
+            sys.exit(f"recipe.generate failed: {made}")
+        made = made.get("result", made)
+    json.dump(made, open(os.path.join(a.out, "generated.json"), "w"), indent=2)
     recipe_path = os.path.join(a.out, "recipe.json")
     json.dump(made["recipe"], open(recipe_path, "w"), indent=2)
     json.dump(made["input_schema"], open(os.path.join(a.out, "input_schema.json"), "w"), indent=2)
@@ -91,6 +106,9 @@ def main():
             elif box not in made["constants"] and row[column].strip("0.") != "":
                 unmapped.append(column)
         missing = sorted(required - set(values))
+        # A pinned answer wins over the data set: say so when the row asked for something else.
+        pinned_over = [f"{column}={made['constants'][box]} (row has {row[column]})" for column, box in BOXES.items()
+                       if box in made["constants"] and str(made["constants"][box]) != row[column]]
         sets = [x for name, value in values.items() for x in ("--set", f"{name}={value}")]
         # The profile is the taxpayer's state, not a recipe input: set it as the row has it.
         cli("--addr", a.addr, "invoke", "profile.save", "--arg", f"tin=\"{tin}\"", "--arg", f"email=\"{row['email']}\"")
@@ -101,7 +119,9 @@ def main():
         expect_errors = int(row.get("expect_errors") or 0)
         failed = next((s for s in receipt.get("steps", []) if not s.get("ok", True)), None)
         stopped = (failed or {}).get("id", "")
-        if expect_errors:
+        if a.expect_stop:
+            good = not receipt.get("ok") and stopped == a.expect_stop
+        elif expect_errors:
             good = not receipt.get("ok") and stopped == "check"
         else:
             good = bool(receipt.get("ok"))
@@ -110,9 +130,14 @@ def main():
         note = receipt.get("error", "") if not receipt.get("ok") else ""
         if missing:
             note += f" missing required: {missing}"
+        if pinned_over:
+            note += f" template pins: {pinned_over}"
         if unmapped:
             note += f" not in recipe: {unmapped}"
-        lines.append(f"| {n} | {row['case']} | {'yes' if good else 'NO'} | {stopped} | {receipt.get('elapsed_ms')} | {wall} | {note.strip()[:160]} |")
+        if a.shot_cmd:
+            subprocess.run(a.shot_cmd.format(out=os.path.join(a.out, f"{n:02d}-{row['case']}.png")), shell=True)
+        time.sleep(a.pause_ms / 1000)
+        lines.append(f"| {n} | {row['case']} | {'yes' if good else 'NO'} | {stopped} | {receipt.get('elapsed_ms')} | {wall} | {note.strip()[:240]} |")
     print("\n".join(lines))
     open(os.path.join(a.out, "results.md"), "w").write("\n".join(lines) + "\n")
     sys.exit(0 if ok_all else 1)
