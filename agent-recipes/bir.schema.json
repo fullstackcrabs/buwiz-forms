@@ -396,6 +396,10 @@
         "strict": {
           "type": "bool",
           "required": false
+        },
+        "stored": {
+          "type": "bool",
+          "required": false
         }
       },
       "keywords": [

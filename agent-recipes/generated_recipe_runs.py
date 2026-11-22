@@ -8,7 +8,8 @@ Against a host on a fresh scratch database: adds the test taxpayer, files the fi
 recipe (the "history"), asks the app for `recipe.generate`, checks the recipe with `gpui-agent recipe validate`,
 then runs it for the other rows. Each row is first checked against the generated `input_schema`'s required list
 and `form.check` (inside the recipe, strict unless the row expects errors). A run passes when the receipt is ok,
-or, for a row that expects validation errors, when the recipe stops at `check` before any write.
+or, for a row that expects validation errors, when the recipe stops at `check` before any write and the check
+names every field in the row's `expect_error_fields`. With --tin nothing is filed first unless --history is given.
 Writes OUT/recipe.json, OUT/input_schema.json, OUT/results.md.
 """
 import argparse, csv, json, os, subprocess, sys, time
@@ -32,7 +33,8 @@ def main():
     ap.add_argument("--rows", default="3-10")
     ap.add_argument("--include-unused", action="store_true",
                     help="keep boxes the history never filled as optional params")
-    ap.add_argument("--history", default="2", help="how many leading rows to file first as the taxpayer's history")
+    ap.add_argument("--history", help="how many leading rows to file first as the taxpayer's history "
+                                      "(default 2, or 0 with --tin: an existing taxpayer keeps its own history)")
     ap.add_argument("--tin", help="use this existing taxpayer (and whatever it already filed) instead of adding the data set's")
     ap.add_argument("--generate-arg", action="append", default=[], metavar="NAME=JSON",
                     help="extra recipe.generate argument, e.g. keep_open=true or check='\"report\"'")
@@ -54,7 +56,7 @@ def main():
 
     rows = list(csv.DictReader(open(a.data, encoding="utf-8")))
     first, _, last = a.rows.partition("-")
-    seeds = rows[: int(a.history)]
+    seeds = rows[: int(a.history if a.history is not None else (0 if a.tin else 2))]
     tin = a.tin or rows[0]["tin"]
     if not a.tin:
         cli("--addr", a.addr, "recipe", "run", os.path.join(HERE, "add-tax-profile.json"), *schema, "--set", f"tin={tin}",
@@ -122,12 +124,18 @@ def main():
         if a.expect_stop:
             good = not receipt.get("ok") and stopped == a.expect_stop
         elif expect_errors:
-            good = not receipt.get("ok") and stopped == "check"
+            # The stop must be for this row's reason: any other refusal at `check` is a failure of the run.
+            why = json.dumps([receipt.get("error", ""), failed])
+            wanted = [f for f in (row.get("expect_error_fields") or "").replace(";", ",").split(",") if f.strip()]
+            not_named = [f.strip() for f in wanted if f"{f.strip()}: " not in why]
+            good = not receipt.get("ok") and stopped == "check" and bool(wanted) and not not_named
         else:
             good = bool(receipt.get("ok"))
         good = good and not unmapped
         ok_all &= good
         note = receipt.get("error", "") if not receipt.get("ok") else ""
+        if expect_errors and not a.expect_stop and (not_named or not wanted):
+            note += f" check did not name: {not_named or 'no expect_error_fields in the row'}"
         if missing:
             note += f" missing required: {missing}"
         if pinned_over:

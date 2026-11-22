@@ -351,6 +351,16 @@ pub fn form_schema(kind: AgentFormKind) -> Value {
     })
 }
 
+/// Boxes whose metadata reads "required" though the form's own validation
+/// asks for them only under another answer: 1701Q Item 16A (method of
+/// deduction) applies under graduated rates only, not under the 8% rate.
+fn depends_on_another_answer(kind: AgentFormKind, key: &str) -> bool {
+    matches!(
+        (kind.form_code(), key),
+        ("1701Q", "frm1701q:optMethodOfDeduction")
+    )
+}
+
 /// The recipe for `inputs`. See the module docs for the rules.
 pub fn generate(inputs: &Inputs<'_>) -> Result<Generated, String> {
     let kind = inputs.kind;
@@ -420,9 +430,12 @@ pub fn generate(inputs: &Inputs<'_>) -> Result<Generated, String> {
             .iter()
             .map(|map| def.box_value(key, map))
             .find(|value| !carry::is_blank_value(value));
-        let must = entry.required == "required"
-            || stop == Some(true)
-            || (carry == Carry::Election && last.is_some());
+        // A box the form asks for only under another answer is never
+        // required of the caller: validation asks for it when it applies.
+        let must = !depends_on_another_answer(kind, key)
+            && (entry.required == "required"
+                || stop == Some(true)
+                || (carry == Carry::Election && last.is_some()));
         if !must
             && !inputs.options.include_unused
             && carry != Carry::Election
@@ -478,6 +491,9 @@ pub fn generate(inputs: &Inputs<'_>) -> Result<Generated, String> {
             "args": {
                 "code": code, "year": "$year", "period": "$period", "tin": inputs.tin,
                 "fields": fields,
+                // The return `form.open` will open: a draft already stored
+                // for the period, not a fresh one.
+                "stored": true,
                 "strict": inputs.options.check == CheckMode::Strict,
             },
             "needs": ["template"],
