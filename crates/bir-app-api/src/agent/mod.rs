@@ -92,6 +92,15 @@ pub fn try_start_with(
             return Err(error.to_string());
         }
     };
+    try_start_config(config, choose)
+}
+
+/// [`try_start_with`] for a host that reads the opt-in itself (Android, whose app process has no launch
+/// environment): `config` is the address asked for and the token, already decided.
+pub fn try_start_config(
+    config: gpui_agent::security::AgentConfig,
+    choose: impl FnOnce(std::net::SocketAddr) -> Result<std::net::SocketAddr, String>,
+) -> Result<Option<Started>, String> {
     let bind = match choose(config.addr) {
         Ok(bind) => bind,
         Err(error) => {

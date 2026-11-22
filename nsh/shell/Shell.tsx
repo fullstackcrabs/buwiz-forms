@@ -111,6 +111,7 @@ function ViewFrame() {
   return (
     <Scroll
       testID="main-scroll"
+      keyboardShouldPersistTaps="handled"
       class="min-h-0 flex-1"
       contentClass={`items-center pb-14 ${box().pad === 16 ? "px-4 pt-5" : "px-8 pt-7"}`}
     >

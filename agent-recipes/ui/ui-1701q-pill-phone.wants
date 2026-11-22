@@ -1,0 +1,19 @@
+# Phone layout (Android): the form has no side list of sections (no fp-nav), so the floating pill is the only way round.
+# On an open 1701Q whose email is missing: step forward to the error, forward and back again, open the pill's list of
+# sections, jump to Part I, type the email and check again. The taxpayer has no EOPT tier here, so the surcharge row
+# is the second to-do and stays: the count goes from 2 to 1.
+wait_until fp-pill-count name="2 items need attention" --timeout-ms 10000
+click fp-pill-next
+wait_until fp-pill-big name="Item 12 · Email Address" --timeout-ms 5000
+assert fp-msg-1:8 name="Enter the email address BIR sends the filing confirmation to." --screenshot
+click fp-pill-next
+wait_until fp-pill-small name="2 of 2 to do · Part V" --timeout-ms 5000
+click fp-pill-prev
+wait_until fp-pill-big name="Item 12 · Email Address" --timeout-ms 5000
+click fp-pill-open
+wait_until fp-section-1 --timeout-ms 5000 --screenshot
+click fp-section-1
+wait_until fp-section-1 --absent --timeout-ms 5000
+set_value fp-txtEmail $fix_email
+click fp-check
+wait_until fp-pill-count name="1 item needs attention" --timeout-ms 10000 --screenshot

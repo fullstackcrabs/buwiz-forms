@@ -108,7 +108,7 @@ export function SoloTaxpayer() {
   });
   const padX = () => (windowSize().width < BREAK.narrowContent ? 16 : 32);
   return (
-    <Scroll testID="setup-taxpayer" class="min-h-0 flex-1" contentClass="items-center pt-7 pb-14" style={{ paddingLeft: padX(), paddingRight: padX() }}>
+    <Scroll testID="setup-taxpayer" keyboardShouldPersistTaps="handled" class="min-h-0 flex-1" contentClass="items-center pt-7 pb-14" style={{ paddingLeft: padX(), paddingRight: padX() }}>
       <View class="w-full min-w-0" style={{ maxWidth: SIZE.contentMax }}>
         <NewTaxpayerPage />
       </View>

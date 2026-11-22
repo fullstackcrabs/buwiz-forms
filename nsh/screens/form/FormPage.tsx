@@ -232,6 +232,7 @@ export function FormPage(props: FormPageProps) {
         <Scroll
           ref={(r: ScrollRef) => (scrollRef = r)}
           testID="form-scroll"
+          keyboardShouldPersistTaps="handled"
           class="min-h-0 flex-1"
           contentClass={wide() ? "pt-7 pr-7.5 pb-28 pl-5.5" : narrow() ? "px-4 pt-5 pb-32" : "px-8 pt-7 pb-28"}
           onScroll={(e) => followScroll(e.offset.y)}

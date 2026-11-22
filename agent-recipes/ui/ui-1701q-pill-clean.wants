@@ -1,0 +1,15 @@
+# After ui-fill-1701q-dataset.wants on a row with no validation error: the floating pill shows no red count; step it
+# forward and back through the sections, open its section list, jump to Schedule I and read box 36A back.
+# $sales_shown is the row's sales as the form shows it ("250,000.00").
+wait_until fp-pill-count --absent --timeout-ms 5000
+click fp-nav-0
+wait_until fp-pill-small name="Page 1 · 1 of 9" --timeout-ms 5000
+click fp-pill-next
+wait_until fp-pill-small name="Part I · 2 of 9" --timeout-ms 5000
+click fp-pill-prev
+wait_until fp-pill-small name="Page 1 · 1 of 9" --timeout-ms 5000
+click fp-pill-open
+wait_until fp-section-4 --timeout-ms 5000
+click fp-section-4
+wait_until fp-pill-small name="Part V · 5 of 9" --timeout-ms 5000
+assert fp-frm1701q:txt36A value=$sales_shown --screenshot

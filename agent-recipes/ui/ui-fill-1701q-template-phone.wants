@@ -1,0 +1,54 @@
+# Phone layout (Android): as ui-fill-1701q-template.wants. Save a 1701Q sample as the Q1 return of $year, answer it, make
+# the taxpayer's 1701Q template from it. The phone has no side list (fp-nav-N) and no tax-profile panel (tb-panel): the
+# parts are reached through the pill's sheet (fp-pill-open, fp-section-N) and the Templates tab through the account menu
+# (nb-avatar, nb-menu-profile, panel-open-templates). $gross is given in whole pesos: see the report on set_value with
+# decimals in a money box on Android. Ends on the taxpayer's Forms page.
+click tab-library
+wait_until library-1701Q --timeout-ms 5000
+click library-1701Q
+wait_until fp-save --timeout-ms 10000
+click fp-save
+wait_until sample-period-year --timeout-ms 5000
+set_value sample-period-year $year
+click sample-period-q1
+click sample-period-save
+wait_until fp-save-state name="✓ Saved" --timeout-ms 10000
+click fp-pill-open
+wait_until fp-section-1 --timeout-ms 5000
+click fp-section-1
+wait_until fp-section-1 --absent --timeout-ms 5000
+wait_until fp-frm1701q:optType_2 --timeout-ms 5000
+click fp-frm1701q:optType_2
+click fp-frm1701q:optATC_2
+set_value fp-frm1701q:txtBirthMonth#date $birth
+wait_until fp-frm1701q:txtCitizenship --timeout-ms 5000
+set_value fp-frm1701q:txtCitizenship $citizenship
+click fp-frm1701q:optForeignTaxCredits_2
+click fp-frm1701q:optMethodOfDeduction:_2
+click fp-pill-open
+wait_until fp-section-4 --timeout-ms 5000
+click fp-section-4
+wait_until fp-section-4 --absent --timeout-ms 5000
+wait_until fp-frm1701q:txt36A --timeout-ms 5000
+set_value fp-frm1701q:txt36A $gross
+wait_until fp-frm1701q:txt40A name="A) Taxpayer/Filer: $osd" --timeout-ms 5000
+assert fp-frm1701q:txt41A name="A) Taxpayer/Filer: $net" --screenshot
+# Check and the save state are in the form's header, in the tree only while Page 1 is on screen.
+click fp-pill-open
+wait_until fp-section-0 --timeout-ms 5000
+click fp-section-0
+wait_until fp-section-0 --absent --timeout-ms 5000
+wait_until fp-check --timeout-ms 5000
+click fp-check
+wait_until fp-save-state name="✓ Saved" --timeout-ms 10000
+click nb-back
+click nb-avatar
+wait_until nb-menu-profile --timeout-ms 5000
+click nb-menu-profile
+wait_until panel-open-templates --timeout-ms 5000
+click panel-open-templates
+wait_until tp-template-1701Q-create --timeout-ms 5000
+click tp-template-1701Q-create
+wait_until tp-template-1701Q-update --timeout-ms 5000 --screenshot
+click tp-tabs-forms
+wait_until tp-new-return --timeout-ms 5000

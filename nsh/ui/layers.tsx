@@ -117,7 +117,7 @@ export function Sheet(props: SheetProps) {
         <Text variant="emph" class="flex-1" lines={1}>{props.title ?? ""}</Text>
         <IconButton icon="x" tooltip="Close" onPress={() => props.onOpenChange(false)} />
       </View>
-      <Scroll class="shrink" contentClass="gap-4 p-4">
+      <Scroll keyboardShouldPersistTaps="handled" class="shrink" contentClass="gap-4 p-4">
         {props.children}
       </Scroll>
       <If when={props.footer}>
@@ -428,7 +428,7 @@ export function SidePanel(props: SidePanelProps) {
           {props.action}
         </View>
       </If>
-      <Scroll testID={props.testID ? `${props.testID}-scroll` : undefined} class="min-h-0 flex-1" contentClass={cx("gap-0.5 px-3 pb-3", !props.title && "pt-1")}>
+      <Scroll testID={props.testID ? `${props.testID}-scroll` : undefined} keyboardShouldPersistTaps="handled" class="min-h-0 flex-1" contentClass={cx("gap-0.5 px-3 pb-3", !props.title && "pt-1")}>
         {props.children}
       </Scroll>
     </View>

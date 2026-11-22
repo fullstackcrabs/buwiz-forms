@@ -232,6 +232,7 @@ export function Segmented(props: SegmentedProps) {
                 if (props.autoFocus) revealAndFocus(r);
               }
             }}
+            testID={props.testID ? `${props.testID}-${o().value}` : undefined}
             pressed={o().value === props.value}
             accessibilityLabel={o().label}
             hitSlop={TOUCH ? { top: 10, bottom: 10 } : 0}
@@ -330,7 +331,7 @@ export function Dropdown(props: DropdownProps) {
       backdropClass="bg-scrim"
       listClass="max-h-70"
       itemClass={LIST_ITEM}
-      renderItem={(item: SelectEntry) => <Text>{item.title}</Text>}
+      renderItem={(item: SelectEntry) => <Text testID={props.testID ? `${props.testID}-opt-${item.value}` : undefined}>{item.title}</Text>}
       empty={<Text variant="meta" tone="fg3" class="px-2 py-1.5">Nothing matches.</Text>}
       trigger={
         <View
@@ -407,7 +408,7 @@ export function ComboField(props: ComboFieldProps) {
       backdropClass="bg-scrim"
       listClass="max-h-70"
       itemClass={cx(LIST_ITEM, "py-1")}
-      renderItem={(item: SelectEntry) => <Text>{item.title}</Text>}
+      renderItem={(item: SelectEntry) => <Text testID={props.testID ? `${props.testID}-opt-${item.value}` : undefined}>{item.title}</Text>}
       empty={<Text variant="meta" tone="fg3" class="px-2 py-1.5">No match. Try a code or a place name.</Text>}
     />
   );
@@ -509,7 +510,7 @@ export function MultiCombo(props: MultiComboProps) {
         <AppButton label="Select all" variant="ghost" size="sm" testID={props.testID ? `${props.testID}-all` : undefined} onPress={selectAll} />
         <AppButton label="Clear" variant="ghost" size="sm" testID={props.testID ? `${props.testID}-clear` : undefined} onPress={clear} />
       </View>
-      <Scroll class="max-h-75" contentClass="gap-0.5">
+      <Scroll keyboardShouldPersistTaps="handled" class="max-h-75" contentClass="gap-0.5">
         <If when={found().length === 0}>
           <Text variant="meta" tone="fg3" class="p-2">Nothing matches.</Text>
         </If>

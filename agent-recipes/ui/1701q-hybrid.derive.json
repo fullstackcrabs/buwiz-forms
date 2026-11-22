@@ -1,0 +1,60 @@
+{
+  "derive": {
+    "type_opt": {
+      "from": "filer_type",
+      "map": {
+        "Single": "1",
+        "Professional": "2"
+      }
+    },
+    "atc_opt": {
+      "from": "atc",
+      "map": {
+        "II012": "1",
+        "II014": "2"
+      }
+    },
+    "method_opt": {
+      "from": "deduction",
+      "map": {
+        "I": "1",
+        "O": "2"
+      }
+    },
+    "birth": {
+      "format": "{birth_month}/{birth_day}/{birth_year}"
+    },
+    "sales_shown": {
+      "from": "sales",
+      "money": 2
+    },
+    "sales_fixed": {
+      "from": "sales",
+      "money": 0
+    },
+    "fix_email": {
+      "format": "fixed@example.com"
+    }
+  },
+  "after": {
+    "": "ui-1701q-pill-clean.wants",
+    "item_36_taxpayer": "ui-1701q-pill-fix-36a.wants",
+    "email": "ui-1701q-pill-fix-email.wants"
+  },
+  "data": {
+    "recipe": "fill-1701q-visible.json",
+    "schema": "../bir.schema.json"
+  },
+  "data_end": {
+    "recipe": "close-form.json",
+    "schema": "../bir.schema.json"
+  },
+  "data_start": {
+    "recipe": "set-profile-email.json",
+    "schema": "../bir.schema.json"
+  },
+  "data_abort": {
+    "recipe": "save-close-form.json",
+    "schema": "../bir.schema.json"
+  }
+}

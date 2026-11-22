@@ -1,0 +1,61 @@
+# One 1701Q return through the real window, from one row of datasets/1701q.csv (the columns of fill-1701q-dataset.json):
+# set the profile's email, start the return for $year / quarter $period from the taxpayer's saved 1701Q template, fill the
+# rest from the row and check it. Before it, on a fresh database: ui-sign-up.wants, ui-fill-1701q-template.wants (leaves
+# the template), then ui-add-tax-year.wants and ui-set-eopt-tier.wants for each tax year in the data. Starts with the
+# tax-profile panel closed and ends on the checked return, where ui-1701q-pill-*.wants take over.
+# Derived from the row (run_datasets.py --derive ui/1701q-ui.derive.json): $type_opt / $atc_opt / $method_opt, the option
+# number of filer_type / atc / deduction, and $birth (MM/DD/YYYY). Type and ATC are pressed after another option because
+# pressing the option the template already chose would clear it. The deduction method is chosen last: boxes 37A and 39A
+# take a value only under itemized deduction.
+click tb-panel
+wait_until panel-open-profile --timeout-ms 5000
+click panel-open-profile
+wait_until tp-sec-address-edit --timeout-ms 5000
+click tp-sec-address-edit
+wait_until tp-address-email --timeout-ms 5000
+set_value tp-address-email $email
+click tp-address-save
+wait_until tp-address-save --absent --timeout-ms 5000
+click panel-open-forms
+wait_until tp-years-$year --timeout-ms 5000
+click tp-years-$year
+click tp-new-return
+wait_until new-return-1701Q --timeout-ms 5000
+click new-return-1701Q
+click new-return-period-trigger
+wait_until new-return-period-opt-$period --timeout-ms 5000
+click new-return-period-opt-$period
+click new-return-open
+wait_until fp-pill --timeout-ms 10000
+click tb-panel
+wait_until fp-nav-0 --timeout-ms 5000
+click fp-nav-0
+wait_until fp-frm1701q:txtSheets --timeout-ms 5000
+set_value fp-frm1701q:txtSheets $sheets
+click fp-nav-1
+wait_until fp-frm1701q:optType_$type_opt --timeout-ms 5000
+click fp-frm1701q:optType_3
+click fp-frm1701q:optType_$type_opt
+click fp-frm1701q:optATC_3
+click fp-frm1701q:optATC_$atc_opt
+type fp-frm1701q:txtBirthMonth#date $birth
+set_value fp-frm1701q:txtCitizenship $citizenship
+click fp-frm1701q:optMethodOfDeduction:_1
+click fp-nav-4
+wait_until fp-frm1701q:txt37A role=textbox --timeout-ms 5000
+set_value fp-frm1701q:txt36A $sales
+set_value fp-frm1701q:txt37A $cost_of_sales
+set_value fp-frm1701q:txt39A $deductions
+set_value fp-frm1701q:txt42A $prior_income
+set_value fp-frm1701q:txt43Desc $non_op_desc
+set_value fp-frm1701q:txt43A $non_op_income
+click fp-nav-6
+wait_until fp-frm1701q:txt55A --timeout-ms 5000
+set_value fp-frm1701q:txt55A $prior_credits
+set_value fp-frm1701q:txt56A $prior_payments
+set_value fp-frm1701q:txt58A $withheld_2307
+click fp-nav-1
+wait_until fp-frm1701q:optMethodOfDeduction:_$method_opt --timeout-ms 5000
+click fp-frm1701q:optMethodOfDeduction:_$method_opt
+click fp-check
+wait_until fp-save-state name="✓ Saved" --timeout-ms 10000

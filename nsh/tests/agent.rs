@@ -345,3 +345,28 @@ fn it_starts_only_when_asked_for_with_a_token_and_on_loopback() {
         },
     );
 }
+
+/// Android's opt-in (the app process has no launch environment there): the development settings decide, a build
+/// without them never opts in, a token is required, and the default port is the one after NSH's window plane.
+#[test]
+fn the_development_settings_opt_in_needs_the_build_the_switch_and_a_token() {
+    let settings = |pairs: &'static [(&'static str, &'static str)]| {
+        move |name: &str| pairs.iter().find(|(key, _)| *key == name).map(|(_, value)| (*value).to_owned())
+    };
+    let on: &[(&str, &str)] = &[("GPUI_AGENT", "1"), ("GPUI_AGENT_TOKEN", TOKEN)];
+    let config = agent::settings_config(true, settings(on)).expect("config").expect("opted in");
+    assert_eq!(config.addr, "127.0.0.1:17422".parse::<SocketAddr>().expect("address"));
+    assert_eq!(config.token.as_deref(), Some(TOKEN));
+    let placed: &[(&str, &str)] =
+        &[("GPUI_AGENT", "true"), ("GPUI_AGENT_TOKEN", TOKEN), ("GPUI_AGENT_ADDR", "127.0.0.1:17442")];
+    let config = agent::settings_config(true, settings(placed)).expect("config").expect("opted in");
+    assert_eq!(config.addr.port(), 17442);
+    assert!(agent::settings_config(false, settings(on)).expect("off").is_none(), "a build without the settings");
+    assert!(agent::settings_config(true, settings(&[("GPUI_AGENT_TOKEN", TOKEN)])).expect("off").is_none());
+    assert!(agent::settings_config(true, settings(&[("GPUI_AGENT", "0"), ("GPUI_AGENT_TOKEN", TOKEN)])).expect("off").is_none());
+    let error = agent::settings_config(true, settings(&[("GPUI_AGENT", "1"), ("GPUI_AGENT_TOKEN", "")])).expect_err("no token");
+    assert!(error.contains("GPUI_AGENT_TOKEN"), "{error}");
+    let error = agent::settings_config(true, settings(&[("GPUI_AGENT", "1"), ("GPUI_AGENT_TOKEN", TOKEN), ("GPUI_AGENT_ADDR", "nowhere")]))
+        .expect_err("bad address");
+    assert!(error.contains("not a socket address"), "{error}");
+}
