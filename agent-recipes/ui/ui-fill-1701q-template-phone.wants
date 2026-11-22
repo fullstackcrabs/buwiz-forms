@@ -33,6 +33,12 @@ wait_until fp-frm1701q:txt36A --timeout-ms 5000
 set_value fp-frm1701q:txt36A $gross
 wait_until fp-frm1701q:txt40A name="A) Taxpayer/Filer: $osd" --timeout-ms 5000
 assert fp-frm1701q:txt41A name="A) Taxpayer/Filer: $net" --screenshot
+# Check and the save state are in the form's header, in the tree only while Page 1 is on screen.
+click fp-pill-open
+wait_until fp-section-0 --timeout-ms 5000
+click fp-section-0
+wait_until fp-section-0 --absent --timeout-ms 5000
+wait_until fp-check --timeout-ms 5000
 click fp-check
 wait_until fp-save-state name="✓ Saved" --timeout-ms 10000
 click nb-back
