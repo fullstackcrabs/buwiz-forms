@@ -2,7 +2,7 @@
 """Run the UI recipes of ui/ once per row of the 1701Q data set against the NSH app's window plane, and check each run.
 
 Usage: GPUI_AGENT_TOKEN=... python3 run_ui_datasets.py --cli path/to/gpui-agent --addr 127.0.0.1:PORT
-       [--data datasets/1701q.csv] [--rows 1-10] [--out runs-ui] [--pause-ms 0] [--label NAME]
+       [--data datasets/1701q.csv] [--rows 1-10] [--out DIR] [--pause-ms 0] [--label NAME]
 
 Per row: ui/ui-fill-1701q-dataset.wants (a return started from the saved template, filled from the row, the floating
 pill pressed forward and back, its section list used, the boxes read back), ui/ui-1701q-itemized.wants when the row
@@ -11,9 +11,10 @@ itemizes, then ui/ui-1701q-pill-clear.wants when the row must end valid, or ui/u
 when every receipt is ok. `--pause-ms` waits between runs only, never inside a timed recipe. Writes OUT/<nn>-<case>/<recipe>.json and shots/, OUT/results.json and OUT/results.md.
 
 The app must show the taxpayer with the rows' tax years, 1701Q among each year's forms and a saved 1701Q template
-(ui-signup-taxpayer.wants, ui-add-tax-year.wants, ui-save-1701q-template.wants), and no draft for the rows' periods.
+(ui-signup-taxpayer.wants, then ui-add-tax-year.wants and ui-set-eopt-tier.wants for each year, ui-save-1701q-template.wants;
+without a year's EOPT tier Item 64 stays on the pill and a valid row never clears), and no draft for the rows' periods.
 """
-import argparse, csv, json, os, platform, subprocess, sys, time
+import argparse, csv, json, os, platform, subprocess, sys, tempfile, time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 AMOUNTS = ["sales", "prior_income", "non_op_income", "prior_credits", "prior_payments", "withheld_2307"]
@@ -81,7 +82,8 @@ def main():
     ap.add_argument("--addr", required=True)
     ap.add_argument("--data", default=os.path.join(HERE, "datasets", "1701q.csv"))
     ap.add_argument("--rows", default="1-10")
-    ap.add_argument("--out", default="runs-ui")
+    ap.add_argument("--out", default=os.path.join(tempfile.gettempdir(), "runs-ui"),
+                    help="receipts and real-window screenshots; outside the worktree by default")
     ap.add_argument("--pause-ms", type=int, default=0)
     ap.add_argument("--label", default=platform.system())
     a = ap.parse_args()
