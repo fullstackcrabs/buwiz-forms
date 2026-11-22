@@ -232,6 +232,7 @@ export function Segmented(props: SegmentedProps) {
                 if (props.autoFocus) revealAndFocus(r);
               }
             }}
+            testID={props.testID ? `${props.testID}-${o().value}` : undefined}
             pressed={o().value === props.value}
             accessibilityLabel={o().label}
             hitSlop={TOUCH ? { top: 10, bottom: 10 } : 0}
@@ -330,7 +331,7 @@ export function Dropdown(props: DropdownProps) {
       backdropClass="bg-scrim"
       listClass="max-h-70"
       itemClass={LIST_ITEM}
-      renderItem={(item: SelectEntry) => <Text>{item.title}</Text>}
+      renderItem={(item: SelectEntry) => <Text testID={props.testID ? `${props.testID}-opt-${item.value}` : undefined}>{item.title}</Text>}
       empty={<Text variant="meta" tone="fg3" class="px-2 py-1.5">Nothing matches.</Text>}
       trigger={
         <View

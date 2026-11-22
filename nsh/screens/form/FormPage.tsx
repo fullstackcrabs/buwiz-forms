@@ -196,6 +196,7 @@ export function FormPage(props: FormPageProps) {
   });
   async function reveal(row: string | null, part: number, seq: number) {
     let asked = false;
+    let placed = 0;
     for (let tries = 0; tries < 20; tries++) {
       await new Promise((done) => setTimeout(done, 50));
       if (s.reveal()?.seq !== seq) return;
@@ -216,9 +217,14 @@ export function FormPage(props: FormPageProps) {
       }
       const [m, area] = await Promise.all([ref.measure(), scrollRef.measure()]);
       if (!m || !area) continue;
-      scrollRef.scrollTo({ y: Math.max(0, scrollY + m.pagePosition.y - area.pagePosition.y - (row ? 72 : 0)), animated: true });
-      if (row) s.focusRow(row);
-      return;
+      const off = m.pagePosition.y - area.pagePosition.y - (row ? 72 : 0);
+      // The parts a jump folds may still be shrinking when this measures: measure again once the page has had the
+      // time to lay out, until the target stays where the scroll put it.
+      if (Math.abs(off) <= 1 && placed) return;
+      scrollRef.scrollTo({ y: Math.max(0, scrollY + off), animated: !placed });
+      if (row && !placed) s.focusRow(row);
+      if (placed++ >= 3) return;
+      await new Promise((done) => setTimeout(done, 250));
     }
   }
 

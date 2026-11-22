@@ -1,0 +1,30 @@
+# Makes the taxpayer's saved 1701Q template: starts the 1701Q return of Q$period $year (a period no data set uses),
+# answers only what every return of this taxpayer repeats (citizenship, no foreign tax credits), saves it and stores it
+# as the template. The answers a data set gives (filer type, ATC, deduction method, amounts) stay out of it on purpose:
+# an option that is already chosen is cleared by a second press. Start and end with the tax profile panel closed.
+click tb-panel
+wait_until panel-open-forms --timeout-ms 5000
+click panel-open-forms
+wait_until tp-years-$year --timeout-ms 5000
+click tp-years-$year
+click tp-new-return
+wait_until new-return-1701Q --timeout-ms 5000
+click new-return-1701Q
+click new-return-period-trigger
+wait_until new-return-period-opt-$period --timeout-ms 5000
+click new-return-period-opt-$period
+wait_until new-return-period-trigger value="Q$period $year" --timeout-ms 5000
+click new-return-open
+wait_until fp-nav-1 --timeout-ms 10000
+click fp-nav-1
+wait_until fp-frm1701q:txtCitizenship --timeout-ms 5000
+type fp-frm1701q:txtCitizenship $citizenship
+click fp-frm1701q:optForeignTaxCredits_2
+click fp-check
+wait_until fp-save-state name="✓ Saved" --timeout-ms 10000
+click panel-open-templates
+wait_until tp-template-1701Q-create --timeout-ms 5000
+click tp-template-1701Q-create
+wait_until tp-template-1701Q-update --timeout-ms 5000 --screenshot
+click tb-panel
+wait_until panel-open-templates --absent --timeout-ms 5000

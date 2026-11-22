@@ -1307,7 +1307,6 @@ mod linux_print {
 #[cfg(all(windows, target_env = "msvc"))]
 mod windows_print {
     use std::ffi::c_void;
-    use std::path::PathBuf;
     use std::sync::{Mutex, mpsc};
 
     use webview2_com::Microsoft::Web::WebView2::Win32::{

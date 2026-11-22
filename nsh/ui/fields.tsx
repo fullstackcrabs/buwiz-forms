@@ -212,6 +212,14 @@ const CLICK_MS = 500;
  * selected so the first digit replaces it (typing at the caret of "0.00" gave "1,000.00" for 100); a box focused by its own
  * focus() (the form's step, which NSH gives a caret at the end) is selected whole.
  */
+/** `next` is `prev` with the selection `from` replaced by what was typed (nothing else differs). */
+function editFits(prev: string, next: string, from: TextSelection): boolean {
+  const a = Math.min(from.start, from.end);
+  const b = Math.max(from.start, from.end);
+  const grew = next.length - (prev.length - (b - a));
+  return a >= 0 && b <= prev.length && grew >= 0 && next.slice(0, a) === prev.slice(0, a) && next.slice(a + grew) === prev.slice(b);
+}
+
 function MaskedField(props: MaskedProps) {
   let input: InputRef | undefined;
   const focused = signal(false);
@@ -226,6 +234,9 @@ function MaskedField(props: MaskedProps) {
   let selected: TextSelection | undefined;
   let editFrom: TextSelection | undefined;
   let editTyped = false;
+  // The text the box last reported while it has the keys. Keys that come faster than the answers (a burst, an agent's
+  // typing) are typed on this text, not on the answer: NSH drops an answer the box has typed past.
+  let boxText: string | undefined;
   // The box took the keys by itself (not through its focus()): until this time (Date.now(), 0: never) a caret is the click's that
   // gave them, and a key press ends it. A click's caret can come twice (AppKit places it as the press goes down and again when
   // it ends), so every caret in the window counts, not only the first.
@@ -269,12 +280,26 @@ function MaskedField(props: MaskedProps) {
     const typed = editTyped;
     editFrom = undefined;
     editTyped = false;
-    const next = reconcile(prev, raw, props.mask, undefined, from, typed);
+    // What the edit was made on, and from where: the text shown, or the box's own when the selection fits only that; a
+    // selection that fits neither (the caret an answer moved is not reported) leaves what was added at the end.
+    let on = prev;
+    let at = from;
+    const end = (t: string) => ({ start: t.length, end: t.length });
+    if (boxText !== undefined && boxText !== prev && !(from && editFits(prev, raw, from))) {
+      if (from && editFits(boxText, raw, from)) on = boxText;
+      else if (raw.length > prev.length && raw.startsWith(prev)) at = end(prev);
+      else if (raw.length > boxText.length && raw.startsWith(boxText)) [on, at] = [boxText, end(boxText)];
+    }
+    const next = reconcile(on, raw, props.mask, undefined, at, typed);
+    // An edit that changes nothing is taken back: what the box holds after it is the text shown.
+    boxText = next.rejected || next.text === prev ? next.text : raw;
     // The native box holds `raw`. A signal that already holds the answer would send nothing: show `raw` first so the
     // answer is a change the box must take.
     if (next.text === prev && raw !== prev) text.set(raw);
     text.set(next.text);
-    if (next.text !== raw || next.rejected) input?.setSelection(next.caret);
+    // The box puts the caret at the end of a text it takes, so a caret that belongs there is not sent: sent, it would
+    // arrive after the keys typed since this edit and put the next ones inside the number.
+    if (next.rejected || (next.text !== raw && next.caret !== next.text.length)) input?.setSelection(next.caret);
     if (next.rejected) return;
     const value = props.valueOf(next.text);
     if (value === last) return;
@@ -326,6 +351,7 @@ function MaskedField(props: MaskedProps) {
       }}
       onFocus={() => {
         focused.set(true);
+        boxText = undefined;
         edited = false;
         props.field.onFocus?.();
         clickUntil = byFocus ? 0 : Date.now() + CLICK_MS;

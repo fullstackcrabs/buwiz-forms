@@ -949,6 +949,17 @@ nsh-check *args="":
     cd nsh
     exec nsh check {{args}}
 
+# Windows: the same command in PowerShell.
+[windows]
+nsh-check *args="":
+    #!pwsh -NoProfile
+    $ErrorActionPreference = 'Stop'
+    $env:PATH = "$HOME\BuwizNsh\tools\bin;$env:PATH"
+    $env:CARGO_TARGET_DIR = "$HOME\BuwizNsh\target-nsh"
+    Set-Location nsh
+    nsh check {{args}}
+    exit $LASTEXITCODE
+
 # NSH: bundle and compile the app; every warning it prints is a finding.
 [unix]
 nsh-build *args="":
@@ -957,6 +968,17 @@ nsh-build *args="":
     export PATH="$HOME/BuwizNsh/tools/bin:$PATH" CARGO_TARGET_DIR="$HOME/BuwizNsh/target-nsh"
     cd nsh
     exec nsh build {{args}}
+
+# Windows: the same command in PowerShell.
+[windows]
+nsh-build *args="":
+    #!pwsh -NoProfile
+    $ErrorActionPreference = 'Stop'
+    $env:PATH = "$HOME\BuwizNsh\tools\bin;$env:PATH"
+    $env:CARGO_TARGET_DIR = "$HOME\BuwizNsh\target-nsh"
+    Set-Location nsh
+    nsh build {{args}}
+    exit $LASTEXITCODE
 
 # nsh-test also sets the dev environment, so a test that reaches the door can never read the keychain or send. It never sets BIR_DATABASE_PATH.
 
@@ -1000,6 +1022,36 @@ nsh-test *args="":
         exit 1
     fi
     echo "nsh-test: every test file passed (nsh/verify left out)"
+
+# Windows: as the Unix recipe and CI's Windows job (.github/workflows/nsh.yml): with arguments, exactly `nsh test <arguments>`; with none,
+# the Rust tests once, then every tracked *.test.ts and *.test.tsx outside nsh/verify, one headless run per file.
+[windows]
+nsh-test *args="":
+    #!pwsh -NoProfile
+    $ErrorActionPreference = 'Stop'
+    $env:PATH = "$HOME\BuwizNsh\tools\bin;$env:PATH"
+    $env:CARGO_TARGET_DIR = "$HOME\BuwizNsh\target-nsh"
+    $env:BUWIZ_NO_KEYCHAIN = '1'; $env:EBIR_TEST_ENV = '1'; $env:BIR_AUTH_BYPASS = '1'; $env:BIR_SFTP_DRY_RUN = '1'
+    Remove-Item Env:BIR_SFTP_LIVE -ErrorAction SilentlyContinue
+    Remove-Item Env:BIR_DATABASE_PATH -ErrorAction SilentlyContinue
+    Set-Location nsh
+    $given = "{{args}}"
+    if ($given.Trim()) { nsh test {{args}}; exit $LASTEXITCODE }
+    $failed = @()
+    cargo test --manifest-path Cargo.toml --no-fail-fast
+    if ($LASTEXITCODE -ne 0) { $failed += 'rust crate' }
+    [string[]]$files = git ls-files -- '*.test.ts' '*.test.tsx' | Where-Object { $_ -notlike 'verify/*' }
+    [Array]::Sort($files, [StringComparer]::Ordinal)
+    foreach ($file in $files) {
+        nsh test "./$file"
+        if ($LASTEXITCODE -ne 0) { $failed += $file }
+    }
+    if ($failed.Count -gt 0) {
+        "nsh-test: failed in:"
+        $failed | ForEach-Object { "  $_" }
+        exit 1
+    }
+    "nsh-test: every test file passed (nsh/verify left out)"
 
 # Refuses a database path inside the owner's live data, the migrated copy or the migration folder (Hard rules 2 and 3).
 # The same checks as the door's guard (nsh/src/guards.rs, which a test compares with this script): the home folder
@@ -1074,6 +1126,93 @@ _nsh-db-guard db:
                         refuse("it is a hard link to a file in " + folder)
     PY
 
+# Windows: the same refusals as the Unix recipe and the door's guard (nsh/src/guards.rs): the profile folder is the account's own from
+# its token (GetUserProfileDirectoryW), never USERPROFILE; names compare without case; a folder or file is known by volume and file index.
+# In these dev recipes the app's own data folder (AppData\Local\<app id>, and under LOCALAPPDATA) is protected too, as the door does
+# in a test environment.
+[private]
+[windows]
+_nsh-db-guard db:
+    #!pwsh -NoProfile
+    $ErrorActionPreference = 'Stop'
+    $db = {{quote(db)}}
+    if (-not $db) { exit 0 }
+    $script = @'
+    import ctypes
+    import os
+    import sys
+    from ctypes import wintypes
+
+    advapi32, userenv, kernel32 = ctypes.WinDLL("advapi32"), ctypes.WinDLL("userenv"), ctypes.WinDLL("kernel32")
+    kernel32.GetCurrentProcess.restype = wintypes.HANDLE
+    advapi32.OpenProcessToken.argtypes = [wintypes.HANDLE, wintypes.DWORD, ctypes.POINTER(wintypes.HANDLE)]
+    userenv.GetUserProfileDirectoryW.argtypes = [wintypes.HANDLE, wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD)]
+    token = wintypes.HANDLE()
+    if not advapi32.OpenProcessToken(kernel32.GetCurrentProcess(), 0x0008, ctypes.byref(token)):
+        sys.exit("refusing: the account's profile folder cannot be found")
+    size = wintypes.DWORD(32768)
+    buffer = ctypes.create_unicode_buffer(size.value)
+    if not userenv.GetUserProfileDirectoryW(token, buffer, ctypes.byref(size)):
+        sys.exit("refusing: the account's profile folder cannot be found")
+    home = buffer.value
+    app_id = sys.argv[2]
+    protected = [
+        os.path.join(home, "Library", "Group Containers", "group.dev.goldcoders.bir"),
+        os.path.join(home, "BuwizNsh", "data"),
+        os.path.join(home, "BuwizNsh", "migration"),
+        os.path.join(home, "AppData", "Local", app_id),
+    ]
+    moved = os.environ.get("LOCALAPPDATA", "")
+    if os.path.isabs(moved):
+        protected.append(os.path.join(moved, app_id))
+    candidate = os.path.realpath(sys.argv[1])
+
+
+    def identity(path):
+        try:
+            info = os.stat(path)
+        except OSError:
+            return None
+        return (info.st_dev, info.st_ino)
+
+
+    def refuse(why):
+        print("refusing %s: %s, the owner's data. Copy it to %s\\BuwizNsh\\agents\\<track>.db and use that" % (candidate, why, home), file=sys.stderr)
+        sys.exit(1)
+
+
+    folders = [os.path.realpath(path) for path in protected]
+    for folder in folders:
+        if candidate.lower() == folder.lower() or candidate.lower().startswith(folder.lower().rstrip(os.sep) + os.sep):
+            refuse("it is inside " + folder)
+
+    known = {}
+    for folder in folders:
+        found = identity(folder) if os.path.isdir(folder) else None
+        if found is not None:
+            known[found] = folder
+
+    path = candidate
+    while True:
+        found = identity(path)
+        if found is not None and found in known:
+            refuse("it is inside %s (the same folder by volume and file index, under another name)" % known[found])
+        parent = os.path.dirname(path)
+        if parent == path:
+            break
+        path = parent
+
+    if os.path.isfile(candidate):
+        info = os.stat(candidate)
+        if info.st_nlink > 1:
+            for folder in known.values():
+                for name in os.listdir(folder):
+                    if identity(os.path.join(folder, name)) == (info.st_dev, info.st_ino):
+                        refuse("it is a hard link to a file in " + folder)
+    '@
+    $script | & "{{PYTHON}}" -I - $db "dev.goldcoders.bir.nsh"
+    exit $LASTEXITCODE
+
 # The database comes from the caller: just nsh-run ~/BuwizNsh/agents/<track>.db, or BIR_DATABASE_PATH in the environment.
 # A path inside the owner's data, ~/BuwizNsh/data or ~/BuwizNsh/migration is refused.
 
@@ -1093,8 +1232,6 @@ nsh-run db=env_var_or_default("BIR_DATABASE_PATH", "") *args="": (_nsh-db-guard 
 # tree, press, type, screenshot) on GPUI_AGENT_ADDR, and the app's data plane (app.info, profile.*, form.*) on the port it reports.
 # target is macos, linux, windows, ios (Simulator) or android (emulator; then `adb forward tcp:<port> tcp:<port>`).
 # GPUI_AGENT_TOKEN must be set by the caller (never printed). Dry-run dev mode as nsh-run: nothing is sent anywhere.
-# Unix hosts only (bash, and the database guard is [unix]): on Windows set the same variables in PowerShell and run `nsh run`
-# with $env:CARGO naming a wrapper that does what nsh/agent/cargo-with-agent.sh does.
 [unix]
 nsh-run-agent target db=env_var_or_default("BIR_DATABASE_PATH", "") *args="": (_nsh-db-guard db)
     #!/usr/bin/env bash
@@ -1108,6 +1245,27 @@ nsh-run-agent target db=env_var_or_default("BIR_DATABASE_PATH", "") *args="": (_
     if [ -n "{{db}}" ]; then export BIR_DATABASE_PATH="{{db}}"; else unset BIR_DATABASE_PATH; fi
     cd nsh
     CARGO="$root/nsh/agent/cargo-with-agent.sh" exec nsh run --target {{target}} {{args}}
+
+# Windows: the same in PowerShell (target windows, or android with the emulator and adb on this machine). $CARGO is
+# nsh/agent/cargo-with-agent.cmd, the counterpart of cargo-with-agent.sh.
+[windows]
+nsh-run-agent target db=env_var_or_default("BIR_DATABASE_PATH", "") *args="": (_nsh-db-guard db)
+    #!pwsh -NoProfile
+    $ErrorActionPreference = 'Stop'
+    $env:PATH = "$HOME\BuwizNsh\tools\bin;$env:PATH"
+    $env:CARGO_TARGET_DIR = "$HOME\BuwizNsh\target-nsh"
+    if (-not $env:GPUI_AGENT_TOKEN) { "nsh-run-agent: set GPUI_AGENT_TOKEN first"; exit 1 }
+    $root = (Get-Location).ProviderPath
+    $env:BUWIZ_NO_KEYCHAIN = '1'; $env:EBIR_TEST_ENV = '1'; $env:BIR_AUTH_BYPASS = '1'; $env:BIR_SFTP_DRY_RUN = '1'
+    Remove-Item Env:BIR_SFTP_LIVE -ErrorAction SilentlyContinue
+    $env:GPUI_AGENT = '1'
+    if (-not $env:GPUI_AGENT_ADDR) { $env:GPUI_AGENT_ADDR = '127.0.0.1:17421' }
+    $db = {{quote(db)}}
+    if ($db) { $env:BIR_DATABASE_PATH = $db } else { Remove-Item Env:BIR_DATABASE_PATH -ErrorAction SilentlyContinue }
+    $env:CARGO = "$root\nsh\agent\cargo-with-agent.cmd"
+    Set-Location nsh
+    nsh run --target {{target}} {{args}}
+    exit $LASTEXITCODE
 
 # Opens real macOS windows for a minute or so. BIR_DATABASE_PATH, if set in the environment, is passed on (and guarded).
 

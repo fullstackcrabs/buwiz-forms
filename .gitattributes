@@ -2,3 +2,6 @@
 
 # Encrypted IAF samples are opaque bytes; never normalize them.
 crates/bir-core/tests/sample-payloads/*.iaf.xml binary
+
+# Windows command scripts keep CRLF (cmd.exe misreads labels in LF files).
+*.cmd text eol=crlf
