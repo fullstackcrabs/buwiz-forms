@@ -1,0 +1,17 @@
+# Sets the taxpayer's EOPT tier for tax year $year ($tier: Micro, Small, Medium or Large) in the tax profile's facts.
+# 1701Q needs it for the penalty rate: without it every return of that year keeps one item to do (Item 64, Surcharge).
+# Start and end with the tax profile panel closed.
+click tb-panel
+wait_until panel-open-profile --timeout-ms 5000
+click panel-open-profile
+wait_until tp-profile-years-$year --timeout-ms 5000
+click tp-profile-years-$year
+wait_until tp-fact-eopt_tier-edit --timeout-ms 5000
+click tp-fact-eopt_tier-edit
+wait_until tp-fact-eopt_tier-choice-$tier --timeout-ms 5000
+click tp-fact-eopt_tier-choice-$tier
+click tp-fact-eopt_tier-save
+wait_until tp-fact-eopt_tier-save --absent --timeout-ms 5000
+wait_until tp-fact-eopt_tier-edit --timeout-ms 5000 --screenshot
+click tb-panel
+wait_until panel-open-profile --absent --timeout-ms 5000

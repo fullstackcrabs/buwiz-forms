@@ -10,7 +10,7 @@ import { AppButton } from "./buttons";
 import type { IconName } from "./icons";
 import { cx, TOUCH } from "./look";
 import {
-  DATE_ERROR, digitsOnly, formatIso, formatLongDate, formatMDY, formatMoney, formatTinDigits, intMask, type Mask, moneyMask, moneyPlain,
+  DATE_ERROR, digitsOnly, editBase, formatIso, formatLongDate, formatMDY, formatMoney, formatTinDigits, intMask, type Mask, moneyMask, moneyPlain,
   isZeroAmount, parseTypedDate, PERCENT_MASK, reconcile, sameAmount, shownMoney, TIN_LENGTH, TIN_MASK, type TextSelection,
 } from "./mask";
 import { Chip } from "./status";
@@ -226,6 +226,9 @@ function MaskedField(props: MaskedProps) {
   let selected: TextSelection | undefined;
   let editFrom: TextSelection | undefined;
   let editTyped = false;
+  // The text the box last reported while it has the keys. Keys that come faster than the answers (a burst, an agent's
+  // typing) are typed on this text, not on the answer: NSH drops an answer the box has typed past.
+  let boxText: string | undefined;
   // The box took the keys by itself (not through its focus()): until this time (Date.now(), 0: never) a caret is the click's that
   // gave them, and a key press ends it. A click's caret can come twice (AppKit places it as the press goes down and again when
   // it ends), so every caret in the window counts, not only the first.
@@ -269,12 +272,17 @@ function MaskedField(props: MaskedProps) {
     const typed = editTyped;
     editFrom = undefined;
     editTyped = false;
-    const next = reconcile(prev, raw, props.mask, undefined, from, typed);
+    const [on, at] = editBase(prev, boxText, raw, from);
+    const next = reconcile(on, raw, props.mask, undefined, at, typed);
+    // An edit that changes nothing is taken back: what the box holds after it is the text shown.
+    boxText = next.rejected || next.text === prev ? next.text : raw;
     // The native box holds `raw`. A signal that already holds the answer would send nothing: show `raw` first so the
     // answer is a change the box must take.
     if (next.text === prev && raw !== prev) text.set(raw);
     text.set(next.text);
-    if (next.text !== raw || next.rejected) input?.setSelection(next.caret);
+    // The box puts the caret at the end of a text it takes, so a caret that belongs there is not sent: sent, it would
+    // arrive after the keys typed since this edit and put the next ones inside the number.
+    if (next.rejected || (next.text !== raw && next.caret !== next.text.length)) input?.setSelection(next.caret);
     if (next.rejected) return;
     const value = props.valueOf(next.text);
     if (value === last) return;
@@ -326,6 +334,7 @@ function MaskedField(props: MaskedProps) {
       }}
       onFocus={() => {
         focused.set(true);
+        boxText = undefined;
         edited = false;
         props.field.onFocus?.();
         clickUntil = byFocus ? 0 : Date.now() + CLICK_MS;

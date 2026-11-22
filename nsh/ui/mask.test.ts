@@ -1,7 +1,7 @@
 // The masks' pure functions: TIN, money, percent, integers, the caret rule, dates.
 import { expect, test } from "nsh/test";
 import {
-  applyMask, DATE_ERROR, digitsOnly, formatIso, formatLongDate, formatMDY, formatMoney, formatTin, formatTinDigits, intMask,
+  applyMask, DATE_ERROR, digitsOnly, editBase, formatIso, formatLongDate, formatMDY, formatMoney, formatTin, formatTinDigits, intMask,
   isPlainAmount, isZeroAmount, MONEY_MASK, moneyMask, moneyPlain, parseTypedDate, PERCENT_MASK, reconcile, sameAmount, shownDate, shownMoney,
   TIN_MASK,
 } from "./mask";
@@ -413,4 +413,20 @@ test("selection: Cut reaches reconcile as the same deletion, with or without the
 test("selection: a zero amount is told apart from an empty or odd text", () => {
   for (const zero of ["0", "00", "0.00", "0.0", ".0", "-0.00", "₱ 0", "0,000.00"]) expect(isZeroAmount(zero)).toBe(true);
   for (const other of ["", " ", "abc", "1e21", "0.01", "10", "0.00.1", ".", "-", "₱", "1,250.00", "Infinity"]) expect(isZeroAmount(other)).toBe(false);
+});
+
+test("editBase: fast keys are typed on the box's own text; a deletion from the shown text stays on it", () => {
+  const at = (n: number) => ({ start: n, end: n });
+  // The box still holds "1234" (the answer "1,234" has not landed) and a 5 is typed at its end.
+  expect(editBase("1,234", "1234", "12345", at(4))).toEqual(["1234", at(4)]);
+  // The answer landed: Backspace after the comma is a deletion from the shown text.
+  expect(editBase("1,234", "1234", "1234", at(2))).toEqual(["1,234", at(2)]);
+  expect(reconcile("1,234", "1234", MONEY_MASK, undefined, editBase("1,234", "1234", "1234", at(2))[1]).text).toBe("234");
+  // The selection fits the shown text: nothing changes.
+  expect(editBase("1,234", "1234", "1,2345", at(5))).toEqual(["1,234", at(5)]);
+  // No selection that fits either: what was added goes at the end.
+  expect(editBase("1,234", "1234", "1,2345", at(0))).toEqual(["1,234", at(5)]);
+  expect(editBase("12", undefined, "123", at(2))).toEqual(["12", at(2)]);
+  // A selected leading zero deleted from the box's own text is not a deletion of the shown comma.
+  expect(editBase("1,234", "01234", "1234", { start: 0, end: 1 })).toEqual(["01234", { start: 0, end: 1 }]);
 });

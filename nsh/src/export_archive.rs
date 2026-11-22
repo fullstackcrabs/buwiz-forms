@@ -23,6 +23,7 @@ impl Archive {
             std::process::id(),
             SEQUENCE.fetch_add(1, Ordering::Relaxed)
         ));
+        #[cfg_attr(not(unix), allow(unused_mut))]
         let mut builder = std::fs::DirBuilder::new();
         #[cfg(unix)]
         {

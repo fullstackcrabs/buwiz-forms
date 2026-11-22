@@ -1,0 +1,89 @@
+# One row of datasets/1701q.csv typed into the real 1701Q of the NSH app, started from the taxpayer's saved template,
+# with the form's floating pill (fp-pill-*) pressed forward, backward and through its section list.
+# Items 37 and 39 (boxes only under Itemized Deduction) are ui-1701q-itemized.wants; saving and the validation result are
+# ui-1701q-pill-clear.wants and ui-1701q-pill-error.wants. Run them with run_ui_datasets.py, which binds the CSV columns and derives what a tree target needs from them:
+#   filer_n  1 Single Proprietor, 2 Professional (filer_type)        atc_n  1 II012, 2 II014 (atc)
+#   ded_n    1 Itemized, 2 OSD (deduction)                           birth  MMDDYYYY (birth_month, birth_day, birth_year)
+#   filer_other, atc_other, ded_other  the other of 1 and 2          part1_todos  2, or 3 for a row without an email
+#   <amount>_shown  the amount as its box shows it (1,234.50)
+# Needs: the taxpayer selected, tax year $year with 1701Q among its forms, a saved 1701Q template that keeps
+# Citizenship (ui-add-tax-year.wants, ui-save-1701q-template.wants), no draft yet for the period, the panel closed.
+click tb-panel
+wait_until panel-open-profile --timeout-ms 5000
+click panel-open-profile
+wait_until tp-sec-address-edit --timeout-ms 5000
+click tp-sec-address-edit
+wait_until tp-address-email --timeout-ms 5000
+set_value tp-address-email "$email"
+click tp-address-save
+wait_until tp-sec-address-edit --timeout-ms 5000
+click panel-open-templates
+wait_until tp-template-1701Q-update --timeout-ms 5000
+click panel-open-forms
+wait_until tp-years-$year --timeout-ms 5000
+click tp-years-$year
+click tp-new-return
+wait_until new-return-1701Q --timeout-ms 5000
+click new-return-1701Q
+click new-return-period-trigger
+wait_until new-return-period-opt-$period --timeout-ms 5000
+click new-return-period-opt-$period
+wait_until new-return-period-trigger value="Q$period $year" --timeout-ms 5000
+click new-return-open
+wait_until fp-pill-next --timeout-ms 10000
+click tb-panel
+wait_until panel-open-templates --absent --timeout-ms 5000
+# The new return has what the template kept, and to-dos: the pill counts them.
+assert fp-pill-count
+# The pill's section list jumps to Part I, where items 7 and 8 are. A choice pressed twice is taken back, and an earlier
+# return of the taxpayer may have answered item 7 already: the other choice first, then the row's, ends on the row's.
+click fp-pill-open
+wait_until fp-section-1 --timeout-ms 5000
+click fp-section-1
+wait_until fp-frm1701q:optType_$filer_n --timeout-ms 5000
+click fp-frm1701q:optType_$filer_other
+click fp-frm1701q:optType_$filer_n
+click fp-frm1701q:optATC_$atc_other
+click fp-frm1701q:optATC_$atc_n
+# The pill forward: the first to-do left in Part I is the date of birth. Forward again and back returns to it.
+click fp-pill-next
+wait_until fp-pill-big name="Item 11 · Date of Birth (MM/DD/YYYY)" --timeout-ms 5000
+click fp-pill-next
+wait_until fp-pill-small name="2 of $part1_todos to do · Part I" --timeout-ms 5000
+click fp-pill-prev
+wait_until fp-pill-big name="Item 11 · Date of Birth (MM/DD/YYYY)" --timeout-ms 5000 --screenshot
+# Citizenship is what the template kept.
+assert fp-frm1701q:txtCitizenship value=FILIPINO
+type fp-frm1701q:txtBirthMonth#date $birth
+set_value fp-frm1701q:txtCitizenship $citizenship
+click fp-frm1701q:optMethodOfDeduction:_$ded_other
+click fp-frm1701q:optMethodOfDeduction:_$ded_n
+# The pill's section list: jump to Return details, then to the schedules.
+click fp-pill-open
+wait_until fp-section-0 --timeout-ms 5000
+click fp-section-0
+wait_until fp-frm1701q:txtSheets --timeout-ms 5000
+set_value fp-frm1701q:txtSheets $sheets
+click fp-pill-open
+wait_until fp-section-4 --timeout-ms 5000
+click fp-section-4
+wait_until fp-frm1701q:txt36A role=textbox --timeout-ms 5000
+set_value fp-frm1701q:txt43Desc $non_op_desc
+set_value fp-frm1701q:txt43A $non_op_income
+set_value fp-frm1701q:txt36A $sales
+set_value fp-frm1701q:txt42A $prior_income
+# Read back what the boxes show.
+assert fp-frm1701q:txt43Desc value=$non_op_desc
+assert fp-frm1701q:txt43A value=$non_op_income_shown
+assert fp-frm1701q:txt36A value=$sales_shown
+assert fp-frm1701q:txt42A value=$prior_income_shown
+click fp-pill-open
+wait_until fp-section-6 --timeout-ms 5000
+click fp-section-6
+wait_until fp-frm1701q:txt55A --timeout-ms 5000
+set_value fp-frm1701q:txt55A $prior_credits
+set_value fp-frm1701q:txt56A $prior_payments
+set_value fp-frm1701q:txt58A $withheld_2307
+assert fp-frm1701q:txt55A value=$prior_credits_shown
+assert fp-frm1701q:txt56A value=$prior_payments_shown
+assert fp-frm1701q:txt58A value=$withheld_2307_shown --screenshot

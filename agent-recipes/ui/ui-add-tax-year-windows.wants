@@ -1,0 +1,16 @@
+# Adds tax year $year to the selected taxpayer with the forms of the newest year copied over (the box is ticked as the
+# dialog opens). Start with the taxpayer's page showing and the tax profile panel closed; it ends the same way.
+click tb-panel
+wait_until panel-open-forms --timeout-ms 5000
+click panel-open-forms
+wait_until tp-add-year-open --timeout-ms 5000
+click tp-add-year-open
+wait_until tp-add-year-select-trigger --timeout-ms 5000
+click tp-add-year-select-trigger
+wait_until tp-add-year-select-opt-$year --timeout-ms 5000
+click tp-add-year-select-opt-$year
+wait_until tp-add-year-select-trigger value=$year --timeout-ms 5000
+click tp-add-year-add
+wait_until tp-years-$year --timeout-ms 5000 --screenshot
+click tb-panel
+wait_until panel-open-forms --absent --timeout-ms 5000

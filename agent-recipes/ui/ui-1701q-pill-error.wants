@@ -1,0 +1,19 @@
+# After ui-fill-1701q-dataset-windows.wants on a row that must end with one validation error: saved, the floating pill counts
+# it, its forward button lands on the row that carries the message, its section list jumps to the section of the box
+# at fault, the box is corrected and the count is gone.
+# run_ui_datasets.py binds: error_item (the pill's name for the row with the message), error_msg (that row's fp-msg
+# node) and error_text (what it says), fix_section (the fp-section-N of the box at fault), fix_target and fix_value.
+click fp-check
+wait_until fp-save-state name="✓ Saved" --timeout-ms 10000
+wait_until fp-pill-count name="1 item needs attention" --timeout-ms 5000 --screenshot
+click fp-pill-next
+wait_until fp-pill-big name="$error_item" --timeout-ms 5000
+assert $error_msg name="$error_text" --screenshot
+click fp-pill-list
+wait_until fp-section-$fix_section --timeout-ms 5000
+click fp-section-$fix_section
+wait_until $fix_target --timeout-ms 5000
+set_value $fix_target $fix_value
+click fp-check
+wait_until fp-save-state name="✓ Saved" --timeout-ms 10000
+wait_until fp-pill-count --absent --timeout-ms 5000 --screenshot

@@ -125,6 +125,49 @@ function findEdit(prev: string, next: string, caret?: number, before?: TextSelec
   return { at: p, removed: prev.length - p - s, ins: next.slice(p, next.length - s), dir: "back" };
 }
 
+/** `next` is `prev` with the selection `from` replaced by what was typed (nothing else differs). */
+function editFits(prev: string, next: string, from: TextSelection): boolean {
+  const a = Math.min(from.start, from.end);
+  const b = Math.max(from.start, from.end);
+  const grew = next.length - (prev.length - (b - a));
+  return a >= 0 && b <= prev.length && grew >= 0 && next.slice(0, a) === prev.slice(0, a) && next.slice(a + grew) === prev.slice(b);
+}
+
+/**
+ * `next` is `prev` after a deletion made from `from`: the selected run taken out, or the character on either side of a
+ * caret. Without `from`, any one run taken out.
+ */
+function isCut(prev: string, next: string, from?: TextSelection): boolean {
+  if (next.length >= prev.length) return false;
+  const without = (a: number, b: number) => a >= 0 && b <= prev.length && prev.slice(0, a) + prev.slice(b) === next;
+  if (from) {
+    const a = Math.min(from.start, from.end);
+    const b = Math.max(from.start, from.end);
+    return a < b ? without(a, b) : without(a - 1, a) || without(a, a + 1);
+  }
+  let head = 0;
+  while (head < next.length && next[head] === prev[head]) head++;
+  let tail = 0;
+  while (tail < next.length - head && next[next.length - 1 - tail] === prev[prev.length - 1 - tail]) tail++;
+  return head + tail === next.length;
+}
+
+/**
+ * What an edit that left the box holding `raw` was made on, and from where. `prev` is the text shown and `box` the text
+ * the box last reported: keys that come faster than the answers (a burst, an agent's typing) are typed on the box's own
+ * text, since NSH drops an answer the box has typed past. The shown text is kept when the selection fits it or `raw` is a
+ * deletion from it (the box had taken the answer); the box's own when the selection fits only that; a selection that
+ * fits neither (the caret an answer moved is not reported) leaves what was added at the end.
+ */
+export function editBase(prev: string, box: string | undefined, raw: string, from?: TextSelection): [string, TextSelection | undefined] {
+  const end = (t: string) => ({ start: t.length, end: t.length });
+  if (box === undefined || box === prev || (from && editFits(prev, raw, from)) || isCut(prev, raw, from)) return [prev, from];
+  if (from && editFits(box, raw, from)) return [box, from];
+  if (raw.length > prev.length && raw.startsWith(prev)) return [prev, end(prev)];
+  if (raw.length > box.length && raw.startsWith(box)) return [box, end(box)];
+  return [prev, from];
+}
+
 /**
  * The masked result of an edit: `prev` is the text the field showed, `next` the text after the user's edit (typing,
  * deleting, pasting anywhere). `caret`, when known, is the raw caret in `next`; `before`, when known, is the selection the

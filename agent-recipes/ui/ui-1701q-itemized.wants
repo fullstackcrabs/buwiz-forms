@@ -1,0 +1,10 @@
+# After ui-fill-1701q-dataset-windows.wants on a row with Itemized Deduction: Items 37 and 39, which are boxes only under that
+# method.
+click fp-pill-open
+wait_until fp-section-4 --timeout-ms 5000
+click fp-section-4
+wait_until fp-frm1701q:txt39A role=textbox --timeout-ms 5000
+set_value fp-frm1701q:txt37A $cost_of_sales
+set_value fp-frm1701q:txt39A $deductions
+assert fp-frm1701q:txt37A value=$cost_of_sales_shown
+assert fp-frm1701q:txt39A value=$deductions_shown --screenshot

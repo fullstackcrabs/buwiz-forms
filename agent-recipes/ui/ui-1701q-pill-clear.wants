@@ -1,0 +1,5 @@
+# After ui-fill-1701q-dataset-windows.wants on a row that must end valid: saved, the floating pill counts nothing to attend to.
+click fp-check
+wait_until fp-save-state name="✓ Saved" --timeout-ms 10000
+wait_until fp-pill-count --absent --timeout-ms 5000
+assert fp-save-state name="✓ Saved" --screenshot
