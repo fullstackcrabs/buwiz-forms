@@ -739,8 +739,11 @@ impl Session {
         }
     }
 
-    /// A dry run of `form.open` + `form.fill` + `form.validate` on a fresh
-    /// in-memory return: nothing is saved, opened or shown.
+    /// A dry run of `form.open` + `form.fill` + `form.validate`: nothing is
+    /// saved, opened or shown. On a fresh in-memory return, or with
+    /// `args.stored` on the return `form.open` would open for the period
+    /// (the stored draft when there is one), which must still be a draft.
+    /// `discarded` lists the inputs the computed return does not hold.
     fn form_check(&self, args: &Value) -> Result<DispatchResult, String> {
         let kind = form_kind(args, "form.check")?;
         let year = require_year(args, "form.check")?;
@@ -764,8 +767,19 @@ impl Session {
                 .map_err(|error| error.to_string())?;
             from_profile.draft = serde_json::to_value(typed).map_err(|error| error.to_string())?;
         }
+        let stored = args.get("stored").and_then(Value::as_bool) == Some(true);
+        let mut draft = if stored {
+            crate::screen_form_module::load_draft(&db, kind, &profile, year, period, false, None)?
+        } else {
+            from_profile.draft.clone()
+        };
         drop(db);
-        let mut draft = from_profile.draft.clone();
+        if agent::identity(kind, &draft)?.status != FilingStatus::Draft {
+            return Err(format!(
+                "form.check failed, nothing was written: Form {} for {year} period {period} is no longer a draft",
+                kind.form_code()
+            ));
+        }
         let mut applied = Vec::new();
         let mut refused = Map::new();
         for (key, value) in &fields {
@@ -789,12 +803,16 @@ impl Session {
                 (!agent::carry::is_blank_value(&value)).then(|| (entry.key.clone(), json!(value)))
             })
             .collect();
-        let ok = errors.is_empty() && refused.is_empty();
+        let discarded = discarded(def, &fields, &applied, &map);
+        let ok = errors.is_empty() && refused.is_empty() && discarded.is_empty();
         if strict && !ok {
             let mut problems: Vec<String> = refused
                 .iter()
                 .map(|(key, why)| format!("{key}: {}", why.as_str().unwrap_or_default()))
                 .collect();
+            problems.extend(discarded.iter().map(|key| {
+                format!("{key}: the return does not keep this value (its box is not in use with the other answers)")
+            }));
             problems.extend(
                 errors
                     .iter()
@@ -814,6 +832,7 @@ impl Session {
             "saved": false,
             "applied": applied,
             "refused": refused,
+            "discarded": discarded,
             "errors": errors.len(),
             "field_errors": field_errors(&errors),
             "computed": computed,
@@ -1581,6 +1600,37 @@ fn not_shown(
         .collect()
 }
 
+/// The applied inputs the computed return does not hold: a box the other
+/// answers switch off, or a value the computation replaced. A blank input,
+/// and a zero for an amount or a count, ask for nothing and are never listed.
+fn discarded(
+    def: &agent::AgentFormDef,
+    fields: &Map<String, Value>,
+    applied: &[String],
+    map: &BTreeMap<String, String>,
+) -> Vec<String> {
+    not_shown(def, fields, applied, map)
+        .into_iter()
+        .filter(|key| {
+            let wanted = match fields.get(key) {
+                Some(Value::String(text)) => text.trim().to_string(),
+                Some(Value::Null) | None => String::new(),
+                Some(other) => other.to_string(),
+            };
+            if wanted.is_empty() {
+                return false;
+            }
+            match def.bindings.get(key).map(|bound| &bound.binding) {
+                Some(Binding::Amount { .. }) => {
+                    agent::parse_amount(&wanted).is_none_or(|amount| amount.abs() >= 0.005)
+                }
+                Some(Binding::Whole { .. }) => wanted.parse::<i64>().ok() != Some(0),
+                _ => true,
+            }
+        })
+        .collect()
+}
+
 fn parse_due(raw: &str) -> Option<chrono::NaiveDate> {
     let date = raw.get(..10).unwrap_or(raw);
     chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d").ok()
@@ -2180,6 +2230,155 @@ mod tests {
             "{} refused:\n{}",
             wrong.len(),
             wrong.join("\n")
+        );
+    }
+
+    /// The review's three cases on the generated recipe's strict check.
+    #[test]
+    fn strict_check_is_on_the_stored_draft_and_refuses_discarded_inputs() {
+        let mut session = session();
+        save_scratch(&mut session);
+        let valid = json!({
+            "frm1701q:txtCitizenship": "FILIPINO",
+            "frm1701q:optType": "Professional",
+            "frm1701q:optATC": "II012",
+            "frm1701q:txtBirthMonth": "01/15/1990",
+            "frm1701q:optTaxRate": "Graduated",
+            "frm1701q:optMethodOfDeduction": "O",
+            "frm1701q:txt36A": "250000.00",
+        });
+        let check = |session: &mut Session, fields: &Value, stored: bool| {
+            call(
+                session,
+                "form.check",
+                json!({"code": "1701Q", "year": 2026, "period": 1, "tin": TIN,
+                       "fields": fields, "stored": stored}),
+            )
+            .unwrap()
+        };
+        // A draft stored while the profile had no email keeps its blank email.
+        call(
+            &mut session,
+            "form.open",
+            json!({"code": "1701Q", "year": 2026, "period": 1, "tin": TIN}),
+        )
+        .unwrap();
+        call(&mut session, "form.save_draft", json!({})).unwrap();
+        call(&mut session, "form.dismiss", json!({})).unwrap();
+        call(
+            &mut session,
+            "profile.save",
+            json!({"tin": TIN, "name": "TEST", "rdo_code": "040", "email": "test@example.com"}),
+        )
+        .unwrap();
+        let fresh = check(&mut session, &valid, false);
+        let stored = check(&mut session, &valid, true);
+        let names = |checked: &Value| -> Vec<String> {
+            checked["field_errors"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|error| error["field"].as_str().unwrap_or_default().to_string())
+                .collect()
+        };
+        assert!(
+            !names(&fresh).iter().any(|field| field == "email"),
+            "{fresh}"
+        );
+        assert!(
+            names(&stored).iter().any(|field| field == "email"),
+            "{stored}"
+        );
+        let strict = call(
+            &mut session,
+            "form.check",
+            json!({"code": "1701Q", "year": 2026, "period": 1, "tin": TIN,
+                   "fields": valid, "stored": true, "strict": true}),
+        )
+        .unwrap_err();
+        assert!(
+            strict.contains("nothing was written") && strict.contains("email"),
+            "{strict}"
+        );
+
+        // Cost of sales under the optional standard deduction is zeroed by the form.
+        let mut discarded = valid.clone();
+        discarded["frm1701q:txt37A"] = json!("40000.00");
+        let checked = check(&mut session, &discarded, false);
+        assert_eq!(
+            checked["discarded"],
+            json!(["frm1701q:txt37A"]),
+            "{checked}"
+        );
+        assert_eq!(checked["ok"], false, "{checked}");
+        let strict = call(
+            &mut session,
+            "form.check",
+            json!({"code": "1701Q", "year": 2026, "period": 2, "tin": TIN,
+                   "fields": discarded, "strict": true}),
+        )
+        .unwrap_err();
+        assert!(strict.contains("frm1701q:txt37A"), "{strict}");
+        // A zero in the same inactive box asks for nothing.
+        let mut zero = valid.clone();
+        zero["frm1701q:txt37A"] = json!("0.00");
+        let checked = check(&mut session, &zero, false);
+        assert_eq!(checked["discarded"], json!([]), "{checked}");
+    }
+
+    /// 1701Q Item 16A is asked only under graduated rates.
+    #[test]
+    fn eight_percent_recipe_does_not_require_the_deduction_method() {
+        let mut session = session();
+        save_scratch(&mut session);
+        let made = call(&mut session, "recipe.generate", json!({"code": "1701Q"})).unwrap();
+        let name = made["input_schema"]["properties"]
+            .as_object()
+            .unwrap()
+            .iter()
+            .find(|(_, property)| property["x-box"] == "frm1701q:optMethodOfDeduction")
+            .map(|(name, _)| name.clone())
+            .unwrap_or_else(|| panic!("{made}"));
+        let required = made["input_schema"]["required"].as_array().unwrap();
+        assert!(!required.contains(&json!(name)), "{made}");
+        let errors = |session: &mut Session, rate: &str| -> Vec<String> {
+            let checked = call(
+                session,
+                "form.check",
+                json!({"code": "1701Q", "year": 2026, "period": 1, "tin": TIN,
+                       "fields": {"frm1701q:optTaxRate": rate}}),
+            )
+            .unwrap();
+            checked["field_errors"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|error| error["field"].as_str().unwrap_or_default().to_string())
+                .collect()
+        };
+        let rates: Vec<String> = serde_json::from_value(
+            made["input_schema"]["properties"]
+                .as_object()
+                .unwrap()
+                .values()
+                .find(|property| property["x-box"] == "frm1701q:optTaxRate")
+                .unwrap()["enum"]
+                .clone(),
+        )
+        .unwrap();
+        let eight = rates
+            .iter()
+            .find(|rate| rate.as_str() != "Graduated")
+            .unwrap();
+        assert!(
+            !errors(&mut session, eight)
+                .iter()
+                .any(|field| field == "deduction_method")
+        );
+        assert!(
+            errors(&mut session, "Graduated")
+                .iter()
+                .any(|field| field == "deduction_method")
         );
     }
 

@@ -1258,7 +1258,14 @@ nsh-run-agent target db=env_var_or_default("BIR_DATABASE_PATH", "") *args="": (_
     export BUWIZ_NO_KEYCHAIN=1 EBIR_TEST_ENV=1 BIR_AUTH_BYPASS=1 BIR_SFTP_DRY_RUN=1
     export GPUI_AGENT=1 GPUI_AGENT_ADDR="${GPUI_AGENT_ADDR:-127.0.0.1:17421}"
     unset BIR_SFTP_LIVE
-    if [ -n "{{db}}" ]; then export BIR_DATABASE_PATH="{{db}}"; else unset BIR_DATABASE_PATH; fi
+    # The guard read a relative path from here, and the app starts in nsh/: hand it the same file, as an absolute path.
+    db={{quote(db)}}
+    if [ -n "$db" ]; then
+        case "$db" in /*) ;; *) db="$root/$db" ;; esac
+        export BIR_DATABASE_PATH="$db"
+    else
+        unset BIR_DATABASE_PATH
+    fi
     if [ "{{target}}" = android ]; then
         # An Android app process has no launch environment: the dry-run settings and the data plane's opt-in are baked into
         # this development build instead (nsh/src/dev_env.rs; the token is then inside the debug library on the emulator).
@@ -1274,7 +1281,7 @@ nsh-run-agent target db=env_var_or_default("BIR_DATABASE_PATH", "") *args="": (_
         unset SIMCTL_CHILD_BIR_SFTP_LIVE SIMCTL_CHILD_BIR_DATABASE_PATH
         export SIMCTL_CHILD_BUWIZ_NO_KEYCHAIN=1 SIMCTL_CHILD_EBIR_TEST_ENV=1 SIMCTL_CHILD_BIR_AUTH_BYPASS=1 SIMCTL_CHILD_BIR_SFTP_DRY_RUN=1
         export SIMCTL_CHILD_BIR_AGENT_TOKEN="$GPUI_AGENT_TOKEN"
-        if [ -n "{{db}}" ]; then export SIMCTL_CHILD_BIR_DATABASE_PATH="{{db}}"; fi
+        if [ -n "$db" ]; then export SIMCTL_CHILD_BIR_DATABASE_PATH="$db"; fi
     fi
     cd nsh
     CARGO="$root/nsh/agent/cargo-with-agent.sh" exec nsh run --target {{target}} {{args}}
