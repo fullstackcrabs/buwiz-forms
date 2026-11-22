@@ -261,15 +261,15 @@ mod live {
         }
     }
 
-    /// The address to bind for the one the environment asked for. Loopback only. Where the window's own control plane
-    /// (NSH's, the same `GPUI_AGENT_ADDR`) is in this process, it binds first and this takes another port.
+    /// The address to bind for the one the environment asked for. Loopback only. The window's own control plane
+    /// (NSH's development host on every platform, the same `GPUI_AGENT_ADDR`) binds first, and this takes another port.
     fn choose(requested: SocketAddr) -> Result<SocketAddr, String> {
         if !is_loopback_addr(requested) {
             return Err(format!(
                 "the NSH app's agent listens on loopback only; GPUI_AGENT_ADDR {requested} is not loopback"
             ));
         }
-        if cfg!(target_os = "macos") && std::net::TcpListener::bind(requested).is_err() {
+        if std::net::TcpListener::bind(requested).is_err() {
             return Ok(SocketAddr::new(requested.ip(), 0));
         }
         Ok(resolve_addr(requested))
@@ -359,6 +359,20 @@ mod live {
 
     pub(super) fn drain() -> bool {
         RUNNING.with(|slot| slot.borrow().as_ref().is_some_and(Listener::drain))
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn a_taken_address_gives_another_loopback_port_and_a_remote_one_is_refused() {
+            let held = std::net::TcpListener::bind("127.0.0.1:0").expect("a loopback port");
+            let taken = held.local_addr().expect("its address");
+            let chosen = Listener::choose(taken).expect("loopback is accepted");
+            assert_eq!((chosen.ip(), chosen.port()), (taken.ip(), 0), "the system picks a free port");
+            assert!(Listener::choose("192.0.2.1:17421".parse().expect("an address")).is_err());
+        }
     }
 }
 

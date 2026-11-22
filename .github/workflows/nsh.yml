@@ -66,11 +66,10 @@ env:
   # repository's cache storage is full); panics still name their file and line.
   CARGO_PROFILE_DEV_DEBUG: "0"
   # THE PIN: the NSH commit every job builds against. Change it here and nowhere else.
-  # 95b5600c6acff85dce02e4690398705f2f5b059c = hexuria/nsh, branch feat/menu-tray-availability (hexuria/nsh#16:
-  # Menu.inGlobalMenu(), Tray.available() and nsh/test's open({ tray, globalMenu })), on buwiz at 8e59996b6, which merged
-  # hexuria/nsh#14 (the KDE Global Menu) on NSH 0.6.0. The app menu needs them, so 87e0a4ea4 (buwiz before #14) no longer
-  # builds this branch. TEMPORARY: once hexuria/nsh#16 merges into buwiz, move the pin to that merge commit.
-  NSH_PINNED_REF: 95b5600c6acff85dce02e4690398705f2f5b059c
+  # 70d8ff26b9e9dccb17a908de97cd4a3f3e381276 = hexuria/nsh, the tip of branch buwiz (NSH 0.6.1, after hexuria/nsh#31). Its
+  # development hosts serve the window's gpui-agent control plane (tree, press, type, screenshot) on macOS, Linux, Windows,
+  # Android and the iOS Simulator, which agent recipes that press the form's controls need (agent-recipes/ui).
+  NSH_PINNED_REF: 70d8ff26b9e9dccb17a908de97cd4a3f3e381276
   NSH_REPOSITORY: hexuria/nsh
   # The four safety variables: nothing reaches the keychain, a real database or the BIR.
   BUWIZ_NO_KEYCHAIN: "1"

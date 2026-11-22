@@ -1093,6 +1093,26 @@ nsh-run db=env_var_or_default("BIR_DATABASE_PATH", "") *args="": (_nsh-db-guard 
     cd nsh
     exec nsh run --target macos {{args}}
 
+# NSH: the app in a real window with the agent control planes on, for gpui-agent recipes: the window's own (NSH's development host:
+# tree, press, type, screenshot) on GPUI_AGENT_ADDR, and the app's data plane (app.info, profile.*, form.*) on the port it reports.
+# target is macos, linux, windows, ios (Simulator) or android (emulator; then `adb forward tcp:<port> tcp:<port>`).
+# GPUI_AGENT_TOKEN must be set by the caller (never printed). Dry-run dev mode as nsh-run: nothing is sent anywhere.
+# Unix hosts only (bash, and the database guard is [unix]): on Windows set the same variables in PowerShell and run `nsh run`
+# with $env:CARGO naming a wrapper that does what nsh/agent/cargo-with-agent.sh does.
+[unix]
+nsh-run-agent target db=env_var_or_default("BIR_DATABASE_PATH", "") *args="": (_nsh-db-guard db)
+    #!/usr/bin/env bash
+    set -euo pipefail
+    [ -n "${GPUI_AGENT_TOKEN:-}" ] || { echo "nsh-run-agent: set GPUI_AGENT_TOKEN first"; exit 1; }
+    root="$(pwd -P)"
+    export PATH="$HOME/BuwizNsh/tools/bin:$PATH" CARGO_TARGET_DIR="$HOME/BuwizNsh/target-nsh"
+    export BUWIZ_NO_KEYCHAIN=1 EBIR_TEST_ENV=1 BIR_AUTH_BYPASS=1 BIR_SFTP_DRY_RUN=1
+    export GPUI_AGENT=1 GPUI_AGENT_ADDR="${GPUI_AGENT_ADDR:-127.0.0.1:17421}"
+    unset BIR_SFTP_LIVE
+    if [ -n "{{db}}" ]; then export BIR_DATABASE_PATH="{{db}}"; else unset BIR_DATABASE_PATH; fi
+    cd nsh
+    CARGO="$root/nsh/agent/cargo-with-agent.sh" exec nsh run --target {{target}} {{args}}
+
 # Opens real macOS windows for a minute or so. BIR_DATABASE_PATH, if set in the environment, is passed on (and guarded).
 
 # Starts the app in a real window with the `agent` feature built into its host (a scratch database, dry run, no keychain; the token is made here and

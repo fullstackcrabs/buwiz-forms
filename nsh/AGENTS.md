@@ -1,6 +1,6 @@
 # nsh/ - the NSH (TSX) app
 
-eBIRForms on Native Shell (NSH 0.5.1: the hexuria/nsh fork with upstream v0.5.1 merged and two Windows fixes, commit `87e0a4ea4`, the tip of its `buwiz` branch), mixed mode: TSX screens over a Rust crate.
+eBIRForms on Native Shell (NSH 0.6.1: the hexuria/nsh fork, commit `70d8ff26b`, the tip of its `buwiz` branch; the pin is `NSH_PINNED_REF` in `.github/workflows/nsh.yml`), mixed mode: TSX screens over a Rust crate.
 Id `dev.goldcoders.bir.nsh`, version 0.2.0, own cargo workspace (empty `[workspace]` in Cargo.toml). The old app (`app/`,
 `crates/bir-shell`) is untouched. Contract and Hard rules: `docs/plans/nsh-tsx-migration.md`. Read this file fully first.
 
@@ -13,7 +13,7 @@ Id `dev.goldcoders.bir.nsh`, version 0.2.0, own cargo workspace (empty `[workspa
 | `just nsh-run [db]` | macOS window with hot TSX edits (Ctrl-C ends it). DB from the arg or BIR_DATABASE_PATH. |
 | `just nsh-shots <name>` | `nsh/shots/<name>.test.tsx` in real windows; PNGs into `~/BuwizNsh/evidence/<name>/`. |
 Gate before you report: `just nsh-check && just nsh-build && just nsh-test`, all green, no unexplained warning.
-- CLI: `~/BuwizNsh/tools/bin/nsh` (`nsh -V` = 0.5.1). Missing? `cargo install --locked --path
+- CLI: `~/BuwizNsh/tools/bin/nsh` (`nsh -V` = 0.6.1). Missing? `cargo install --locked --path
   <nsh checkout>/crates/nsh-cli --root ~/BuwizNsh/tools` (10 min cold). Never use `~/.nsh` (nsh 0.1.1).
 - NSH source is the checkout that is a SIBLING of this repo's checkout (`../nsh` from the repo root, `../../nsh` from `nsh/`; on the
   owner's machine `/Volumes/goldcoders/features/nsh-tsx/nsh`). `nsh/Cargo.toml` names it by that relative path. Read-only: never edit
