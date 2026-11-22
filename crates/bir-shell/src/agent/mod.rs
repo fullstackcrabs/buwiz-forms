@@ -56,9 +56,7 @@ pub(crate) fn start(window: &mut Window, cx: &mut App, root: Entity<ShellRoot>) 
                     last_request.map(|at| at.elapsed()),
                     Duration::from_millis(32),
                 );
-                cx.background_executor()
-                    .timer(wait)
-                    .await;
+                cx.background_executor().timer(wait).await;
             }
         })
         .detach();
