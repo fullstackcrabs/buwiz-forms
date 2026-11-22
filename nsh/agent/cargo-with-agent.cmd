@@ -15,12 +15,16 @@ if "%~1"=="" goto scanned
 set "a=%~1"
 set "a=!a:/=\!"
 if not "!a:.nsh\rust\Cargo.toml=!"=="!a!" set "hit=1"
+rem The generated Android library names NSH's `dev` feature only; the window's control plane is `dev-agent`.
+if /I "%~1"=="nsh-app-nsh-app-ebirforms-android" set "android=1"
 shift
 goto scan
 :scanned
-endlocal & set "hit=%hit%"
+endlocal & set "hit=%hit%" & set "android=%android%"
 if not defined hit goto pass
-"%real%" %* --features app_nsh_app_ebirforms/agent
+set "features=app_nsh_app_ebirforms/agent"
+if defined android set "features=%features%,nsh-platform-android/dev-agent"
+"%real%" %* --features %features%
 exit /b %errorlevel%
 :pass
 "%real%" %*

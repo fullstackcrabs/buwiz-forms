@@ -1319,6 +1319,39 @@ nsh-run-agent target $db=env_var_or_default("BIR_DATABASE_PATH", "") *args="": (
     # path is the one the guard checked, from here, not from nsh/.
     $db = $env:db
     if ($db) { $env:BIR_DATABASE_PATH = [IO.Path]::GetFullPath($db, $root) } else { Remove-Item Env:BIR_DATABASE_PATH -ErrorAction SilentlyContinue }
+    if ('{{target}}' -eq 'android') {
+        # Same Android hand-off as the Unix recipe: the dry-run switches and the data plane's switch and address are baked
+        # into the development build (nsh/src/dev_env.rs); the token is not — it goes into the host's private files with
+        # `run-as` once `nsh run` installs it, over stdin so it is in no process's arguments (src/agent.rs, take_token).
+        $port = [int](($env:GPUI_AGENT_ADDR -split ':')[-1])
+        $env:BUWIZ_ANDROID_DEV = '1'
+        $env:BUWIZ_ANDROID_DEV_ENV = "EBIR_TEST_ENV=1;BIR_AUTH_BYPASS=1;BUWIZ_NO_KEYCHAIN=1;BIR_SFTP_DRY_RUN=1;GPUI_AGENT=1;GPUI_AGENT_ADDR=127.0.0.1:$($port + 1)"
+        $adb = 'adb'
+        if (-not (Get-Command adb -ErrorAction SilentlyContinue)) {
+            $sdkRoot = if ($env:ANDROID_HOME) { $env:ANDROID_HOME } else { $env:ANDROID_SDK_ROOT }
+            $adb = Join-Path $sdkRoot 'platform-tools\adb.exe'
+        }
+        $null = Start-Job -ScriptBlock {
+            param($adb, $token)
+            $pkg = 'com.longbridge.nsh.host'
+            $dir = 'files/nsh/dev.goldcoders.bir.nsh'
+            $tmp = Join-Path $env:TEMP ('agent-token-' + [guid]::NewGuid().ToString('N'))
+            [IO.File]::WriteAllText($tmp, $token)
+            try {
+                for ($i = 0; $i -lt 1800; $i++) {
+                    & $adb shell run-as $pkg true 2>$null
+                    if ($LASTEXITCODE -eq 0) {
+                        $cmd = 'type "{0}" | "{1}" shell -T "run-as {2} sh -c ''umask 077 && mkdir -p {3} && cat > {3}/agent-token.new && mv {3}/agent-token.new {3}/agent-token''"' -f $tmp, $adb, $pkg, $dir
+                        & $env:ComSpec /d /c $cmd | Out-Null
+                        return
+                    }
+                    Start-Sleep -Milliseconds 500
+                }
+                [Console]::Error.WriteLine("nsh-run-agent: the data plane's token was not stored (is the host installed?)")
+            } finally { Remove-Item $tmp -ErrorAction SilentlyContinue }
+        } -ArgumentList $adb, $env:GPUI_AGENT_TOKEN
+        "nsh-run-agent: window plane on 127.0.0.1:$port, data plane on 127.0.0.1:$($port + 1); run: adb forward tcp:$port tcp:$port && adb forward tcp:$($port + 1) tcp:$($port + 1)"
+    }
     $env:CARGO = "$root\nsh\agent\cargo-with-agent.cmd"
     Set-Location nsh
     nsh run --target {{target}} {{args}}
