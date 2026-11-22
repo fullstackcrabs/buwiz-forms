@@ -571,6 +571,9 @@ export class FormSession {
   /** A step's row to reveal (scroll to, then focus); seq changes on every step. */
   /** What the page brings into view: a step's row (then its keyboard focus), or a part the navigator or a part step went to. */
   readonly reveal: Accessor<{ row: string | null; part: number; seq: number } | null> = () => this.sReveal();
+  private sFocusedRow = signal<{ row: string; seq: number } | null>(null);
+  /** The row whose box last took the keyboard (the page keeps it clear of the floating pill). */
+  readonly focusedRow: Accessor<{ row: string; seq: number } | null> = () => this.sFocusedRow();
   /** Messages shown now, each counted once: the pill's red count, the part badges' sum and Check's toast agree on it. */
   readonly attention: Accessor<number> = () => this.sAttention();
 
@@ -980,6 +983,7 @@ export class FormSession {
     const s = this.st;
     s.focusKey = k;
     const here = this.keyIndex.get(this.oneDates.get(k)?.date.month.k ?? k);
+    if (here) this.sFocusedRow.set({ row: here, seq: ++this.revealSeq });
     if (this.endProfileEdit([...s.editing].filter((key) => this.keyIndex.get(key) !== here))) this.publish();
   }
 

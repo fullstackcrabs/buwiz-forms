@@ -232,6 +232,7 @@ export function Segmented(props: SegmentedProps) {
                 if (props.autoFocus) revealAndFocus(r);
               }
             }}
+            testID={props.testID ? `${props.testID}-${o().value}` : undefined}
             pressed={o().value === props.value}
             accessibilityLabel={o().label}
             hitSlop={TOUCH ? { top: 10, bottom: 10 } : 0}

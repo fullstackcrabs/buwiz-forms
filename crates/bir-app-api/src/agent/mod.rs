@@ -32,8 +32,8 @@ use std::time::Duration;
 use gpui_agent::discovery::{self, PublishedHost};
 use gpui_agent::mailbox::{AgentMailbox, MailboxRequest};
 use gpui_agent::protocol::PlatformKind;
-use gpui_agent::security::from_env;
-use gpui_agent::server::spawn_mailbox_named;
+use gpui_agent::security::{AgentConfig, SecurityError, authorize_bind, from_env};
+use gpui_agent::server::{default_addr, spawn_mailbox_named};
 use gpui_agent::tree::{UiNode, UiTree, role};
 use gpui_agent::{authorize_request, handle_request, virtual_unavailable};
 use serde_json::Value;
@@ -81,7 +81,28 @@ pub fn maybe_start() -> Option<Started> {
 pub fn try_start_with(
     choose: impl FnOnce(std::net::SocketAddr) -> Result<std::net::SocketAddr, String>,
 ) -> Result<Option<Started>, String> {
-    let config = match from_env() {
+    try_start_with_token(None, choose)
+}
+
+/// [`try_start_with`] for a host whose launcher keeps `GPUI_AGENT_TOKEN` out of the process environment (NSH's
+/// phone hosts get the window plane's token as a private file that the window plane reads and deletes): when the
+/// environment opts in (`GPUI_AGENT=1`) but carries no token, `token` is the one this listener checks. A token in
+/// the environment wins, and every other rule of the environment (the release gate, the address) still applies.
+pub fn try_start_with_token(
+    token: Option<String>,
+    choose: impl FnOnce(std::net::SocketAddr) -> Result<std::net::SocketAddr, String>,
+) -> Result<Option<Started>, String> {
+    let from_environment = match from_env() {
+        Err(SecurityError::LoopbackRequiresToken) => match token.filter(|token| !token.is_empty()) {
+            Some(token) => std::env::var("GPUI_AGENT_ADDR")
+                .map_or_else(|_| Ok(default_addr()), |raw| raw.parse().map_err(|_| SecurityError::BadAddr(raw)))
+                .and_then(|addr| authorize_bind(addr, Some(&token), false))
+                .map(|addr| Some(AgentConfig { addr, token: Some(token) })),
+            None => Err(SecurityError::LoopbackRequiresToken),
+        },
+        other => other,
+    };
+    let config = match from_environment {
         Ok(Some(config)) => config,
         Ok(None) => {
             tracing::info!("gpui-agent control plane off (set GPUI_AGENT=1 to opt in)");

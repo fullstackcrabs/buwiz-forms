@@ -205,7 +205,7 @@ mod live {
     use std::sync::atomic::{AtomicBool, Ordering};
 
     use bir_app_api::agent::{
-        APP, Session, UiQueue, drain_gated, resolve_addr, tree_from_debug, try_start_with,
+        APP, Session, UiQueue, drain_gated, resolve_addr, tree_from_debug, try_start_with_token,
     };
     use gpui_agent::discovery::{self, HostRecord, PublishedHost};
     use gpui_agent::mailbox::AgentMailbox;
@@ -275,11 +275,23 @@ mod live {
         Ok(resolve_addr(requested))
     }
 
+    /// The data plane's token on a phone host. NSH hands the window plane's token to its iOS and Android hosts as a
+    /// private file that the window plane reads and deletes before the app starts, and keeps `GPUI_AGENT_TOKEN` out of
+    /// the app's environment, so this listener would be refused for want of one. `just nsh-run-agent` passes the same
+    /// token as `BIR_AGENT_TOKEN` there. Read only where the environment has no `GPUI_AGENT_TOKEN`; never on a desktop.
+    fn phone_token() -> Option<String> {
+        if cfg!(any(target_os = "ios", target_os = "android")) {
+            std::env::var("BIR_AGENT_TOKEN").ok()
+        } else {
+            None
+        }
+    }
+
     /// Starts the listener when `GPUI_AGENT=1`, on the calling thread's database: the door boots first (the database
     /// guard and the send guard run before the first request is answered). `Ok(None)`: off. `Err`: refused, why.
     pub fn listen() -> Result<Option<Listener>, String> {
         crate::door::call("system_info", Vec::new())?;
-        let Some(started) = try_start_with(choose)? else {
+        let Some(started) = try_start_with_token(phone_token(), choose)? else {
             return Ok(None);
         };
         // The record names the executable `bir`: see RECORD_EXECUTABLE.
@@ -369,9 +381,9 @@ mod live {
         fn a_taken_address_gives_another_loopback_port_and_a_remote_one_is_refused() {
             let held = std::net::TcpListener::bind("127.0.0.1:0").expect("a loopback port");
             let taken = held.local_addr().expect("its address");
-            let chosen = Listener::choose(taken).expect("loopback is accepted");
+            let chosen = choose(taken).expect("loopback is accepted");
             assert_eq!((chosen.ip(), chosen.port()), (taken.ip(), 0), "the system picks a free port");
-            assert!(Listener::choose("192.0.2.1:17421".parse().expect("an address")).is_err());
+            assert!(choose("192.0.2.1:17421".parse().expect("an address")).is_err());
         }
     }
 }

@@ -1,0 +1,26 @@
+# Step 3 of the data set run whose sales carry centavos (centavos-rejected): the pill counts one item needing attention; Check
+# makes the box show its message; "next part
+# that needs attention" and the pill's Next land on it, the box's message names the fault, the pill steps back, its section list
+# jumps to Schedule I, the amount is corrected to $sales_fixed and the count is gone.
+click fp-nav-0
+wait_until fp-pill-open name="All sections · 1 to do · Page 1 · Return details · 1 item needs attention" --timeout-ms 10000 --screenshot
+click fp-check
+click fp-nav-attention
+wait_until fp-msg-4:5 value="Item 36A takes whole pesos only." --timeout-ms 5000
+click fp-nav-0
+wait_until fp-frm1701q:txtSheets --timeout-ms 5000
+click fp-pill-next
+wait_until fp-msg-4:5 value="Item 36A takes whole pesos only." --timeout-ms 5000
+click fp-pill-list
+wait_until fp-section-4 --timeout-ms 5000
+click fp-section-4
+wait_until fp-frm1701q:txt36A --timeout-ms 5000
+set_value fp-frm1701q:txt36A $sales_fixed
+click fp-nav-0
+wait_until fp-pill-open name="All sections · Page 1 · 1 of 9 · Return details" --timeout-ms 10000
+click fp-pill-next
+wait_until fp-pill-open name="All sections · Part I · 2 of 9 · Background Information on Taxpayer/filer" --timeout-ms 5000
+click fp-pill-prev
+wait_until fp-pill-open name="All sections · Page 1 · 1 of 9 · Return details" --timeout-ms 5000
+click fp-check
+wait_until fp-pill-open name="All sections · Page 1 · 1 of 9 · Return details" --timeout-ms 10000 --screenshot

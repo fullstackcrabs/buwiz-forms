@@ -95,8 +95,8 @@ export function NewReturn() {
             value={String(period())}
             onChange={(v) => app.pickNewReturnPeriod(Number(v))}
           />
-          <If when={hasTemplate()} else={<Chip label="No template" />}>
-            <Chip label="Template" tone="success" icon="layout-template" />
+          <If when={hasTemplate()} else={<Chip testID="new-return-no-template" label="No template" />}>
+            <Chip testID="new-return-template" label="Template" tone="success" icon="layout-template" />
           </If>
         </View>
         <View class="flex-row gap-2">

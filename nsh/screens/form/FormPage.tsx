@@ -84,6 +84,8 @@ export interface FormPageProps {
 
 const PILL_W = 488;
 const NARROW_PILL_HEIGHT = 60;
+// The pill's height, its 16 pt bottom gap and 12 pt of air: what a focused row keeps below it.
+const PILL_CLEAR = NARROW_PILL_HEIGHT + 16 + 12;
 /** The old shell's cap on a form page's column, padding included (app/main.js layout(): 1120 for "form"). */
 const FORM_COLUMN_MAX = 1120;
 
@@ -220,6 +222,21 @@ export function FormPage(props: FormPageProps) {
       if (row) s.focusRow(row);
       return;
     }
+  }
+
+  // A box that takes the keyboard under the floating pill (Tab into it) is scrolled clear of it: the pill sits 16 pt above
+  // the pane's bottom and covers what lies behind it.
+  effect(() => {
+    const f = s.focusedRow();
+    if (f) untracked(() => void clearOfPill(f.row, f.seq));
+  });
+  async function clearOfPill(row: string, seq: number) {
+    const ref = rowRefs.get(row);
+    if (!ref || !scrollRef) return;
+    const [m, area] = await Promise.all([ref.measure(), scrollRef.measure()]);
+    if (!m || !area || s.focusedRow()?.seq !== seq) return;
+    const covered = m.pagePosition.y + m.bounds.size.height - (area.pagePosition.y + area.bounds.size.height - PILL_CLEAR);
+    if (covered > 0) scrollRef.scrollTo({ y: scrollY + covered, animated: false });
   }
 
   const schema = s.schema;
@@ -763,6 +780,8 @@ function Pill(props: { s: FormSession; wide: Accessor<boolean>; narrow: Accessor
     const n = red();
     return `${n} item${n > 1 ? "s" : ""} need${n > 1 ? "" : "s"} attention`;
   };
+  // The row is one button to assistive tech and to the agent tree, so its label carries what the pill shows.
+  const openLabel = () => `All sections · ${small()} · ${big()}${red() > 0 ? ` · ${redLabel()}` : ""}`;
   const target = (dir: number) => {
     todo();
     s.stepAt();
@@ -802,7 +821,7 @@ function Pill(props: { s: FormSession; wide: Accessor<boolean>; narrow: Accessor
             <View class="h-full min-w-0 flex-1 flex-row items-center">
               <IconButton testID="fp-pill-list" icon="list" tooltip="All sections" pressed={listOpen()} onPress={() => listOpen.set(!listOpen())} />
               <View class="min-w-0 flex-1">
-                <ListRow testID="fp-pill-open" accessibilityLabel="All sections" onPress={() => listOpen.set(true)}>
+                <ListRow testID="fp-pill-open" accessibilityLabel={openLabel()} onPress={() => listOpen.set(true)}>
                   {main}
                 </ListRow>
               </View>
@@ -826,7 +845,7 @@ function Pill(props: { s: FormSession; wide: Accessor<boolean>; narrow: Accessor
               <SectionsList s={s} onPick={() => listOpen.set(false)} maxHeight={Math.min(440, windowSize().height - 200)} />
             </Popover>
             <View class="min-w-0 flex-1">
-              <ListRow testID="fp-pill-open" accessibilityLabel="All sections" onPress={() => listOpen.set(!listOpen())}>
+              <ListRow testID="fp-pill-open" accessibilityLabel={openLabel()} onPress={() => listOpen.set(!listOpen())}>
                 {main}
               </ListRow>
             </View>
