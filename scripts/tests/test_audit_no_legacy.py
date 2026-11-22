@@ -124,6 +124,15 @@ class NoLegacyAuditTests(unittest.TestCase):
             ["runtime-node"],
         )
 
+    def test_xpath_node_test_is_not_the_node_runtime(self) -> None:
+        self.write(
+            "scripts/sign-in.ps1",
+            "$package = 'x'\n"
+            "$ui.SelectSingleNode(\"//node[@package='$package' and @text='Sign in']\")\n",
+        )
+        clean = audit_no_legacy.audit_repository(self.root)
+        self.assertTrue(clean.passed, audit_no_legacy.format_report(clean))
+
     def test_full_page_embedded_image_fails_but_discrete_artwork_passes(self) -> None:
         discrete = base64.b64encode(fake_png(240, 80)).decode("ascii")
         full_page = base64.b64encode(fake_png(1224, 1872)).decode("ascii")

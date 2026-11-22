@@ -163,11 +163,12 @@ LEGACY_RENDERER_PATTERN = re.compile(
     r")",
     re.IGNORECASE,
 )
+# `node[` is an XPath element test (`//node[@package=...]` in a UI dump), not the Node runtime.
 NODE_RUNTIME_PATTERN = re.compile(
     r"(?:"
     r"(?:cp|copy-item|copyfile|source\s*:|files?\s*=|resources?\s*=|"
-    r"bundle|package|install)[^\n]{0,180}\b(?:node(?:\.exe)?|node_modules)\b"
-    r"|\b(?:node(?:\.exe)?|node_modules)\b[^\n]{0,180}"
+    r"bundle|package|install)[^\n]{0,180}\b(?:node(?:\.exe)?|node_modules)\b(?!\[)"
+    r"|\b(?:node(?:\.exe)?|node_modules)\b(?!\[)[^\n]{0,180}"
     r"(?:cp|copy-item|copyfile|destdir|destination|resources?|bundle|package)"
     r")",
     re.IGNORECASE,
