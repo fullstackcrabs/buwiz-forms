@@ -1,0 +1,400 @@
+{
+ "v": 1,
+ "name": "ui-setup-1701q-template-phone",
+ "app": "bir-shell",
+ "params": [
+  "year",
+  "quarter",
+  "citizenship"
+ ],
+ "steps": [
+  {
+   "id": "s1",
+   "op": "click",
+   "target": "tab-library"
+  },
+  {
+   "id": "s2",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "library-scope-all",
+   "needs": [
+    "s1"
+   ]
+  },
+  {
+   "id": "s3",
+   "op": "click",
+   "target": "library-scope-all",
+   "needs": [
+    "s2"
+   ]
+  },
+  {
+   "id": "s4",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "library-1701Q",
+   "needs": [
+    "s3"
+   ]
+  },
+  {
+   "id": "s5",
+   "op": "click",
+   "target": "library-1701Q",
+   "needs": [
+    "s4"
+   ]
+  },
+  {
+   "id": "s6",
+   "op": "wait_until",
+   "timeout_ms": 10000,
+   "target": "fp-save",
+   "needs": [
+    "s5"
+   ]
+  },
+  {
+   "id": "s7",
+   "op": "click",
+   "target": "fp-save",
+   "needs": [
+    "s6"
+   ]
+  },
+  {
+   "id": "s8",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "sample-period-year",
+   "needs": [
+    "s7"
+   ]
+  },
+  {
+   "id": "s9",
+   "op": "set_value",
+   "target": "sample-period-year",
+   "value": "$year",
+   "needs": [
+    "s8"
+   ]
+  },
+  {
+   "id": "s10",
+   "op": "click",
+   "target": "sample-period-q$quarter",
+   "needs": [
+    "s9"
+   ]
+  },
+  {
+   "id": "s11",
+   "op": "click",
+   "target": "sample-period-save",
+   "needs": [
+    "s10"
+   ]
+  },
+  {
+   "id": "s12",
+   "op": "wait_until",
+   "timeout_ms": 10000,
+   "target": "fp-save-state",
+   "name": "✓ Saved",
+   "needs": [
+    "s11"
+   ]
+  },
+  {
+   "id": "s13",
+   "op": "click",
+   "target": "fp-pill-list",
+   "needs": [
+    "s12"
+   ]
+  },
+  {
+   "id": "s14",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "fp-section-1",
+   "needs": [
+    "s13"
+   ]
+  },
+  {
+   "id": "s15",
+   "op": "click",
+   "target": "fp-section-1",
+   "needs": [
+    "s14"
+   ]
+  },
+  {
+   "id": "s16",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "fp-section-1",
+   "exists": false,
+   "needs": [
+    "s15"
+   ]
+  },
+  {
+   "id": "s17",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "fp-frm1701q:optType_1",
+   "needs": [
+    "s16"
+   ]
+  },
+  {
+   "id": "s18",
+   "op": "click",
+   "target": "fp-frm1701q:optType_2",
+   "needs": [
+    "s17"
+   ]
+  },
+  {
+   "id": "s19",
+   "op": "scroll",
+   "target": "form-scroll",
+   "dy": 400.0,
+   "needs": [
+    "s18"
+   ]
+  },
+  {
+   "id": "s20",
+   "op": "click",
+   "target": "fp-frm1701q:optATC_2",
+   "needs": [
+    "s19"
+   ]
+  },
+  {
+   "id": "s21",
+   "op": "scroll",
+   "target": "form-scroll",
+   "dy": 700.0,
+   "needs": [
+    "s20"
+   ]
+  },
+  {
+   "id": "s22",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "fp-frm1701q:txtBirthMonth#date",
+   "needs": [
+    "s21"
+   ]
+  },
+  {
+   "id": "s23",
+   "op": "set_value",
+   "target": "fp-frm1701q:txtBirthMonth#date",
+   "value": "01/15/1990",
+   "needs": [
+    "s22"
+   ]
+  },
+  {
+   "id": "s24",
+   "op": "click",
+   "target": "fp-pill-next",
+   "needs": [
+    "s23"
+   ]
+  },
+  {
+   "id": "s25",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "fp-pill-open",
+   "name": "All sections · 1 of 3 to do · Part I · Item 12 · Email Address · 3 items need attention",
+   "needs": [
+    "s24"
+   ]
+  },
+  {
+   "id": "s26",
+   "op": "key",
+   "target": "fp-txtEmail",
+   "key": "Tab",
+   "needs": [
+    "s25"
+   ]
+  },
+  {
+   "id": "s27",
+   "op": "set_value",
+   "target": "fp-frm1701q:txtCitizenship",
+   "value": "$citizenship",
+   "needs": [
+    "s26"
+   ]
+  },
+  {
+   "id": "s28",
+   "op": "key",
+   "target": "fp-frm1701q:txtCitizenship",
+   "key": "Tab",
+   "needs": [
+    "s27"
+   ]
+  },
+  {
+   "id": "s29",
+   "op": "click",
+   "target": "fp-frm1701q:optForeignTaxCredits_2",
+   "needs": [
+    "s28"
+   ]
+  },
+  {
+   "id": "s30",
+   "op": "click",
+   "target": "fp-pill-list",
+   "needs": [
+    "s29"
+   ]
+  },
+  {
+   "id": "s31",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "fp-section-7",
+   "needs": [
+    "s30"
+   ]
+  },
+  {
+   "id": "s32",
+   "op": "click",
+   "target": "fp-section-7",
+   "needs": [
+    "s31"
+   ]
+  },
+  {
+   "id": "s33",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "fp-section-7",
+   "exists": false,
+   "needs": [
+    "s32"
+   ]
+  },
+  {
+   "id": "s34",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "fp-ask-eopt_tier-0",
+   "needs": [
+    "s33"
+   ]
+  },
+  {
+   "id": "s35",
+   "op": "click",
+   "target": "fp-ask-eopt_tier-0",
+   "needs": [
+    "s34"
+   ]
+  },
+  {
+   "id": "s36",
+   "op": "click",
+   "target": "fp-ask-eopt_tier-save",
+   "needs": [
+    "s35"
+   ]
+  },
+  {
+   "id": "s37",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "fp-ask-eopt_tier-save",
+   "exists": false,
+   "needs": [
+    "s36"
+   ]
+  },
+  {
+   "id": "s38",
+   "op": "click",
+   "target": "nb-avatar",
+   "needs": [
+    "s37"
+   ]
+  },
+  {
+   "id": "s39",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "nb-menu-profile",
+   "needs": [
+    "s38"
+   ]
+  },
+  {
+   "id": "s40",
+   "op": "click",
+   "target": "nb-menu-profile",
+   "needs": [
+    "s39"
+   ]
+  },
+  {
+   "id": "s41",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "panel-open-templates",
+   "needs": [
+    "s40"
+   ]
+  },
+  {
+   "id": "s42",
+   "op": "click",
+   "target": "panel-open-templates",
+   "needs": [
+    "s41"
+   ]
+  },
+  {
+   "id": "s43",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "tp-template-1701Q-create",
+   "needs": [
+    "s42"
+   ]
+  },
+  {
+   "id": "s44",
+   "op": "click",
+   "target": "tp-template-1701Q-create",
+   "needs": [
+    "s43"
+   ]
+  },
+  {
+   "id": "s45",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "tp-template-1701Q-update",
+   "screenshot": true,
+   "needs": [
+    "s44"
+   ]
+  }
+ ]
+}

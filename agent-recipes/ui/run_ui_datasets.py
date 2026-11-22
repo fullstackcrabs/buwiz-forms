@@ -34,6 +34,22 @@ def shown(amount):
 class Agent:
     def __init__(self, cli, addr):
         self.base = [cli, "--addr", addr]
+        self.phone = False
+
+    def panel(self):
+        """Open the tax profile panel: the title bar's button on a desktop, the account menu's first entry on a phone."""
+        if self.phone:
+            self.act("click", "nb-avatar")
+            self.wait(self.has("nb-menu-profile"), "the account menu")
+            self.act("click", "nb-menu-profile")
+        else:
+            self.act("click", "tb-panel")
+        self.wait(self.has("panel-open-forms"), "the tax profile panel")
+
+    def variant(self, name):
+        """The recipe for this host: NAME-phone.json where the phone's frame differs (no title bar or side bar), else NAME.wants."""
+        phone = name.replace(".wants", "-phone.json")
+        return phone if self.phone and os.path.exists(os.path.join(HERE, phone)) else name
 
     def run(self, *args):
         return subprocess.run(self.base + list(args), capture_output=True, text=True)
@@ -72,7 +88,7 @@ class Agent:
     def pick(self, trigger, label):
         """Open an NSH Select and press the option that shows `label` (its id is generated)."""
         self.act("click", trigger)
-        option = self.wait(lambda n: n.get("role") == "option" and n.get("value") == label, f"option {label!r} of {trigger}")
+        option = self.wait(lambda n: n.get("role") == "option" and label in (n.get("value"), n.get("name")), f"option {label!r} of {trigger}")
         self.act("click", option["id"])
 
     def recipe(self, name, params, shots=None):
@@ -100,8 +116,7 @@ class Agent:
 
 def setup(agent, years):
     """Tax years with 1701Q, then the template. The year picker's options have generated ids, hence pick()."""
-    agent.act("click", "tb-panel")
-    agent.wait(agent.has("panel-open-forms"), "the tax profile panel")
+    agent.panel()
     agent.act("click", "panel-open-forms")
     agent.wait(lambda n: n.get("id") in ("tp-add-year-open", "tp-add-year-select-trigger"), "the Forms tab")
     for year in sorted(years, reverse=True):
@@ -121,8 +136,9 @@ def setup(agent, years):
             agent.act("click", "tp-form-1701Q-check")
             agent.act("click", "tp-forms-save")
             time.sleep(0.5)
-    agent.act("click", "tb-panel")
-    return agent.recipe("ui-setup-1701q-template.wants", {"year": "2022", "quarter": "1", "citizenship": "FILIPINO"})
+    if not agent.phone:  # the phone's sheet closed when it opened the page
+        agent.act("click", "tb-panel")
+    return agent.recipe(agent.variant("ui-setup-1701q-template.wants"), {"year": "2022", "quarter": "1", "citizenship": "FILIPINO"})
 
 
 def main():
@@ -138,6 +154,10 @@ def main():
     ap.add_argument("--label", default="")
     a = ap.parse_args()
     agent = Agent(a.cli, a.addr)
+    hello = agent.run("hello")
+    if hello.returncode:
+        sys.exit(f"no agent at {a.addr}: {hello.stderr.strip()}")
+    agent.phone = json.loads(hello.stdout)["hello"].get("platform") == "mobile"
     rows = list(csv.DictReader(open(a.data, encoding="utf-8")))
     pick = range(len(rows))
     if a.rows:
@@ -168,13 +188,14 @@ def main():
         try:
             if agent.find(agent.has("new-return-cancel")):  # a failed run left the dialog up
                 agent.act("click", "new-return-cancel")
-            if agent.find(agent.has("panel-open-forms")):
+            if not agent.phone and agent.find(agent.has("panel-open-forms")):
                 agent.act("click", "tb-panel")
-            for name in ("ui-new-1701q.wants", fill, pill):
+            fill, pill = agent.variant(fill), agent.variant(pill)
+            for name in (agent.variant("ui-new-1701q.wants"), fill, pill):
                 if name == fill:
                     agent.pick("new-return-period-trigger", f"Q{row['period']} {row['year']}")
-                receipt = agent.recipe(name, params, None if a.no_screenshots else os.path.join(out, str(len(parts) + 1) + '-' + name[3:-6]))
-                json.dump(receipt, open(os.path.join(out, name.replace(".wants", ".json")), "w"), indent=1)
+                receipt = agent.recipe(name, params, None if a.no_screenshots else os.path.join(out, str(len(parts) + 1) + '-' + name[3:].split('.')[0]))
+                json.dump(receipt, open(os.path.join(out, os.path.splitext(name)[0] + ".json"), "w"), indent=1)
                 parts[name] = receipt
                 if not receipt.get("ok"):
                     why.append(f"{name}: {receipt.get('error')}")

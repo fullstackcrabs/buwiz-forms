@@ -1,0 +1,184 @@
+{
+ "v": 1,
+ "name": "ui-pill-1701q-phone",
+ "app": "bir-shell",
+ "params": [],
+ "steps": [
+  {
+   "id": "s1",
+   "op": "click",
+   "target": "fp-pill-list"
+  },
+  {
+   "id": "s2",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "fp-section-0",
+   "needs": [
+    "s1"
+   ]
+  },
+  {
+   "id": "s3",
+   "op": "click",
+   "target": "fp-section-0",
+   "needs": [
+    "s2"
+   ]
+  },
+  {
+   "id": "s4",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "fp-section-0",
+   "exists": false,
+   "needs": [
+    "s3"
+   ]
+  },
+  {
+   "id": "s5",
+   "op": "wait_until",
+   "timeout_ms": 10000,
+   "target": "fp-pill-open",
+   "name": "All sections · Page 1 · 1 of 9 · Return details",
+   "needs": [
+    "s4"
+   ]
+  },
+  {
+   "id": "s6",
+   "op": "click",
+   "target": "fp-pill-next",
+   "needs": [
+    "s5"
+   ]
+  },
+  {
+   "id": "s7",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "fp-pill-open",
+   "name": "All sections · Part I · 2 of 9 · Background Information on Taxpayer/filer",
+   "needs": [
+    "s6"
+   ]
+  },
+  {
+   "id": "s8",
+   "op": "click",
+   "target": "fp-pill-prev",
+   "needs": [
+    "s7"
+   ]
+  },
+  {
+   "id": "s9",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "fp-pill-open",
+   "name": "All sections · Page 1 · 1 of 9 · Return details",
+   "needs": [
+    "s8"
+   ]
+  },
+  {
+   "id": "s10",
+   "op": "click",
+   "target": "fp-pill-list",
+   "needs": [
+    "s9"
+   ]
+  },
+  {
+   "id": "s11",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "fp-section-6",
+   "needs": [
+    "s10"
+   ]
+  },
+  {
+   "id": "s12",
+   "op": "click",
+   "target": "fp-section-6",
+   "needs": [
+    "s11"
+   ]
+  },
+  {
+   "id": "s13",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "fp-pill-open",
+   "name": "All sections · Part V · 7 of 9 · Schedule III – Tax Credits/Payments",
+   "needs": [
+    "s12"
+   ]
+  },
+  {
+   "id": "s14",
+   "op": "click",
+   "target": "fp-pill-list",
+   "needs": [
+    "s13"
+   ]
+  },
+  {
+   "id": "s15",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "fp-section-0",
+   "needs": [
+    "s14"
+   ]
+  },
+  {
+   "id": "s16",
+   "op": "click",
+   "target": "fp-section-0",
+   "needs": [
+    "s15"
+   ]
+  },
+  {
+   "id": "s17",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "fp-section-0",
+   "exists": false,
+   "needs": [
+    "s16"
+   ]
+  },
+  {
+   "id": "s18",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "fp-check",
+   "needs": [
+    "s17"
+   ]
+  },
+  {
+   "id": "s19",
+   "op": "click",
+   "target": "fp-check",
+   "needs": [
+    "s18"
+   ]
+  },
+  {
+   "id": "s20",
+   "op": "wait_until",
+   "timeout_ms": 10000,
+   "target": "fp-pill-open",
+   "name": "All sections · Page 1 · 1 of 9 · Return details",
+   "screenshot": true,
+   "needs": [
+    "s19"
+   ]
+  }
+ ]
+}

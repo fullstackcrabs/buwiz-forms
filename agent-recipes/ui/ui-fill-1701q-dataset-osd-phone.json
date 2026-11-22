@@ -1,0 +1,493 @@
+{
+ "v": 1,
+ "name": "ui-fill-1701q-dataset-osd-phone",
+ "app": "bir-shell",
+ "params": [
+  "period",
+  "year",
+  "sheets",
+  "filer_type_opt",
+  "atc_opt",
+  "birth_month",
+  "birth_day",
+  "birth_year",
+  "email",
+  "citizenship",
+  "sales",
+  "prior_income",
+  "non_op_desc",
+  "non_op_income",
+  "prior_credits",
+  "prior_payments",
+  "withheld_2307"
+ ],
+ "steps": [
+  {
+   "id": "s1",
+   "op": "assert",
+   "target": "new-return-period-trigger",
+   "value": "Q$period $year"
+  },
+  {
+   "id": "s2",
+   "op": "click",
+   "target": "new-return-open",
+   "needs": [
+    "s1"
+   ]
+  },
+  {
+   "id": "s3",
+   "op": "wait_until",
+   "timeout_ms": 10000,
+   "target": "fp-frm1701q:txtSheets",
+   "needs": [
+    "s2"
+   ]
+  },
+  {
+   "id": "s4",
+   "op": "scroll",
+   "target": "form-scroll",
+   "dy": 300.0,
+   "needs": [
+    "s3"
+   ]
+  },
+  {
+   "id": "s5",
+   "op": "set_value",
+   "target": "fp-frm1701q:txtSheets",
+   "value": "$sheets",
+   "needs": [
+    "s4"
+   ]
+  },
+  {
+   "id": "s6",
+   "op": "click",
+   "target": "fp-pill-list",
+   "needs": [
+    "s5"
+   ]
+  },
+  {
+   "id": "s7",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "fp-section-1",
+   "needs": [
+    "s6"
+   ]
+  },
+  {
+   "id": "s8",
+   "op": "click",
+   "target": "fp-section-1",
+   "needs": [
+    "s7"
+   ]
+  },
+  {
+   "id": "s9",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "fp-section-1",
+   "exists": false,
+   "needs": [
+    "s8"
+   ]
+  },
+  {
+   "id": "s10",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "fp-frm1701q:optType_1",
+   "needs": [
+    "s9"
+   ]
+  },
+  {
+   "id": "s11",
+   "op": "click",
+   "target": "fp-frm1701q:optType_3",
+   "needs": [
+    "s10"
+   ]
+  },
+  {
+   "id": "s12",
+   "op": "click",
+   "target": "fp-frm1701q:optType_$filer_type_opt",
+   "needs": [
+    "s11"
+   ]
+  },
+  {
+   "id": "s13",
+   "op": "scroll",
+   "target": "form-scroll",
+   "dy": 400.0,
+   "needs": [
+    "s12"
+   ]
+  },
+  {
+   "id": "s14",
+   "op": "click",
+   "target": "fp-frm1701q:optATC_3",
+   "needs": [
+    "s13"
+   ]
+  },
+  {
+   "id": "s15",
+   "op": "click",
+   "target": "fp-frm1701q:optATC_$atc_opt",
+   "needs": [
+    "s14"
+   ]
+  },
+  {
+   "id": "s16",
+   "op": "click",
+   "target": "fp-pill-next",
+   "needs": [
+    "s15"
+   ]
+  },
+  {
+   "id": "s17",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "fp-pill-open",
+   "name": "All sections · 1 of 3 to do · Part I · Item 11 · Date of Birth (MM/DD/YYYY) · 3 items need attention",
+   "needs": [
+    "s16"
+   ]
+  },
+  {
+   "id": "s18",
+   "op": "set_value",
+   "target": "fp-frm1701q:txtBirthMonth#date",
+   "value": "$birth_month/$birth_day/$birth_year",
+   "needs": [
+    "s17"
+   ]
+  },
+  {
+   "id": "s19",
+   "op": "click",
+   "target": "fp-pill-next",
+   "needs": [
+    "s18"
+   ]
+  },
+  {
+   "id": "s20",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "fp-pill-open",
+   "name": "All sections · 1 of 2 to do · Part I · Item 12 · Email Address · 2 items need attention",
+   "needs": [
+    "s19"
+   ]
+  },
+  {
+   "id": "s21",
+   "op": "click",
+   "target": "fp-pill-next",
+   "needs": [
+    "s20"
+   ]
+  },
+  {
+   "id": "s22",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "fp-pill-open",
+   "name": "All sections · 2 of 2 to do · Part I · Item 16A · Method of Deduction · 2 items need attention",
+   "needs": [
+    "s21"
+   ]
+  },
+  {
+   "id": "s23",
+   "op": "click",
+   "target": "fp-frm1701q:optMethodOfDeduction:_2",
+   "needs": [
+    "s22"
+   ]
+  },
+  {
+   "id": "s24",
+   "op": "click",
+   "target": "fp-pill-prev",
+   "needs": [
+    "s23"
+   ]
+  },
+  {
+   "id": "s25",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "fp-pill-open",
+   "name": "All sections · 1 of 1 to do · Part I · Item 12 · Email Address · 1 item needs attention",
+   "needs": [
+    "s24"
+   ]
+  },
+  {
+   "id": "s26",
+   "op": "set_value",
+   "target": "fp-txtEmail",
+   "value": "$email",
+   "needs": [
+    "s25"
+   ]
+  },
+  {
+   "id": "s27",
+   "op": "set_value",
+   "target": "fp-frm1701q:txtCitizenship",
+   "value": "$citizenship",
+   "needs": [
+    "s26"
+   ]
+  },
+  {
+   "id": "s28",
+   "op": "click",
+   "target": "fp-pill-list",
+   "needs": [
+    "s27"
+   ]
+  },
+  {
+   "id": "s29",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "fp-section-4",
+   "needs": [
+    "s28"
+   ]
+  },
+  {
+   "id": "s30",
+   "op": "click",
+   "target": "fp-section-4",
+   "needs": [
+    "s29"
+   ]
+  },
+  {
+   "id": "s31",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "fp-section-4",
+   "exists": false,
+   "needs": [
+    "s30"
+   ]
+  },
+  {
+   "id": "s32",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "fp-frm1701q:txt36A",
+   "needs": [
+    "s31"
+   ]
+  },
+  {
+   "id": "s33",
+   "op": "set_value",
+   "target": "fp-frm1701q:txt36A",
+   "value": "$sales",
+   "needs": [
+    "s32"
+   ]
+  },
+  {
+   "id": "s34",
+   "op": "scroll",
+   "target": "form-scroll",
+   "dy": 500.0,
+   "needs": [
+    "s33"
+   ]
+  },
+  {
+   "id": "s35",
+   "op": "scroll",
+   "target": "form-scroll",
+   "dy": 500.0,
+   "needs": [
+    "s34"
+   ]
+  },
+  {
+   "id": "s36",
+   "op": "scroll",
+   "target": "form-scroll",
+   "dy": 300.0,
+   "needs": [
+    "s35"
+   ]
+  },
+  {
+   "id": "s37",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "fp-frm1701q:txt43A",
+   "needs": [
+    "s36"
+   ]
+  },
+  {
+   "id": "s38",
+   "op": "set_value",
+   "target": "fp-frm1701q:txt42A",
+   "value": "$prior_income",
+   "needs": [
+    "s37"
+   ]
+  },
+  {
+   "id": "s39",
+   "op": "key",
+   "target": "fp-frm1701q:txt42A",
+   "key": "Tab",
+   "needs": [
+    "s38"
+   ]
+  },
+  {
+   "id": "s40",
+   "op": "set_value",
+   "target": "fp-frm1701q:txt43Desc",
+   "value": "$non_op_desc",
+   "needs": [
+    "s39"
+   ]
+  },
+  {
+   "id": "s41",
+   "op": "key",
+   "target": "fp-frm1701q:txt43Desc",
+   "key": "Tab",
+   "needs": [
+    "s40"
+   ]
+  },
+  {
+   "id": "s42",
+   "op": "set_value",
+   "target": "fp-frm1701q:txt43A",
+   "value": "$non_op_income",
+   "needs": [
+    "s41"
+   ]
+  },
+  {
+   "id": "s43",
+   "op": "click",
+   "target": "fp-pill-list",
+   "needs": [
+    "s42"
+   ]
+  },
+  {
+   "id": "s44",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "fp-section-6",
+   "needs": [
+    "s43"
+   ]
+  },
+  {
+   "id": "s45",
+   "op": "click",
+   "target": "fp-section-6",
+   "needs": [
+    "s44"
+   ]
+  },
+  {
+   "id": "s46",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "fp-section-6",
+   "exists": false,
+   "needs": [
+    "s45"
+   ]
+  },
+  {
+   "id": "s47",
+   "op": "wait_until",
+   "timeout_ms": 5000,
+   "target": "fp-frm1701q:txt55A",
+   "needs": [
+    "s46"
+   ]
+  },
+  {
+   "id": "s48",
+   "op": "set_value",
+   "target": "fp-frm1701q:txt55A",
+   "value": "$prior_credits",
+   "needs": [
+    "s47"
+   ]
+  },
+  {
+   "id": "s49",
+   "op": "scroll",
+   "target": "form-scroll",
+   "dy": 400.0,
+   "needs": [
+    "s48"
+   ]
+  },
+  {
+   "id": "s50",
+   "op": "set_value",
+   "target": "fp-frm1701q:txt56A",
+   "value": "$prior_payments",
+   "needs": [
+    "s49"
+   ]
+  },
+  {
+   "id": "s51",
+   "op": "scroll",
+   "target": "form-scroll",
+   "dy": 400.0,
+   "needs": [
+    "s50"
+   ]
+  },
+  {
+   "id": "s52",
+   "op": "set_value",
+   "target": "fp-frm1701q:txt58A",
+   "value": "$withheld_2307",
+   "needs": [
+    "s51"
+   ]
+  },
+  {
+   "id": "s53",
+   "op": "wait_until",
+   "timeout_ms": 10000,
+   "target": "fp-save-state",
+   "name": "✓ Saved",
+   "screenshot": true,
+   "needs": [
+    "s52"
+   ]
+  }
+ ]
+}

@@ -198,7 +198,9 @@ export function FormPage(props: FormPageProps) {
   });
   async function reveal(row: string | null, part: number, seq: number) {
     let asked = false;
-    for (let tries = 0; tries < 20; tries++) {
+    let at: number | null = null;
+    let scrolls = 0;
+    for (let tries = 0; tries < 40; tries++) {
       await new Promise((done) => setTimeout(done, 50));
       if (s.reveal()?.seq !== seq) return;
       if (!scrollRef) continue;
@@ -218,9 +220,23 @@ export function FormPage(props: FormPageProps) {
       }
       const [m, area] = await Promise.all([ref.measure(), scrollRef.measure()]);
       if (!m || !area) continue;
-      scrollRef.scrollTo({ y: Math.max(0, scrollY + m.pagePosition.y - area.pagePosition.y - (row ? 72 : 0)), animated: true });
-      if (row) s.focusRow(row);
-      return;
+      const to = () => Math.max(0, scrollY + m.pagePosition.y - area.pagePosition.y - (row ? 72 : 0));
+      if (row) {
+        scrollRef.scrollTo({ y: to(), animated: true });
+        s.focusRow(row);
+        return;
+      }
+      // A part: the parts that were open fold as this one opens and its own rows are still being laid out, so the card
+      // keeps moving after the first measure (seen in the iOS Simulator: the page stopped below the fold, or in the middle
+      // of the card). Scroll only once it rests, and again while it rests away from the top.
+      if (at === null || Math.abs(m.pagePosition.y - at) > 0.5) {
+        at = m.pagePosition.y;
+        continue;
+      }
+      if (Math.abs(m.pagePosition.y - area.pagePosition.y) < 1 || scrolls === 3) return;
+      scrollRef.scrollTo({ y: to(), animated: scrolls === 0 });
+      scrolls += 1;
+      at = null;
     }
   }
 
