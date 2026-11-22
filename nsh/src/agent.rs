@@ -179,7 +179,7 @@ fn drain() -> bool {
 }
 
 #[cfg(feature = "agent")]
-pub use live::{Listener, listen};
+pub use live::{Listener, listen, settings_config};
 
 #[cfg(feature = "agent")]
 fn status() -> AgentStatus {
@@ -277,12 +277,14 @@ mod live {
 
     /// The opt-in on Android, where the app process has no launch environment: the same three names, read from the
     /// development settings (`dev_env`: baked by `just nsh-run-agent android`, or the private `dev.env`). Only a build
-    /// with those settings on can opt in; a token is required. Without `GPUI_AGENT_ADDR` it is the port after NSH's
-    /// default, which the window's control plane holds.
-    #[cfg(target_os = "android")]
-    fn android_config() -> Result<Option<gpui_agent::security::AgentConfig>, String> {
-        let var = |name: &str| bir_core::config::var(name).ok().filter(|value| !value.is_empty());
-        if !crate::dev_env::ENABLED || !matches!(var("GPUI_AGENT").as_deref(), Some("1" | "true")) {
+    /// with those settings on (`enabled`) can opt in; a token is required. Without `GPUI_AGENT_ADDR` it is the port
+    /// after NSH's default, which the window's control plane holds. `var` reads one setting.
+    pub fn settings_config(
+        enabled: bool,
+        var: impl Fn(&str) -> Option<String>,
+    ) -> Result<Option<gpui_agent::security::AgentConfig>, String> {
+        let var = |name: &str| var(name).filter(|value| !value.is_empty());
+        if !enabled || !matches!(var("GPUI_AGENT").as_deref(), Some("1" | "true")) {
             return Ok(None);
         }
         let addr = var("GPUI_AGENT_ADDR").unwrap_or_else(|| "127.0.0.1:17422".to_owned());
@@ -299,7 +301,7 @@ mod live {
         #[cfg(not(target_os = "android"))]
         let started = try_start_with(choose)?;
         #[cfg(target_os = "android")]
-        let started = match android_config()? {
+        let started = match settings_config(crate::dev_env::ENABLED, |name| bir_core::config::var(name).ok())? {
             Some(config) => bir_app_api::agent::try_start_config(config, choose)?,
             None => None,
         };
