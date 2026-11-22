@@ -1448,6 +1448,13 @@ fn fill_box(
     write_bound_box(kind, def, draft, key, value)
 }
 
+/// Why [`fill`] refuses `key` on any draft, or `None` when it may write it:
+/// the same gate, so host-written boxes, aliases and group locks count.
+pub fn fill_refusal(kind: AgentFormKind, key: &str) -> Option<String> {
+    let def = kind.definition();
+    gate(def, key, None).map(|verdict| verdict.fill_reason(def, key))
+}
+
 /// The page's draft-dependent lock on `key` ([`draft_locks::draft_lock`]
 /// over the base map's own entry for it), where that layer decides what the
 /// page shows: a box the base map leaves open, or one whose base reason the

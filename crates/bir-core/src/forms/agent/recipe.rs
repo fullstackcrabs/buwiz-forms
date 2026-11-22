@@ -98,16 +98,18 @@ const AMOUNT_PATTERN: &str = r"^\(?-?[0-9][0-9,]*(\.[0-9]+)?\)?$";
 impl Shape {
     fn of(def: &AgentFormDef, entry: &BoxDef) -> Self {
         let bound = def.bindings.get(&entry.key).map(|bound| &bound.binding);
-        let mut values: Vec<String> = entry
-            .options
-            .iter()
-            .map(|option| option.value.clone())
-            .collect();
-        if values.is_empty()
-            && let Some(Binding::Choice { options }) = bound
-        {
-            values = options.iter().map(|option| option.value.clone()).collect();
-        }
+        // What the writer matches is the binding's own values; the official
+        // option values can differ from them (1701MS civil status).
+        let mut values: Vec<String> = match bound {
+            Some(Binding::Choice { options }) => {
+                options.iter().map(|option| option.value.clone()).collect()
+            }
+            _ => entry
+                .options
+                .iter()
+                .map(|option| option.value.clone())
+                .collect(),
+        };
         values.retain(|value| !value.is_empty());
         if !values.is_empty() {
             if values
@@ -316,7 +318,7 @@ pub fn form_schema(kind: AgentFormKind) -> Value {
         .filter(|entry| entry.is_question())
         .map(|entry| {
             let shape = Shape::of(def, entry);
-            let refusal = def.refusal(&entry.key);
+            let refusal = super::fill_refusal(kind, &entry.key);
             let mut out = Map::new();
             out.insert("key".into(), json!(entry.key));
             out.insert("item".into(), json!(entry.item));
@@ -392,7 +394,7 @@ pub fn generate(inputs: &Inputs<'_>) -> Result<Generated, String> {
     for entry in def.boxes.iter().filter(|entry| entry.is_question()) {
         let key = &entry.key;
         let carry = carry::carry_of(kind, key);
-        if def.refusal(key).is_some() {
+        if super::fill_refusal(kind, key).is_some() {
             left_out.insert(
                 key.clone(),
                 match carry {

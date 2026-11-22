@@ -2064,6 +2064,49 @@ mod tests {
         );
     }
 
+    /// Every value `form.schema` offers for a fillable box is one `fill` takes.
+    #[test]
+    fn schema_choices_are_the_ones_fill_accepts() {
+        let mut session = session();
+        save_scratch(&mut session);
+        let mut wrong = Vec::new();
+        for kind in AgentFormKind::all() {
+            let code = kind.form_code();
+            let schema = call(&mut session, "form.schema", json!({"code": code})).unwrap();
+            for entry in schema["boxes"].as_array().unwrap() {
+                let (Some(key), Some(values)) =
+                    (entry["key"].as_str(), entry["value"]["enum"].as_array())
+                else {
+                    continue;
+                };
+                if entry["fillable"] != true {
+                    continue;
+                }
+                for value in values {
+                    let checked = call(
+                        &mut session,
+                        "form.check",
+                        json!({"code": code, "year": 2026, "period": 1, "tin": TIN,
+                               "fields": {key: value}}),
+                    );
+                    match checked {
+                        Ok(checked) if checked["refused"].get(key).is_none() => {}
+                        Ok(checked) => {
+                            wrong.push(format!("{code} {key}={value}: {}", checked["refused"][key]))
+                        }
+                        Err(error) => wrong.push(format!("{code} {key}={value}: {error}")),
+                    }
+                }
+            }
+        }
+        assert!(
+            wrong.is_empty(),
+            "{} refused:\n{}",
+            wrong.len(),
+            wrong.join("\n")
+        );
+    }
+
     #[test]
     fn form_check_validates_without_writing() {
         let mut session = session();
