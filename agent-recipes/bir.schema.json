@@ -334,6 +334,175 @@
         "close",
         "dismiss"
       ]
+    },
+    {
+      "name": "form.schema",
+      "kind": "invoke",
+      "description": "Every box of a form: label, item, required, options, carry rule and value shape.",
+      "effects": [
+        "read"
+      ],
+      "idempotent": true,
+      "verified": true,
+      "required": [
+        "code"
+      ],
+      "args": {
+        "code": {
+          "type": "string",
+          "required": true
+        }
+      },
+      "keywords": [
+        "schema",
+        "boxes",
+        "form"
+      ]
+    },
+    {
+      "name": "form.check",
+      "kind": "invoke",
+      "description": "Dry run: fill and validate a fresh in-memory return. Saves and opens nothing.",
+      "effects": [
+        "read"
+      ],
+      "idempotent": true,
+      "verified": true,
+      "required": [
+        "code",
+        "year"
+      ],
+      "args": {
+        "code": {
+          "type": "string",
+          "required": true
+        },
+        "year": {
+          "type": "integer",
+          "required": true
+        },
+        "period": {
+          "type": "integer",
+          "required": false
+        },
+        "tin": {
+          "type": "string",
+          "required": false
+        },
+        "fields": {
+          "type": "object",
+          "required": false
+        },
+        "strict": {
+          "type": "bool",
+          "required": false
+        }
+      },
+      "keywords": [
+        "check",
+        "validate",
+        "dry-run"
+      ]
+    },
+    {
+      "name": "template.list",
+      "kind": "invoke",
+      "description": "A taxpayer's form templates.",
+      "effects": [
+        "read"
+      ],
+      "idempotent": true,
+      "verified": true,
+      "required": [],
+      "args": {
+        "tin": {
+          "type": "string",
+          "required": false
+        }
+      },
+      "keywords": [
+        "template",
+        "list"
+      ]
+    },
+    {
+      "name": "template.get",
+      "kind": "invoke",
+      "description": "One form's template: pinned answers, stops and stamp. Fails when expect_stamp differs.",
+      "effects": [
+        "read"
+      ],
+      "idempotent": true,
+      "verified": true,
+      "required": [
+        "code"
+      ],
+      "args": {
+        "code": {
+          "type": "string",
+          "required": true
+        },
+        "tin": {
+          "type": "string",
+          "required": false
+        },
+        "expect_stamp": {
+          "type": "string",
+          "required": false
+        }
+      },
+      "keywords": [
+        "template",
+        "stamp"
+      ]
+    },
+    {
+      "name": "recipe.generate",
+      "kind": "invoke",
+      "description": "Generate the taxpayer's recipe and input schema for a form from its template and previous return.",
+      "effects": [
+        "read"
+      ],
+      "idempotent": true,
+      "verified": true,
+      "required": [
+        "code"
+      ],
+      "args": {
+        "code": {
+          "type": "string",
+          "required": true
+        },
+        "tin": {
+          "type": "string",
+          "required": false
+        },
+        "year": {
+          "type": "integer",
+          "required": false
+        },
+        "period": {
+          "type": "integer",
+          "required": false
+        },
+        "check": {
+          "type": "string",
+          "required": false
+        },
+        "include_unused": {
+          "type": "bool",
+          "required": false
+        },
+        "keep_open": {
+          "type": "bool",
+          "required": false
+        }
+      },
+      "keywords": [
+        "recipe",
+        "generate",
+        "template"
+      ]
     }
   ]
 }
