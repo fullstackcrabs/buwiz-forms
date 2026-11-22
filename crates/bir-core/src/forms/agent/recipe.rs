@@ -98,16 +98,18 @@ const AMOUNT_PATTERN: &str = r"^\(?-?[0-9][0-9,]*(\.[0-9]+)?\)?$";
 impl Shape {
     fn of(def: &AgentFormDef, entry: &BoxDef) -> Self {
         let bound = def.bindings.get(&entry.key).map(|bound| &bound.binding);
-        let mut values: Vec<String> = entry
-            .options
-            .iter()
-            .map(|option| option.value.clone())
-            .collect();
-        if values.is_empty()
-            && let Some(Binding::Choice { options }) = bound
-        {
-            values = options.iter().map(|option| option.value.clone()).collect();
-        }
+        // What the writer matches is the binding's own values; the official
+        // option values can differ from them (1701MS civil status).
+        let mut values: Vec<String> = match bound {
+            Some(Binding::Choice { options }) => {
+                options.iter().map(|option| option.value.clone()).collect()
+            }
+            _ => entry
+                .options
+                .iter()
+                .map(|option| option.value.clone())
+                .collect(),
+        };
         values.retain(|value| !value.is_empty());
         if !values.is_empty() {
             if values
