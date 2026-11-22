@@ -169,12 +169,17 @@ $gpuiRev = $null
 if ($manifestText -match '(?s)gpui-agent\s*=\s*\{[^}]*?\brev\s*=\s*"([0-9a-f]{7,})"') {
     $gpuiRev = $matches[1]
 }
-if (-not $gpuiRev) {
+# The pinned rev lives in the repository the manifest names (it may be a fork).
+$gpuiRepo = $null
+if ($manifestText -match '(?s)gpui-agent\s*=\s*\{[^}]*?\bgit\s*=\s*"([^"]+)"') {
+    $gpuiRepo = $matches[1]
+}
+if (-not $gpuiRev -or -not $gpuiRepo) {
     [Console]::Error.WriteLine("gpui-agent rev pin not found in Cargo.toml")
     exit 1
 }
 Write-Step "Installing gpui-agent CLI (pinned rev $gpuiRev, matches Cargo.toml)"
-& "$cargoBin\cargo.exe" install --git https://github.com/hexuria/gpui-agent --rev $gpuiRev gpui-agent-cli
+& "$cargoBin\cargo.exe" install --git $gpuiRepo --rev $gpuiRev gpui-agent-cli
 if ($LASTEXITCODE -ne 0) { Exit-Native "gpui-agent install failed" }
 
 Write-Step @"

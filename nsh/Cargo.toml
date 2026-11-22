@@ -27,7 +27,7 @@ tracing = "0.1"
 bir-print = { path = "../crates/bir-print", default-features = false }
 lopdf = "0.34"
 # Agent remote control (feature `agent`, off by default): the gpui-agent protocol at the one rev bir-shell and bir-mcp use.
-gpui-agent = { version = "0.4.0", git = "https://github.com/fullstackcrabs/gpui-agent", rev = "4e91018366cf5af413e3aa6b01a87e260b69b09a", optional = true }
+gpui-agent = { version = "0.4.0", git = "https://github.com/fullstackcrabs/gpui-agent", rev = "81151a3c95c9aecff7ecd092cf1cbc9581bdb59b", optional = true }
 
 # The database guard asks the password database (getpwuid_r) for the account's home folder, never $HOME.
 [target.'cfg(unix)'.dependencies]

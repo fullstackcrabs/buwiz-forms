@@ -754,7 +754,16 @@ impl Session {
         let strict = args.get("strict").and_then(Value::as_bool) == Some(true);
         let db = self.lock_db()?;
         let profile = load_profile(&db, &tin, year)?;
-        let from_profile = profile_context(&db, kind, &profile, year, period)?;
+        let mut from_profile = profile_context(&db, kind, &profile, year, period)?;
+        // As `form.open` does: a later 2551Q quarter holds its filed Q1's
+        // Item 13 answer.
+        if kind == AgentFormKind::Form2551Q {
+            let mut typed: bir_core::forms::form_2551q::Form2551QDraft =
+                serde_json::from_value(from_profile.draft).map_err(|error| error.to_string())?;
+            agent::draft_locks::item_13::refresh(&db, &mut typed)
+                .map_err(|error| error.to_string())?;
+            from_profile.draft = serde_json::to_value(typed).map_err(|error| error.to_string())?;
+        }
         drop(db);
         let mut draft = from_profile.draft.clone();
         let mut applied = Vec::new();
@@ -2062,6 +2071,73 @@ mod tests {
                 .contains(&json!("txtcitizenship")),
             "{again}"
         );
+    }
+
+    /// A later 2551Q quarter's dry run starts from the filed Q1's Item 13,
+    /// as `form.open` does.
+    #[test]
+    fn check_of_a_later_2551q_quarter_holds_the_filed_q1_item_13() {
+        let mut session = session();
+        save_scratch(&mut session);
+        let later = json!({"code": "2551Q", "year": 2026, "period": 2, "tin": TIN});
+        let before = call(&mut session, "form.check", later.clone()).unwrap();
+        {
+            let db = session.lock_db().unwrap();
+            let profile = load_profile(&db, TIN, 2026).unwrap();
+            let mut q1 = Form2551QDraft::new_from_effective_profile(&profile, 2026, 1);
+            q1.item_13_election = bir_core::forms::form_2551q::Item13Election::Graduated;
+            let id = db.save_2551q_draft(&q1).unwrap();
+            q1.id = Some(id);
+            q1.status = FilingStatus::Submitted;
+            db.conn_for_tests()
+                .execute(
+                    "UPDATE form_drafts SET status = 'Submitted', data_json = ?1 WHERE id = ?2",
+                    (serde_json::to_string(&q1).unwrap(), id),
+                )
+                .unwrap();
+        }
+        let after = call(&mut session, "form.check", later).unwrap();
+        let unanswered = |checked: &Value| {
+            checked["field_errors"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|error| error["field"] == "item_13_election")
+        };
+        assert!(unanswered(&before), "{before}");
+        assert!(!unanswered(&after), "{after}");
+    }
+
+    /// A stop on a computed penalty box is not an input: `fill` refuses the
+    /// box until Edit opens it in the app, so a strict check could not pass.
+    #[test]
+    fn a_penalty_stop_is_not_a_recipe_input() {
+        let mut session = session();
+        save_scratch(&mut session);
+        let key = "frm2551Qv2018:txt20";
+        session
+            .lock_db()
+            .unwrap()
+            .set_template_stop(TIN, "2551Q", key, Some(true))
+            .unwrap();
+        let generated = call(
+            &mut session,
+            "recipe.generate",
+            json!({"code": "2551Q", "tin": TIN}),
+        )
+        .unwrap();
+        assert!(
+            !generated["recipe"].to_string().contains(key),
+            "{generated}"
+        );
+        let schema = call(&mut session, "form.schema", json!({"code": "2551Q"})).unwrap();
+        let entry = schema["boxes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|entry| entry["key"] == key)
+            .unwrap();
+        assert_eq!(entry["fillable"], false, "{entry}");
     }
 
     /// Every value `form.schema` offers for a fillable box is one `fill` takes.
