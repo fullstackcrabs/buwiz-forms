@@ -275,11 +275,35 @@ mod live {
         Ok(resolve_addr(requested))
     }
 
+    /// The opt-in on Android, where the app process has no launch environment: the same three names, read from the
+    /// development settings (`dev_env`: baked by `just nsh-run-agent android`, or the private `dev.env`). Only a build
+    /// with those settings on can opt in; a token is required. Without `GPUI_AGENT_ADDR` it is the port after NSH's
+    /// default, which the window's control plane holds.
+    #[cfg(target_os = "android")]
+    fn android_config() -> Result<Option<gpui_agent::security::AgentConfig>, String> {
+        let var = |name: &str| bir_core::config::var(name).ok().filter(|value| !value.is_empty());
+        if !crate::dev_env::ENABLED || !matches!(var("GPUI_AGENT").as_deref(), Some("1" | "true")) {
+            return Ok(None);
+        }
+        let addr = var("GPUI_AGENT_ADDR").unwrap_or_else(|| "127.0.0.1:17422".to_owned());
+        let addr: SocketAddr =
+            addr.parse().map_err(|_| format!("GPUI_AGENT_ADDR {addr} is not a socket address"))?;
+        let token = var("GPUI_AGENT_TOKEN").ok_or("GPUI_AGENT=1 needs GPUI_AGENT_TOKEN in the development settings")?;
+        Ok(Some(gpui_agent::security::AgentConfig { addr, token: Some(token) }))
+    }
+
     /// Starts the listener when `GPUI_AGENT=1`, on the calling thread's database: the door boots first (the database
     /// guard and the send guard run before the first request is answered). `Ok(None)`: off. `Err`: refused, why.
     pub fn listen() -> Result<Option<Listener>, String> {
         crate::door::call("system_info", Vec::new())?;
-        let Some(started) = try_start_with(choose)? else {
+        #[cfg(not(target_os = "android"))]
+        let started = try_start_with(choose)?;
+        #[cfg(target_os = "android")]
+        let started = match android_config()? {
+            Some(config) => bir_app_api::agent::try_start_config(config, choose)?,
+            None => None,
+        };
+        let Some(started) = started else {
             return Ok(None);
         };
         // The record names the executable `bir`: see RECORD_EXECUTABLE.

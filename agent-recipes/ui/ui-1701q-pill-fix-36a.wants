@@ -1,0 +1,28 @@
+# After ui-fill-1701q-dataset.wants on the row whose sales carry centavos: the pill's red count reads one item; its next
+# button lands on the error, the side list's attention button and the pill's section list reach the same part; type the
+# whole-peso amount $sales_fixed, check again and the count is gone. Then step forward and back (with one to-do the
+# pill's back button is disabled, so it is pressed once the return is clean).
+wait_until fp-pill-count name="1 item needs attention" --timeout-ms 5000
+click fp-nav-0
+wait_until fp-pill-small name="1 to do · Page 1" --timeout-ms 5000
+click fp-pill-next
+wait_until fp-pill-small name="1 of 1 to do · Part V" --timeout-ms 5000
+assert fp-msg-4:5 name="Item 36A takes whole pesos only." --screenshot
+click fp-nav-0
+wait_until fp-pill-small name="1 to do · Page 1" --timeout-ms 5000
+click fp-nav-attention
+wait_until fp-pill-small name="1 to do · Part V" --timeout-ms 5000
+click fp-pill-open
+wait_until fp-section-4 --timeout-ms 5000
+click fp-section-4
+wait_until fp-frm1701q:txt36A --timeout-ms 5000
+set_value fp-frm1701q:txt36A $sales_fixed
+click fp-check
+wait_until fp-pill-count --absent --timeout-ms 10000
+assert fp-save-state name="✓ Saved" --screenshot
+click fp-nav-0
+wait_until fp-pill-small name="Page 1 · 1 of 9" --timeout-ms 5000
+click fp-pill-next
+wait_until fp-pill-small name="Part I · 2 of 9" --timeout-ms 5000
+click fp-pill-prev
+wait_until fp-pill-small name="Page 1 · 1 of 9" --timeout-ms 5000

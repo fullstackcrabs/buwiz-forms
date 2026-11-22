@@ -1106,6 +1106,15 @@ nsh-run-agent target db=env_var_or_default("BIR_DATABASE_PATH", "") *args="": (_
     export GPUI_AGENT=1 GPUI_AGENT_ADDR="${GPUI_AGENT_ADDR:-127.0.0.1:17421}"
     unset BIR_SFTP_LIVE
     if [ -n "{{db}}" ]; then export BIR_DATABASE_PATH="{{db}}"; else unset BIR_DATABASE_PATH; fi
+    if [ "{{target}}" = android ]; then
+        # An Android app process has no launch environment: the dry-run settings and the data plane's opt-in are baked into
+        # this development build instead (nsh/src/dev_env.rs; the token is then inside the debug library on the emulator).
+        # The data plane listens on the port after the window's: forward both.
+        port="${GPUI_AGENT_ADDR##*:}"
+        export BUWIZ_ANDROID_DEV=1
+        export BUWIZ_ANDROID_DEV_ENV="EBIR_TEST_ENV=1;BIR_AUTH_BYPASS=1;BUWIZ_NO_KEYCHAIN=1;BIR_SFTP_DRY_RUN=1;GPUI_AGENT=1;GPUI_AGENT_ADDR=127.0.0.1:$((port + 1));GPUI_AGENT_TOKEN=$GPUI_AGENT_TOKEN"
+        echo "nsh-run-agent: window plane on 127.0.0.1:$port, data plane on 127.0.0.1:$((port + 1)); run: adb forward tcp:$port tcp:$port && adb forward tcp:$((port + 1)) tcp:$((port + 1))"
+    fi
     cd nsh
     CARGO="$root/nsh/agent/cargo-with-agent.sh" exec nsh run --target {{target}} {{args}}
 

@@ -1,0 +1,16 @@
+# Set the EOPT tier of tax year $year to $tier (Micro | Small | Medium | Large) in the tax profile, so a late return's
+# penalty rows are not left as a to-do. Starts and ends with the tax-profile panel closed.
+click tb-panel
+wait_until panel-open-forms --timeout-ms 5000
+click panel-open-forms
+wait_until tp-years-$year --timeout-ms 5000
+click tp-years-$year
+click panel-open-profile
+wait_until tp-fact-eopt_tier-edit --timeout-ms 5000
+click tp-fact-eopt_tier-edit
+wait_until tp-fact-eopt_tier-choice-$tier --timeout-ms 5000
+click tp-fact-eopt_tier-choice-$tier
+click tp-fact-eopt_tier-save
+wait_until tp-fact-eopt_tier-save --absent --timeout-ms 5000 --screenshot
+click tb-panel
+wait_until panel-open-forms --absent --timeout-ms 5000

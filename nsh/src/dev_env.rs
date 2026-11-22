@@ -9,6 +9,10 @@ const ALLOWED: &[&str] = &[
     "BUWIZ_NO_KEYCHAIN",
     "BIR_SFTP_DRY_RUN",
     "BIR_RELAY_URL",
+    // The app's agent data plane (src/agent.rs): an Android app process has no launch environment to read them from.
+    "GPUI_AGENT",
+    "GPUI_AGENT_ADDR",
+    "GPUI_AGENT_TOKEN",
 ];
 
 pub(crate) const ENABLED: bool = cfg!(debug_assertions)

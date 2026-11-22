@@ -7,11 +7,19 @@
 # Used by `just nsh-run-agent`; nothing else sets $CARGO.
 real="${NSH_REAL_CARGO:-cargo}"
 if [ "$1" = "build" ]; then
+    # The generated Android library names NSH's `dev` feature only; the window's control plane is `dev-agent` (the desktop and
+    # iOS development hosts already carry it through NSH's host crates).
+    features="app_nsh_app_ebirforms/agent"
+    for arg in "$@"; do
+        case "$arg" in
+            nsh-app-nsh-app-ebirforms-android) features="$features,nsh-platform-android/dev-agent" ;;
+        esac
+    done
     for arg in "$@"; do
         case "$arg" in
             */.nsh/rust/Cargo.toml)
                 shift
-                exec "$real" build "$@" --features app_nsh_app_ebirforms/agent
+                exec "$real" build "$@" --features "$features"
                 ;;
         esac
     done
