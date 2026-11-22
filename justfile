@@ -1247,7 +1247,7 @@ nsh-run db=env_var_or_default("BIR_DATABASE_PATH", "") *args="": (_nsh-db-guard 
 # NSH: the app in a real window with the agent control planes on, for gpui-agent recipes: the window's own (NSH's development host:
 # tree, press, type, screenshot) on GPUI_AGENT_ADDR, and the app's data plane (app.info, profile.*, form.*) on the port it reports.
 # target is macos, linux, windows, ios (Simulator) or android (emulator; then `adb forward tcp:<port> tcp:<port>`).
-# GPUI_AGENT_TOKEN must be set by the caller (never printed). Dry-run dev mode as nsh-run: nothing is sent anywhere.
+# GPUI_AGENT_TOKEN must be set by the caller (never printed, never compiled into the app). Dry-run dev mode as nsh-run: nothing is sent anywhere.
 [unix]
 nsh-run-agent target db=env_var_or_default("BIR_DATABASE_PATH", "") *args="": (_nsh-db-guard db)
     #!/usr/bin/env bash
@@ -1267,12 +1267,27 @@ nsh-run-agent target db=env_var_or_default("BIR_DATABASE_PATH", "") *args="": (_
         unset BIR_DATABASE_PATH
     fi
     if [ "{{target}}" = android ]; then
-        # An Android app process has no launch environment: the dry-run settings and the data plane's opt-in are baked into
-        # this development build instead (nsh/src/dev_env.rs; the token is then inside the debug library on the emulator).
+        # An Android app process has no launch environment: the dry-run settings and the data plane's switch and address are
+        # baked into this development build (nsh/src/dev_env.rs). The token is not (a baked one is readable in the built library):
+        # it is written into the host's private files with `run-as`, over standard input so it is in no process's arguments, as
+        # nsh does for the window plane. On a clean device the host is installed by `nsh run` below, so a background job waits
+        # for the package first; the app waits up to 10 s for the file, then reads and deletes it (src/agent.rs, take_token).
         # The data plane listens on the port after the window's: forward both.
         port="${GPUI_AGENT_ADDR##*:}"
         export BUWIZ_ANDROID_DEV=1
-        export BUWIZ_ANDROID_DEV_ENV="EBIR_TEST_ENV=1;BIR_AUTH_BYPASS=1;BUWIZ_NO_KEYCHAIN=1;BIR_SFTP_DRY_RUN=1;GPUI_AGENT=1;GPUI_AGENT_ADDR=127.0.0.1:$((port + 1));GPUI_AGENT_TOKEN=$GPUI_AGENT_TOKEN"
+        export BUWIZ_ANDROID_DEV_ENV="EBIR_TEST_ENV=1;BIR_AUTH_BYPASS=1;BUWIZ_NO_KEYCHAIN=1;BIR_SFTP_DRY_RUN=1;GPUI_AGENT=1;GPUI_AGENT_ADDR=127.0.0.1:$((port + 1))"
+        adb="adb"; command -v adb >/dev/null 2>&1 || adb="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}/platform-tools/adb"
+        host=com.longbridge.nsh.host
+        dir=files/nsh/dev.goldcoders.bir.nsh
+        (
+            for _ in $(seq 1800); do
+                if "$adb" shell run-as "$host" true >/dev/null 2>&1; then
+                    printf %s "$GPUI_AGENT_TOKEN" | "$adb" shell -T "run-as $host sh -c 'umask 077 && mkdir -p $dir && cat > $dir/agent-token.new && mv $dir/agent-token.new $dir/agent-token'" && exit 0
+                fi
+                sleep 0.5
+            done
+            echo "nsh-run-agent: the data plane's token was not stored (is the host installed?)" >&2
+        ) &
         echo "nsh-run-agent: window plane on 127.0.0.1:$port, data plane on 127.0.0.1:$((port + 1)); run: adb forward tcp:$port tcp:$port && adb forward tcp:$((port + 1)) tcp:$((port + 1))"
     fi
     if [ "{{target}}" = ios ]; then
@@ -1304,6 +1319,39 @@ nsh-run-agent target $db=env_var_or_default("BIR_DATABASE_PATH", "") *args="": (
     # path is the one the guard checked, from here, not from nsh/.
     $db = $env:db
     if ($db) { $env:BIR_DATABASE_PATH = [IO.Path]::GetFullPath($db, $root) } else { Remove-Item Env:BIR_DATABASE_PATH -ErrorAction SilentlyContinue }
+    if ('{{target}}' -eq 'android') {
+        # Same Android hand-off as the Unix recipe: the dry-run switches and the data plane's switch and address are baked
+        # into the development build (nsh/src/dev_env.rs); the token is not — it goes into the host's private files with
+        # `run-as` once `nsh run` installs it, over stdin so it is in no process's arguments (src/agent.rs, take_token).
+        $port = [int](($env:GPUI_AGENT_ADDR -split ':')[-1])
+        $env:BUWIZ_ANDROID_DEV = '1'
+        $env:BUWIZ_ANDROID_DEV_ENV = "EBIR_TEST_ENV=1;BIR_AUTH_BYPASS=1;BUWIZ_NO_KEYCHAIN=1;BIR_SFTP_DRY_RUN=1;GPUI_AGENT=1;GPUI_AGENT_ADDR=127.0.0.1:$($port + 1)"
+        $adb = 'adb'
+        if (-not (Get-Command adb -ErrorAction SilentlyContinue)) {
+            $sdkRoot = if ($env:ANDROID_HOME) { $env:ANDROID_HOME } else { $env:ANDROID_SDK_ROOT }
+            $adb = Join-Path $sdkRoot 'platform-tools\adb.exe'
+        }
+        $null = Start-Job -ScriptBlock {
+            param($adb, $token)
+            $pkg = 'com.longbridge.nsh.host'
+            $dir = 'files/nsh/dev.goldcoders.bir.nsh'
+            $tmp = Join-Path $env:TEMP ('agent-token-' + [guid]::NewGuid().ToString('N'))
+            [IO.File]::WriteAllText($tmp, $token)
+            try {
+                for ($i = 0; $i -lt 1800; $i++) {
+                    & $adb shell run-as $pkg true 2>$null
+                    if ($LASTEXITCODE -eq 0) {
+                        $cmd = 'type "{0}" | "{1}" shell -T "run-as {2} sh -c ''umask 077 && mkdir -p {3} && cat > {3}/agent-token.new && mv {3}/agent-token.new {3}/agent-token''"' -f $tmp, $adb, $pkg, $dir
+                        & $env:ComSpec /d /c $cmd | Out-Null
+                        return
+                    }
+                    Start-Sleep -Milliseconds 500
+                }
+                [Console]::Error.WriteLine("nsh-run-agent: the data plane's token was not stored (is the host installed?)")
+            } finally { Remove-Item $tmp -ErrorAction SilentlyContinue }
+        } -ArgumentList $adb, $env:GPUI_AGENT_TOKEN
+        "nsh-run-agent: window plane on 127.0.0.1:$port, data plane on 127.0.0.1:$($port + 1); run: adb forward tcp:$port tcp:$port && adb forward tcp:$($port + 1) tcp:$($port + 1)"
+    }
     $env:CARGO = "$root\nsh\agent\cargo-with-agent.cmd"
     Set-Location nsh
     nsh run --target {{target}} {{args}}

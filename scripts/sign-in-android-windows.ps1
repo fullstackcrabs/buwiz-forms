@@ -3,10 +3,10 @@ $ErrorActionPreference = 'Stop'
 
 function Get-AccountUiState([xml]$ui) {
     $package = 'dev.goldcoders.bir.nsh'
-    if (-not $ui.SelectNodes("//node[@package='$package' and (@text!='' or @content-desc!='')]").Count) { return @{ State = 'blocked' } }
-    if ($ui.SelectSingleNode("//node[@package='$package' and (@text='Add your first taxpayer' or @content-desc='Add your first taxpayer')]")) { return @{ State = 'ready' } }
-    if (-not $ui.SelectSingleNode("//node[@text='Welcome to eBIRForms']")) { return @{ State = 'ready' } }
-    $button = $ui.SelectSingleNode("//node[@package='$package' and @content-desc='Sign in' and @clickable='true' and @enabled='true']")
+    if (-not $ui.SelectNodes("//*[@package='$package' and (@text!='' or @content-desc!='')]").Count) { return @{ State = 'blocked' } }
+    if ($ui.SelectSingleNode("//*[@package='$package' and (@text='Add your first taxpayer' or @content-desc='Add your first taxpayer')]")) { return @{ State = 'ready' } }
+    if (-not $ui.SelectSingleNode("//*[@text='Welcome to eBIRForms']")) { return @{ State = 'ready' } }
+    $button = $ui.SelectSingleNode("//*[@package='$package' and @content-desc='Sign in' and @clickable='true' and @enabled='true']")
     if (-not $button) { return @{ State = 'blocked' } }
     if ($button.bounds -notmatch '^\[(\d+),(\d+)\]\[(\d+),(\d+)\]$') { throw 'Sign in button has invalid bounds' }
     return @{ State = 'gate'; X = [int](([int]$Matches[1] + [int]$Matches[3]) / 2); Y = [int](([int]$Matches[2] + [int]$Matches[4]) / 2) }
@@ -32,9 +32,9 @@ do {
             Write-Host 'Mock account ready: Android account gate cleared.'
             return
         }
-        $systemUiAnr = $ui.SelectSingleNode('//node[@text="System UI isn''t responding"]')
+        $systemUiAnr = $ui.SelectSingleNode('//*[@text="System UI isn''t responding"]')
         if ($systemUiAnr) {
-            $wait = $ui.SelectSingleNode('//node[@resource-id="android:id/aerr_wait"]')
+            $wait = $ui.SelectSingleNode('//*[@resource-id="android:id/aerr_wait"]')
             if ($wait -and $wait.bounds -match '^\[(\d+),(\d+)\]\[(\d+),(\d+)\]$') {
                 & $adb -s $Serial shell input tap ([int](([int]$Matches[1] + [int]$Matches[3]) / 2)) ([int](([int]$Matches[2] + [int]$Matches[4]) / 2))
             }

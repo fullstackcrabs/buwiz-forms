@@ -10,9 +10,10 @@ const ALLOWED: &[&str] = &[
     "BIR_SFTP_DRY_RUN",
     "BIR_RELAY_URL",
     // The app's agent data plane (src/agent.rs): an Android app process has no launch environment to read them from.
+    // Its token is never a setting: a baked value is readable in the built library by anyone given the build, so the
+    // token comes from a private file at run time (`agent::take_token`) and `GPUI_AGENT_TOKEN` is refused here.
     "GPUI_AGENT",
     "GPUI_AGENT_ADDR",
-    "GPUI_AGENT_TOKEN",
 ];
 
 pub(crate) const ENABLED: bool = cfg!(debug_assertions)
@@ -232,6 +233,23 @@ mod tests {
             assert!(parse_baked(text).is_err(), "{text:?}");
         }
         assert!(parse_baked(&"#".repeat(16_385)).is_err());
+    }
+
+    #[test]
+    fn the_agent_token_is_refused_baked_and_in_the_file() {
+        assert_eq!(
+            parse_baked("GPUI_AGENT=1;GPUI_AGENT_ADDR=127.0.0.1:17422").unwrap(),
+            vec![
+                ("GPUI_AGENT".into(), "1".into()),
+                ("GPUI_AGENT_ADDR".into(), "127.0.0.1:17422".into()),
+            ]
+        );
+        assert!(!ALLOWED.iter().any(|key| key.contains("TOKEN")));
+        for text in ["GPUI_AGENT_TOKEN=secret", "GPUI_AGENT=1;GPUI_AGENT_TOKEN=secret", "BIR_AGENT_TOKEN=secret"] {
+            assert!(parse_baked(text).is_err(), "{text:?}");
+            assert!(merge(Some(text), Vec::new()).is_err(), "{text:?}");
+            assert!(parse(&text.replace(';', "\n")).is_err(), "{text:?}");
+        }
     }
 
     #[test]

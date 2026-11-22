@@ -179,7 +179,7 @@ fn drain() -> bool {
 }
 
 #[cfg(feature = "agent")]
-pub use live::{Listener, listen, settings_config};
+pub use live::{Listener, TOKEN_FILE, listen, settings_config, take_token};
 
 #[cfg(feature = "agent")]
 fn status() -> AgentStatus {
@@ -275,13 +275,15 @@ mod live {
         Ok(resolve_addr(requested))
     }
 
-    /// The opt-in on Android, where the app process has no launch environment: the same three names, read from the
-    /// development settings (`dev_env`: baked by `just nsh-run-agent android`, or the private `dev.env`). Only a build
-    /// with those settings on (`enabled`) can opt in; a token is required. Without `GPUI_AGENT_ADDR` it is the port
-    /// after NSH's default, which the window's control plane holds. `var` reads one setting.
+    /// The opt-in on Android, where the app process has no launch environment: the switch and the address are read from
+    /// the development settings (`dev_env`: baked by `just nsh-run-agent android`, or the private `dev.env`), the token
+    /// is handed in (never a setting, so never compiled into the app: [`take_token`]). Only a build with those settings
+    /// on (`enabled`) can opt in; a token is required. Without `GPUI_AGENT_ADDR` it is the port after NSH's default,
+    /// which the window's control plane holds. `var` reads one setting; `token` is asked only once the switch is on.
     pub fn settings_config(
         enabled: bool,
         var: impl Fn(&str) -> Option<String>,
+        token: impl FnOnce() -> Option<String>,
     ) -> Result<Option<gpui_agent::security::AgentConfig>, String> {
         let var = |name: &str| var(name).filter(|value| !value.is_empty());
         if !enabled || !matches!(var("GPUI_AGENT").as_deref(), Some("1" | "true")) {
@@ -290,15 +292,52 @@ mod live {
         let addr = var("GPUI_AGENT_ADDR").unwrap_or_else(|| "127.0.0.1:17422".to_owned());
         let addr: SocketAddr =
             addr.parse().map_err(|_| format!("GPUI_AGENT_ADDR {addr} is not a socket address"))?;
-        let token = var("GPUI_AGENT_TOKEN").ok_or("GPUI_AGENT=1 needs GPUI_AGENT_TOKEN in the development settings")?;
+        let token = token()
+            .filter(|token| !token.is_empty())
+            .ok_or_else(|| format!("GPUI_AGENT=1 needs the token in the private file {TOKEN_FILE}"))?;
         Ok(Some(gpui_agent::security::AgentConfig { addr, token: Some(token) }))
+    }
+
+    /// The data plane's token file on Android, in the app's private data directory (beside `dev.env`).
+    pub const TOKEN_FILE: &str = "agent-token";
+
+    /// Reads the token from [`TOKEN_FILE`] in `dir` and deletes the file, as NSH's window plane does with its own: the
+    /// launcher (`just nsh-run-agent android`) writes it with `adb shell run-as` once the host is installed, which on
+    /// a clean device is while the app starts, so a missing file is waited for up to `wait`. The bytes are the token
+    /// (compared byte for byte, nothing trimmed). `None`: no file in time, unreadable, empty or over 4 KiB.
+    pub fn take_token(dir: &std::path::Path, wait: std::time::Duration) -> Option<String> {
+        use std::io::Read;
+        let path = dir.join(TOKEN_FILE);
+        let until = std::time::Instant::now() + wait;
+        loop {
+            match std::fs::File::open(&path) {
+                Ok(file) => {
+                    let mut token = String::new();
+                    let read = file.take(4097).read_to_string(&mut token);
+                    // An empty file is the launcher's `cat >` between creating it and writing it.
+                    if matches!(read, Ok(0)) && std::time::Instant::now() < until {
+                        std::thread::sleep(std::time::Duration::from_millis(50));
+                        continue;
+                    }
+                    if let Err(error) = std::fs::remove_file(&path) {
+                        tracing::warn!(%error, "agent token file not deleted");
+                    }
+                    return read.ok().filter(|_| !token.is_empty() && token.len() <= 4096).map(|_| token);
+                }
+                Err(_) if std::time::Instant::now() < until => {
+                    std::thread::sleep(std::time::Duration::from_millis(50));
+                }
+                Err(_) => return None,
+            }
+        }
     }
 
     /// The data plane's token on a phone host. NSH hands the window plane's token to its iOS and Android hosts as a
     /// private file that the window plane reads and deletes before the app starts, and keeps `GPUI_AGENT_TOKEN` out of
     /// the app's environment, so this listener would be refused for want of one. `just nsh-run-agent` passes the same
     /// token as `BIR_AGENT_TOKEN` there. Read only where the environment has no `GPUI_AGENT_TOKEN`; never on a desktop.
-    /// Android reads its opt-in from the development settings instead ([`settings_config`]).
+    /// Android reads its opt-in from the development settings and its token from a private file instead
+    /// ([`settings_config`], [`take_token`]).
     #[cfg(not(target_os = "android"))]
     fn phone_token() -> Option<String> {
         if cfg!(target_os = "ios") {
@@ -315,7 +354,11 @@ mod live {
         #[cfg(not(target_os = "android"))]
         let started = bir_app_api::agent::try_start_with_token(phone_token(), choose)?;
         #[cfg(target_os = "android")]
-        let started = match settings_config(crate::dev_env::ENABLED, |name| bir_core::config::var(name).ok())? {
+        let started = match settings_config(
+            crate::dev_env::ENABLED,
+            |name| bir_core::config::var(name).ok(),
+            || take_token(&bir_core::platform::data_dir(), std::time::Duration::from_secs(10)),
+        )? {
             Some(config) => bir_app_api::agent::try_start_config(config, choose)?,
             None => None,
         };
