@@ -67,6 +67,7 @@ die() { echo "$*" >&2; exit 1; }
 sdk_mount() { :; }
 in_image() {
     [[ " $* " == *" -e ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27 "* ]]
+    [[ " $* " == *" -e CARGO_PROFILE_DEV_DEBUG=0 "* ]]
     echo build >> builds
 }
 install_android_runtime
