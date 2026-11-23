@@ -89,6 +89,7 @@ jobs:
       - name: Install Windows Dependencies
         shell: pwsh
         run: |
+          $PSNativeCommandUseErrorActionPreference = $false
           choco install openssl innosetup -y
           $chocoExitCode = $LASTEXITCODE
           if ($chocoExitCode -eq 3010) {
@@ -163,8 +164,9 @@ jobs:
                   Copy-Item $lib_file.FullName "$($lib_file.DirectoryName)\libcrypto.lib"
               }
           } else {
-              Write-Warning "Could not find *crypto*.lib inside $openssl_dir"
+            Write-Warning "Could not find *crypto*.lib inside $openssl_dir"
           }
+          exit 0
 
       - name: Install Rust Toolchain
         uses: dtolnay/rust-toolchain@master
@@ -207,6 +209,17 @@ jobs:
       - name: Stage desktop executable name
         shell: pwsh
         run: python scripts/alias_app_bin.py crates/bir-shell/target/x86_64-pc-windows-msvc/release bir-shell
+
+      - name: Verify shipped bir.exe PE stack reserve
+        run: python scripts/check_pe_stack_reserve.py crates/bir-shell/target/x86_64-pc-windows-msvc/release/bir.exe
+
+      - name: Verify debug bir-shell.exe PE stack reserve
+        if: inputs.release != true
+        shell: pwsh
+        run: |
+          cargo build --locked --manifest-path crates/bir-shell/Cargo.toml --bin bir-shell
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python scripts/check_pe_stack_reserve.py crates/bir-shell/target/debug/bir-shell.exe
 
       - name: Sign and verify Windows executable payloads
         if: env.WINDOWS_SIGNING == '1'
