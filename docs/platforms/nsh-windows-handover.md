@@ -411,4 +411,4 @@ The audit installs and uninstalls Setup, verifies that uninstall also removes fi
 
 The updater ZIP is named `eBIRForms-<v>-windows-x86_64.zip`. It has the same updateable directory layout as Setup; it is not an MSI/MSIX update. The preview does not publish an NSH feed, so upgrade manually. CI tests signing with disposable keys and does not change the legacy app's `latest.json`.
 
-The public GPUI workflow still checks the executable's PE stack reserve. The NSH preview does not need that check: it does layout work on a dedicated Win32 UI thread with an 8 MiB stack.
+CI checks the public GPUI executable's PE stack reserve. The NSH preview does not need that check: it does layout work on a dedicated Win32 UI thread with an 8 MiB stack.

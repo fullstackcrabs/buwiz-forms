@@ -43,6 +43,8 @@ jobs:
       matrix: ${{ fromJSON(needs.changes.outputs.check_matrix) }}
 
     runs-on: ${{ matrix.os }}
+    env:
+      BUILD_BIR_SHELL_SETUP: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.windows_pkg == 'true' }}
 
     steps:
     - uses: actions/checkout@v4
@@ -256,6 +258,45 @@ jobs:
     - name: Check validation-rules production boundaries
       run: cargo run -q --locked -p bir-rules-codegen -- status --boundaries-only
 
+    - name: Install Windows packaging tools
+      if: runner.os == 'Windows' && env.BUILD_BIR_SHELL_SETUP == 'true'
+      shell: pwsh
+      run: |
+        choco install innosetup -y --no-progress
+        $installExitCode = $LASTEXITCODE
+        if ($installExitCode -eq 3010) {
+          Write-Warning "Chocolatey reports a reboot is required (3010); continuing."
+        } elseif ($installExitCode -ne 0) {
+          [Console]::Error.WriteLine("Inno Setup installation failed (exit code $installExitCode).")
+          exit $installExitCode
+        }
+
+    - name: Build and audit unsigned public Windows Setup
+      if: runner.os == 'Windows' && env.BUILD_BIR_SHELL_SETUP == 'true'
+      shell: pwsh
+      run: |
+        just exe
+        $buildExitCode = $LASTEXITCODE
+        if ($buildExitCode -ne 0) { exit $buildExitCode }
+        $installers = @(Get-ChildItem "target/release-artifacts/*-Setup.exe")
+        if ($installers.Count -ne 1) {
+          throw "Expected exactly one Setup.exe after just exe; found $($installers.Count)."
+        }
+        & pwsh -NoProfile -File scripts/audit_final_setup.ps1 -Installer $installers[0].FullName -Python python
+        $auditExitCode = $LASTEXITCODE
+        if ($auditExitCode -ne 0) { exit $auditExitCode }
+
+    - name: Verify shipped bir.exe PE stack reserve
+      if: runner.os == 'Windows' && env.BUILD_BIR_SHELL_SETUP == 'true'
+      shell: pwsh
+      run: |
+        python scripts/check_pe_stack_reserve.py crates/bir-shell/target/x86_64-pc-windows-msvc/release/bir.exe
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        cargo build --locked --manifest-path crates/bir-shell/Cargo.toml --bin bir-shell
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        python scripts/check_pe_stack_reserve.py crates/bir-shell/target/debug/bir-shell.exe
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
   windows-setup:
     name: Build and audit unsigned NSH Windows installers
     needs: changes
@@ -347,7 +388,7 @@ jobs:
 
         docs_re='^(docs/|[^/]+\.md$|crates/[^/]+/docs/|\.github/[^/]+\.md$)'
         # nsh.yml owns the NSH pin that generates the Windows installer source.
-        windows_pkg_re='^(installer\.(iss|wxs)$|assets/windows/|packaging/windows/|scripts/(audit_final_setup|package_msix|package_nsh_update|package_nsh_windows|smoke_msix)\.ps1$|scripts/(audit_installer_sources|tests/test_nsh_windows_release)\.py$|\.github/workflows/(nsh|release-windows|package-nsh-windows)\.yml$)'
+        windows_pkg_re='^(installer\.(iss|wxs)$|assets/windows/|packaging/windows/|scripts/(audit_final_setup|package_msix|package_nsh_update|package_nsh_windows|smoke_msix)\.ps1$|scripts/(audit_installer_sources|check_pe_stack_reserve|tests/test_nsh_windows_release)\.py$|\.github/workflows/(nsh|release-windows|package-nsh-windows)\.yml$)'
         windows_pkg_inputs_re='^(nsh/nsh\.json$|print-overrides/|assets/icon[^/]*\.png$|scripts/audit_no_legacy\.py$)'
         macos_pkg_re='^(assets/macos/|scripts/(dev_bundle_macos|package_macos_release|setup_macos_release_secrets)\.sh$|[^/]*entitlements[^/]*\.plist$)'
         linux_pkg_re='^packaging/linux/'

@@ -375,7 +375,10 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
         self.assertIn("uses: ./.github/workflows/package-nsh-windows.yml", setup)
         self.assertNotIn("secrets: inherit", setup)
         self.assertIn("needs.changes.outputs.windows_pkg", setup)
-        self.assertNotIn("check_pe_stack_reserve.py", check)
+        app_check = self.job("check", self.ci_workflow)
+        self.assertIn("needs.changes.outputs.windows_pkg", app_check)
+        self.assertIn("scripts/audit_final_setup.ps1 -Installer", app_check)
+        self.assertIn("check_pe_stack_reserve.py", app_check)
 
     def test_setup_scripts_keep_the_gpui_agent_version_pinned(self) -> None:
         self.assertIn('local manifest="$SCRIPT_DIR/../Cargo.toml"', self.linux_setup)
