@@ -12,7 +12,7 @@
 #   - ../nsh checked out at NSH_PINNED_REF (.github/workflows/nsh.yml)
 #   - the buwiz-nsh-2404 image (GTK 4, WebKitGTK 6.0, JDK 17, Noto fonts)
 #   - the nsh CLI in ~/BuwizNsh/tools/bin, built in the image at the pin
-#   - Android: JDK 17, SDK command-line tools, platform-tools, emulator,
+#   - Android (x86_64 host): JDK 17, SDK command-line tools, platform-tools, emulator,
 #     android-35, build-tools 35.0.1, NDK 27, the API 35 x86_64 image, an AVD
 #     named "buwiz", the Rust Android targets and NSH's Android runtime
 #   - ~/BuwizNsh/nsh2404.sh <cmd>: runs <cmd> in the image from nsh/ with
@@ -54,12 +54,11 @@ REPO="$(cd "$SCRIPT_DIR/.." && pwd)"
 NSH="$(cd "$REPO/.." && pwd)/nsh"
 WORK="$HOME/BuwizNsh"
 IMAGE="buwiz-nsh-2404"
-ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
+ANDROID_HOME="$(realpath -m -- "${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Android/Sdk}}")"
 CMDLINE_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
 NDK_VERSION="27.2.12479018"
 SYSTEM_IMAGE="system-images;android-35;google_apis;x86_64"
 AVD="buwiz"
-JAVA_HOME_IMAGE="/usr/lib/jvm/java-17-openjdk-amd64"
 
 REF="$(sed -n 's/^ *NSH_PINNED_REF: *//p' "$REPO/.github/workflows/nsh.yml" | head -1)"
 [ -n "$REF" ] || die "NSH_PINNED_REF not found in .github/workflows/nsh.yml"
@@ -69,7 +68,9 @@ SUDO=""
 
 # $HOME plus the checkouts when they live outside it, mounted at the same
 # paths so builds and the wrapper see the host layout.
-outside_home() { case "$1/" in "$HOME"/*) return 1 ;; esac; }
+outside_home() {
+    case "$1/" in "$HOME"/*) return 1 ;; esac
+}
 MOUNTS=(-v "$HOME:$HOME")
 for dir in "$REPO" "$NSH"; do
     outside_home "$dir" && MOUNTS+=(-v "$dir:$dir")
@@ -125,9 +126,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 # Android builds (javac + d8) for `nsh run --target android`.
 RUN apt-get update && apt-get install -y --no-install-recommends openjdk-17-jdk-headless \
+    && ln -s "$(dirname "$(dirname "$(readlink -f /usr/bin/javac)")")" /opt/java \
     && rm -rf /var/lib/apt/lists/*
+ENV JAVA_HOME=/opt/java
 DOCKER_EOF
-    docker build -q -t "$IMAGE" -f "$WORK/Dockerfile" "$WORK" >/dev/null
+    docker build -q -t "$IMAGE" - < "$WORK/Dockerfile" >/dev/null
 }
 
 write_wrapper() {
@@ -136,12 +139,17 @@ write_wrapper() {
 # Runs a command in the buwiz-nsh-2404 image from nsh/, with the host display.
 # Written by scripts/setup-linux-nsh.sh.
 set -euo pipefail
-cd "@REPO@/nsh"
+NSH_EOF
+    printf 'app_dir=%q\nandroid_home=%q\nndk_version=%q\n' \
+        "$REPO/nsh" "$ANDROID_HOME" "$NDK_VERSION" >> "$WORK/nsh2404.sh"
+    cat >> "$WORK/nsh2404.sh" <<'NSH_EOF'
+cd "$app_dir"
 display="${DISPLAY:-:0}"
 DISPLAY="$display" xhost +SI:localuser:"$(id -un)" >/dev/null 2>&1 || true
 tty=(); [ -t 0 ] && [ -t 1 ] && tty=(-t)
 # NSH's CLI sets CC/AR for Android but not RANLIB, which vendored OpenSSL needs.
-RANLIB="@ANDROID_HOME@/ndk/@NDK@/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ranlib"
+ndk="$android_home/ndk/$ndk_version"
+RANLIB="$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ranlib"
 # Unset, the NSH app's own workspace builds full debuginfo: a 4 GB dev APK.
 # The Android app reads test settings baked in at build time, not from the
 # environment it runs in (nsh/src/dev_env.rs).
@@ -156,11 +164,10 @@ NSH_EOF
     cat >> "$WORK/nsh2404.sh" <<'NSH_EOF'
 exec docker run --rm -i "${tty[@]}" "${android[@]}" --network host --security-opt apparmor=unconfined -u "$uid:$(id -g)" \
   -e HOME="$HOME" \
-  -e PATH="$HOME/BuwizNsh/tools/bin:$HOME/.cargo/bin:@ANDROID_HOME@/platform-tools:/usr/local/bin:/usr/bin:/bin" \
+  -e PATH="$HOME/BuwizNsh/tools/bin:$HOME/.cargo/bin:$android_home/platform-tools:/usr/local/bin:/usr/bin:/bin" \
   -e CARGO_TARGET_DIR="$HOME/BuwizNsh/target-nsh" \
   -e CARGO_INCREMENTAL=0 \
-  -e ANDROID_HOME="@ANDROID_HOME@" \
-  -e JAVA_HOME=@JAVA_HOME@ \
+  -e ANDROID_HOME="$android_home" -e ANDROID_NDK_HOME="$ndk" \
   -e RANLIB_x86_64_linux_android="$RANLIB" -e RANLIB_aarch64_linux_android="$RANLIB" -e RANLIB_armv7_linux_androideabi="$RANLIB" \
   -e DISPLAY="$display" -e XDG_RUNTIME_DIR="/run/user/$uid" \
   -e DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
@@ -168,11 +175,9 @@ exec docker run --rm -i "${tty[@]}" "${android[@]}" --network host --security-op
   "${mounts[@]}" \
   -v /tmp/.X11-unix:/tmp/.X11-unix \
   -v "/run/user/$uid:/run/user/$uid" \
-  -w "@REPO@/nsh" \
+  -w "$app_dir" \
   buwiz-nsh-2404 "$@"
 NSH_EOF
-    sed -i -e "s#@REPO@#$REPO#g" -e "s#@ANDROID_HOME@#$ANDROID_HOME#g" \
-        -e "s#@NDK@#$NDK_VERSION#g" -e "s#@JAVA_HOME@#$JAVA_HOME_IMAGE#g" "$WORK/nsh2404.sh"
     chmod +x "$WORK/nsh2404.sh"
 }
 
@@ -209,9 +214,10 @@ install_android_sdk() {
         command -v apt-get >/dev/null 2>&1 || die "install a JDK 17 or newer and set JAVA_HOME, then re-run"
         log "Installing JDK 17"
         $SUDO apt-get install -y openjdk-17-jdk-headless
-        java_home="$JAVA_HOME_IMAGE"
+        java_home="$(dpkg-query -L openjdk-17-jdk-headless | sed -n 's#/bin/javac$##p')"
+        [ -x "$java_home/bin/java" ] || die "set JAVA_HOME to the installed JDK 17, then re-run"
     fi
-    export JAVA_HOME="$java_home"
+    export JAVA_HOME="$java_home" ANDROID_HOME ANDROID_SDK_ROOT="$ANDROID_HOME"
     if ! command -v unzip >/dev/null 2>&1; then
         command -v apt-get >/dev/null 2>&1 || die "install unzip, then re-run"
         $SUDO apt-get install -y unzip
@@ -257,7 +263,8 @@ install_android_runtime() {
     fi
     log "Building NSH's Android runtime in the image"
     local sdk; mapfile -t sdk < <(sdk_mount)
-    in_image "$NSH" "${sdk[@]}" -e ANDROID_HOME="$ANDROID_HOME" -e JAVA_HOME="$JAVA_HOME_IMAGE" -- \
+    in_image "$NSH" "${sdk[@]}" -e ANDROID_HOME="$ANDROID_HOME" \
+        -e ANDROID_NDK_HOME="$ANDROID_HOME/ndk/$NDK_VERSION" -e CARGO_PROFILE_DEV_DEBUG=0 -- \
         cargo xtask android --dev
     rm -rf "$dest" && mkdir -p "$WORK/tools/runtime/android"
     cp -r "$NSH/target/android/debug-dev" "$dest"
@@ -277,8 +284,11 @@ check() {
     if nsh_cli_current; then report "nsh CLI" "${REF:0:7}" 1
     else report "nsh CLI" "MISSING or not at ${REF:0:7}" 0; fi
     # The wrapper embeds the checkout and SDK paths; a move makes it stale.
-    if [ -x "$WORK/nsh2404.sh" ] && grep -qxF "cd \"$REPO/nsh\"" "$WORK/nsh2404.sh" &&
-        { [ "$WITH_ANDROID" -eq 0 ] || grep -qF -- "-e ANDROID_HOME=\"$ANDROID_HOME\"" "$WORK/nsh2404.sh"; }; then
+    if [ -x "$WORK/nsh2404.sh" ] &&
+        grep -qxF "$(printf 'app_dir=%q' "$REPO/nsh")" "$WORK/nsh2404.sh" &&
+        { [ "$WITH_ANDROID" -eq 0 ] ||
+            { grep -qxF "$(printf 'android_home=%q' "$ANDROID_HOME")" "$WORK/nsh2404.sh" &&
+              grep -qxF "$(printf 'ndk_version=%q' "$NDK_VERSION")" "$WORK/nsh2404.sh"; }; }; then
         report "nsh2404.sh wrapper" present 1
     else report "nsh2404.sh wrapper" "MISSING or stale" 0; fi
     if [ "$WITH_ANDROID" -eq 1 ]; then
@@ -297,6 +307,9 @@ main() {
     if [ "$CHECK_ONLY" -eq 1 ]; then
         check
         exit $?
+    fi
+    if [ "$WITH_ANDROID" -eq 1 ] && [ "$(uname -m)" != "x86_64" ]; then
+        die "Android setup requires an x86_64 Linux host; use --no-android for desktop only"
     fi
     command -v docker >/dev/null 2>&1 || die "Docker is required (NSH builds in an Ubuntu 24.04 image)"
     docker info >/dev/null 2>&1 || die "Docker is not usable as $(id -un); add the user to the docker group"

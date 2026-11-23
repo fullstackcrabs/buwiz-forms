@@ -104,7 +104,7 @@ the libraries, Rust and `just`, and checks the result. Other flags:
 For the NSH app and its Android build, run `scripts/setup-linux-nsh.sh` after
 that (needs Docker; `--no-android`, `--check`). It builds NSH in an Ubuntu
 24.04 image and writes `~/BuwizNsh/nsh2404.sh` to run NSH commands with the
-host display.
+host display. Android setup requires an x86_64 host; use `--no-android` on ARM.
 
 On other distributions, install the equivalent of these Debian and Ubuntu
 packages:
@@ -130,6 +130,9 @@ sudo apt-get install -y \
 - Without a compositing manager (KWin or Xfwm with compositing off, Openbox,
   most VMs), the app uses the window manager's title bar and frame instead of
   its own; a transparent shadow would otherwise draw as a thick black border.
+  Resize handles depend on the window manager's frame theme. If the theme
+  draws no resize borders, use the window manager's Resize command or pick a
+  theme with visible borders.
   `scripts/setup-linux.sh --compositor` installs and autostarts `xcompmgr` to
   keep the app's own frame.
 
