@@ -135,15 +135,12 @@ usual and it uses the real database and the real BIR path again.
 
 ### Dev run
 
-```sh
-set -a; . target/mock-bir/app.env; set +a
-BIR_DATABASE_PATH=~/BuwizMock/bir_data.db just shell-run
-```
-
-A debug build normally simulates every submission. A set `BIR_SFTP_HOST`
-makes it talk to that host for real, and the Dev Mode panel's submission
-switch steps aside while it is set. Open a new terminal (or `unset` the
-`BIR_SFTP_*` values) to go back.
+There is no `nsh-run` form of this test. `just nsh-run` deliberately exports
+`EBIR_TEST_ENV=1` and `BIR_SFTP_DRY_RUN=1`, and either one forces the
+transport's dry run even when a loopback `BIR_SFTP_HOST` is set. Do not
+substitute `just shell-run` either: the legacy shell rejects the NSH app's
+plain-SQLite database. Use `just mock-bir-app` for an end-to-end mock
+submission with the database copy.
 
 ### Installed app opened from Finder (`LSEnvironment`)
 
