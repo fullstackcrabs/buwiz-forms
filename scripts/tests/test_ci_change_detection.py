@@ -320,22 +320,24 @@ class CiChangeDetectionTests(unittest.TestCase):
         )
 
     def test_windows_installer_change_tests_windows_only(self) -> None:
-        self.assert_decisions(
-            systems=("windows-latest",),
-            check_reason="Windows installer files changed",
-            packaging=("windows",),
-            changed=(
-                "installer.iss",
-                "installer.wxs",
-                "assets/windows/Square44x44Logo.png",
-                "packaging/windows/nsh.wxs",
-                "scripts/audit_final_setup.ps1",
-                "scripts/audit_installer_sources.py",
-                "scripts/package_msix.ps1",
-                "scripts/package_nsh_windows.ps1",
-                "docs/platforms/windows.md",
-            ),
-        )
+        for path in (
+            "installer.iss",
+            "installer.wxs",
+            "assets/windows/Square44x44Logo.png",
+            "packaging/windows/nsh.wxs",
+            "scripts/audit_final_setup.ps1",
+            "scripts/audit_installer_sources.py",
+            "scripts/package_msix.ps1",
+            "scripts/package_nsh_windows.ps1",
+            ".github/workflows/release-windows.yml",
+        ):
+            with self.subTest(path=path):
+                self.assert_decisions(
+                    systems=("windows-latest",),
+                    check_reason="Windows installer files changed",
+                    packaging=("windows",),
+                    changed=(path,),
+                )
 
     def test_windows_installer_with_app_code_tests_all_three(self) -> None:
         self.assert_decisions(
