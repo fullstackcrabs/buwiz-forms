@@ -40,15 +40,18 @@ Every setup script (`setup-linux.sh`, `setup-macos.sh`, `setup-windows.ps1`) ins
 instead; a `.commit` file there records which one. `--check` reports both; `--no-impeccable` (`-NoImpeccable` on
 Windows) skips both. The general scripts do not install the verification tools themselves.
 
-The Linux blueprint block adds them: it installs a prebuilt `cargo-binstall` (the newest release needs a newer Rust
-than this repo pins), `valgrind`, and runs `impeccable setup host --with-kani`. It sets `IMPECCABLE_BACKEND=host` in
-the environment because impeccable's Docker toolbox ships an older Rust than `rust-toolchain.toml`, so toolbox runs
+The Linux blueprint block adds them: it installs `valgrind` in `initialize`, and its `maintenance` installs a prebuilt
+`cargo-binstall` (the newest release needs a newer Rust than this repo pins) and runs `impeccable setup host
+--with-kani`. Maintenance also sets `IMPECCABLE_BACKEND=host` in the environment on every build because impeccable's Docker toolbox ships an older Rust than `rust-toolchain.toml`, so toolbox runs
 cannot build this workspace. `impeccable doctor` then shows every tool on the host except TLC, which needs Java and
 the TLA+ tools jar and is not installed.
 
 To move to a new version, edit `scripts/impeccable.pin` (CLI version, skill commit, cargo-binstall version); nothing
-else hard-codes them. Linux maintenance runs `scripts/setup-impeccable.sh` and re-syncs the host tools when the CLI
-version changes; elsewhere re-run the platform's setup script.
+else hard-codes them. Linux maintenance re-downloads `cargo-binstall` when its pin moves, runs
+`scripts/setup-impeccable.sh`, and re-syncs the host tools when the CLI or `cargo-binstall` version changes; elsewhere
+re-run the platform's setup script. On Linux and macOS, if Cargo's install directory (`$CARGO_INSTALL_ROOT/bin`, else
+`$CARGO_HOME/bin`, else `~/.cargo/bin`) is not on `PATH`, the setup scripts add it for their own run and warn you to
+add it to your shell profile.
 
 ## Local account server (all platforms)
 

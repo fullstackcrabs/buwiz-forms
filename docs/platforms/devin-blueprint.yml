@@ -23,28 +23,33 @@ initialize: |
   bash scripts/setup-linux.sh --compositor
   # NSH CLI, Android SDK/NDK/emulator, the "buwiz" AVD, ~/BuwizNsh/nsh2404.sh.
   bash scripts/setup-linux-nsh.sh
-  # valgrind is for impeccable's verification tools below.
+  # valgrind is for impeccable's verification tools (set up in maintenance).
   sudo apt-get install -y valgrind
-  # impeccable's verification tools on the VM (setup-linux.sh installed the CLI and
-  # skill). cargo-binstall comes prebuilt at the scripts/impeccable.pin version: its
-  # newest release needs a newer Rust than this repo pins, so it cannot be built here.
-  # The host backend keeps runs off impeccable's Docker toolbox, whose Rust is older
-  # than this repo's rust-toolchain.toml.
-  binstall=$(sed -n 's/^CARGO_BINSTALL_VERSION=//p' scripts/impeccable.pin)
-  curl -fsSL "https://github.com/cargo-bins/cargo-binstall/releases/download/v$binstall/cargo-binstall-$(uname -m)-unknown-linux-musl.tgz" | tar -xz -C "${CARGO_HOME:-$HOME/.cargo}/bin"
-  IMPECCABLE_BACKEND=host impeccable setup host --with-kani
-  echo "IMPECCABLE_BACKEND=host" >> $ENVRC
   echo "ANDROID_HOME=$HOME/Android/Sdk" >> $ENVRC
   echo "ANDROID_SDK_ROOT=$HOME/Android/Sdk" >> $ENVRC
 maintenance: |
   # Re-pins ../nsh and rebuilds the nsh CLI and Android runtime only when
   # NSH_PINNED_REF changed.
   bash scripts/setup-linux-nsh.sh
-  # impeccable CLI and skill at scripts/impeccable.pin (a no-op when both match);
-  # a new CLI may pin new verification tool versions, so it re-syncs them.
-  had=$(impeccable --version 2>/dev/null || true)
+  # impeccable: everything lives here, not in initialize, because an inherited
+  # workspace runs only maintenance and $ENVRC is reset on every build.
+  # cargo-binstall comes prebuilt at the scripts/impeccable.pin version: its newest
+  # release needs a newer Rust than this repo pins, so it cannot be built here.
+  binstall=$(sed -n 's/^CARGO_BINSTALL_VERSION=//p' scripts/impeccable.pin)
+  [ "$(cargo-binstall -V 2>/dev/null)" = "$binstall" ] || curl -fsSL "https://github.com/cargo-bins/cargo-binstall/releases/download/v$binstall/cargo-binstall-$(uname -m)-unknown-linux-musl.tgz" | tar -xz -C "${CARGO_HOME:-$HOME/.cargo}/bin"
+  # The CLI and skill at their pins (a no-op when both match).
   bash scripts/setup-impeccable.sh
-  [ "$(impeccable --version)" = "$had" ] || IMPECCABLE_BACKEND=host impeccable setup host --with-kani
+  # A new CLI or cargo-binstall may pin new verification tool versions, so re-sync
+  # the host tools whenever either differs from the last sync.
+  stamp="${CARGO_HOME:-$HOME/.cargo}/.impeccable-host-setup"
+  want="$(impeccable --version) / cargo-binstall $binstall"
+  if [ "$(cat "$stamp" 2>/dev/null)" != "$want" ]; then
+    IMPECCABLE_BACKEND=host impeccable setup host --with-kani
+    printf '%s\n' "$want" > "$stamp"
+  fi
+  # The host backend keeps runs off impeccable's Docker toolbox, whose Rust is older
+  # than this repo's rust-toolchain.toml.
+  echo "IMPECCABLE_BACKEND=host" >> $ENVRC
 knowledge:
   - name: startup
     contents: |

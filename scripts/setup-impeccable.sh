@@ -22,6 +22,16 @@ impeccable_pin() {  # impeccable_pin <KEY> → its value in scripts/impeccable.p
     sed -n "s/^$1=\([^[:space:]]*\).*/\1/p" "$IMPECCABLE_PIN_FILE" 2>/dev/null | head -1 || true
 }
 
+# cargo install writes to $CARGO_INSTALL_ROOT, else $CARGO_HOME, else ~/.cargo.
+# A distro Cargo in /usr/bin does not put that bin directory on PATH, so add it
+# for this run (and say so) before installing or checking the CLI.
+impeccable_use_cargo_bin() {
+    local bin="${CARGO_INSTALL_ROOT:-${CARGO_HOME:-$HOME/.cargo}}/bin"
+    case ":$PATH:" in *":$bin:"*) return 0 ;; esac
+    export PATH="$bin:$PATH"
+    warn "$bin is not on PATH; using it for this run. Add it to your shell profile so impeccable is found."
+}
+
 impeccable_installed_version() {  # empty when impeccable is not on PATH
     command -v impeccable >/dev/null 2>&1 || return 0
     impeccable --version 2>/dev/null | sed -n 's/^impeccable \([0-9][0-9.]*\).*/\1/p' | head -1 || true
@@ -39,6 +49,7 @@ install_impeccable() {
     local version installed
     version="$(impeccable_pin IMPECCABLE_VERSION)"
     [ -n "$version" ] || die "IMPECCABLE_VERSION not found in $IMPECCABLE_PIN_FILE"
+    impeccable_use_cargo_bin
     installed="$(impeccable_installed_version)"
     if [ "$installed" = "$version" ]; then
         log "impeccable already installed at pinned version $version"
@@ -78,6 +89,7 @@ check_impeccable() {  # check_impeccable <label width> → prints two rows; fals
     local w="$1" ok=0 version installed commit
     version="$(impeccable_pin IMPECCABLE_VERSION)"
     commit="$(impeccable_pin IMPECCABLE_SKILL_COMMIT)"
+    impeccable_use_cargo_bin
     installed="$(impeccable_installed_version)"
     if [ -z "$installed" ]; then
         printf "  %-${w}s MISSING (pinned %s in scripts/impeccable.pin)\n" "impeccable" "$version"
