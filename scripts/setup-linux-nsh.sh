@@ -332,7 +332,7 @@ main() {
     log "Verifying"
     check
     if [ "$WITH_ANDROID" -eq 1 ]; then
-        printf '\nAdd to your shell profile:\n  export ANDROID_HOME=%s\n  export ANDROID_SDK_ROOT=%s\n' \
+        printf '\nAdd to your shell profile:\n  export ANDROID_HOME=%q\n  export ANDROID_SDK_ROOT=%q\n' \
             "$ANDROID_HOME" "$ANDROID_HOME"
     fi
 }
