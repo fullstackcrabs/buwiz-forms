@@ -166,8 +166,8 @@ class SetReleaseVersionTests(unittest.TestCase):
             before = {path: path.read_bytes() for path in tracked}
 
             def fail_on_nsh(command, **_kwargs):
-                manifest = command[command.index("--manifest-path") + 1]
-                if manifest.endswith("nsh/Cargo.toml"):
+                manifest = Path(command[command.index("--manifest-path") + 1]).as_posix()
+                if manifest.endswith("/nsh/Cargo.toml"):
                     (root / "Cargo.lock").write_bytes(b"corrupt root lock")
                     (root / "nsh/Cargo.lock").write_bytes(b"corrupt nsh lock")
                     return subprocess.CompletedProcess([], 1, stderr="missing ../nsh")
