@@ -35,10 +35,12 @@ maintenance: |
   # workspace runs only maintenance and $ENVRC is reset on every build.
   # cargo-binstall comes prebuilt at the scripts/impeccable.pin version: its newest
   # release needs a newer Rust than this repo pins, so it cannot be built here.
-  # cargo-binstall and impeccable land in Cargo's bin directory, which may be off PATH here.
-  export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
+  # cargo-binstall and impeccable go in Cargo's install bin directory (the same one
+  # scripts/setup-impeccable.sh uses), which may be off PATH here.
+  cargo_bin="${CARGO_INSTALL_ROOT:-${CARGO_HOME:-$HOME/.cargo}}/bin"
+  export PATH="$cargo_bin:$PATH"
   binstall=$(sed -n 's/^CARGO_BINSTALL_VERSION=//p' scripts/impeccable.pin)
-  [ "$(cargo-binstall -V 2>/dev/null)" = "$binstall" ] || curl -fsSL "https://github.com/cargo-bins/cargo-binstall/releases/download/v$binstall/cargo-binstall-$(uname -m)-unknown-linux-musl.tgz" | tar -xz -C "${CARGO_HOME:-$HOME/.cargo}/bin"
+  [ "$(cargo-binstall -V 2>/dev/null)" = "$binstall" ] || curl -fsSL "https://github.com/cargo-bins/cargo-binstall/releases/download/v$binstall/cargo-binstall-$(uname -m)-unknown-linux-musl.tgz" | tar -xz -C "$cargo_bin"
   # The CLI and skill at their pins (a no-op when both match).
   bash scripts/setup-impeccable.sh
   # A new CLI or cargo-binstall may pin new verification tool versions, so re-sync
