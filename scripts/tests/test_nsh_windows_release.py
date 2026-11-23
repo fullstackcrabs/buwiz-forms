@@ -37,6 +37,33 @@ class NshWindowsReleaseTests(unittest.TestCase):
         self.assertIn('if ($NshPayload -and $runtimeImports.Count -gt 0)', msix)
         self.assertIn('if (-not $NshPayload -and $runtimeImports.Count -eq 0)', msix)
 
+    def test_nsh_feed_does_not_replace_the_legacy_manifest(self):
+        updater = json.loads((ROOT / 'nsh/nsh.json').read_text(encoding='utf-8'))['updater']
+        name = updater['url'].rsplit('/', 1)[-1]
+        self.assertEqual(name, 'latest-nsh.json')
+        self.assertNotIn('github', updater)
+        windows = (ROOT / '.github/workflows/release-windows.yml').read_text()
+        release = (ROOT / '.github/workflows/release.yml').read_text()
+        self.assertIn("if: inputs.release && github.ref_type == 'tag'", windows)
+        for asset in (name, 'latest.json.sig'):
+            self.assertIn(f'buwiz-forms/target/release-artifacts/{asset}', windows)
+            self.assertIn(f'artifacts/windows-release/{asset}', release)
+        self.assertIn('scripts/publish_update_manifest.py', release)
+
+    @unittest.skipUnless(shutil.which('pwsh'), 'requires PowerShell')
+    def test_missing_key_does_not_publish_an_unsigned_feed(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            archive = Path(scratch) / 'eBIRForms-0.2.0-windows-x86_64.zip'
+            archive.touch()
+            result = subprocess.run(
+                ['pwsh', '-NoProfile', '-File', str(ROOT / 'scripts/package_nsh_update.ps1'),
+                 '-Archive', str(archive), '-BaseUrl', 'https://example.com/releases/v0.2.0'],
+                env={**os.environ, 'NSH_UPDATE_SIGNING_KEY': ''},
+                capture_output=True, text=True, check=True, timeout=20,
+            )
+            self.assertIn('NSH_UPDATE_SIGNING_KEY', result.stdout)
+            self.assertEqual(list(archive.parent.iterdir()), [archive])
+
     @unittest.skipUnless(shutil.which('pwsh'), 'requires PowerShell')
     def test_invalid_version_tag_or_payload_fails_before_packaging(self):
         cases = (
