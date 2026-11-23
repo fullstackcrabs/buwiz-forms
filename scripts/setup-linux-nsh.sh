@@ -57,6 +57,7 @@ IMAGE="buwiz-nsh-2404"
 ANDROID_HOME="$(realpath -m -- "${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Android/Sdk}}")"
 CMDLINE_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
 NDK_VERSION="27.2.12479018"
+ANDROID_RUNTIME_DEBUG=0
 SYSTEM_IMAGE="system-images;android-35;google_apis;x86_64"
 AVD="buwiz"
 
@@ -189,7 +190,6 @@ install_nsh_cli() {
     log "Building the nsh CLI at ${REF:0:7} in the image"
     in_image "$NSH" -e CARGO_TARGET_DIR="$WORK/target-nsh" -- \
         cargo install --locked --path crates/nsh-cli --root "$WORK/tools"
-    rm -f "$WORK/tools/runtime/android/dev/nsh-ref"   # a new CLI needs a matching runtime
 }
 
 find_java_home() {
@@ -247,9 +247,14 @@ install_android_sdk() {
 
 # NSH's Android runtime (classes.dex + libnsh.so per ABI). xtask reads its own
 # target/ dir, so no CARGO_TARGET_DIR; the CLI looks for it next to its bin/.
+android_runtime_stamp() {
+    printf '%s\n' "$REF" "$NDK_VERSION" "$ANDROID_RUNTIME_DEBUG"
+}
+
 nsh_android_runtime_current() {
     local dest="$WORK/tools/runtime/android/dev" abi
-    [ -s "$dest/classes.dex" ] && [ "$(cat "$dest/nsh-ref" 2>/dev/null)" = "$REF" ] || return 1
+    [ -s "$dest/classes.dex" ] &&
+        [ "$(cat "$dest/nsh-build" 2>/dev/null)" = "$(android_runtime_stamp)" ] || return 1
     for abi in arm64-v8a armeabi-v7a x86_64; do
         [ -s "$dest/lib/$abi/libnsh.so" ] || return 1
     done
@@ -264,11 +269,12 @@ install_android_runtime() {
     log "Building NSH's Android runtime in the image"
     local sdk; mapfile -t sdk < <(sdk_mount)
     in_image "$NSH" "${sdk[@]}" -e ANDROID_HOME="$ANDROID_HOME" \
-        -e ANDROID_NDK_HOME="$ANDROID_HOME/ndk/$NDK_VERSION" -e CARGO_PROFILE_DEV_DEBUG=0 -- \
+        -e ANDROID_NDK_HOME="$ANDROID_HOME/ndk/$NDK_VERSION" \
+        -e CARGO_PROFILE_DEV_DEBUG="$ANDROID_RUNTIME_DEBUG" -- \
         cargo xtask android --dev
     rm -rf "$dest" && mkdir -p "$WORK/tools/runtime/android"
     cp -r "$NSH/target/android/debug-dev" "$dest"
-    echo "$REF" > "$dest/nsh-ref"
+    android_runtime_stamp > "$dest/nsh-build"
     nsh_android_runtime_current || die "NSH Android runtime is incomplete"
 }
 
