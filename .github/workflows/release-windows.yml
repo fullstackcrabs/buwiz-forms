@@ -9,27 +9,19 @@ on:
         required: false
         type: boolean
         default: false
-  pull_request:
-    paths:
-      - .github/workflows/release-windows.yml
-      - scripts/package_msix.ps1
-      - scripts/smoke_msix.ps1
-      - assets/windows/**
-      - installer.iss
-      - installer.wxs
 
 permissions:
   contents: read
 
 concurrency:
   group: release-windows-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: false
 
 env:
   CARGO_TERM_COLOR: always
   APP_NAME: eBIRForms
-  GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-  GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+  GOOGLE_CLIENT_ID: ${{ inputs.release && github.ref_type == 'tag' && secrets.GOOGLE_CLIENT_ID || '' }}
+  GOOGLE_CLIENT_SECRET: ${{ inputs.release && github.ref_type == 'tag' && secrets.GOOGLE_CLIENT_SECRET || '' }}
 
 jobs:
   installers:
@@ -50,8 +42,8 @@ jobs:
       - name: Resolve Windows signing mode
         shell: pwsh
         env:
-          WINDOWS_CERTIFICATE_PFX: ${{ secrets.WINDOWS_CERTIFICATE_PFX }}
-          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          WINDOWS_CERTIFICATE_PFX: ${{ inputs.release && github.ref_type == 'tag' && secrets.WINDOWS_CERTIFICATE_PFX || '' }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ inputs.release && github.ref_type == 'tag' && secrets.WINDOWS_CERTIFICATE_PASSWORD || '' }}
         run: |
           $release = '${{ inputs.release == true }}' -eq 'true'
           $hasPfx = -not [string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PFX)
@@ -220,7 +212,7 @@ jobs:
         if: env.WINDOWS_SIGNING == '1'
         shell: pwsh
         env:
-          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ inputs.release && github.ref_type == 'tag' && secrets.WINDOWS_CERTIFICATE_PASSWORD || '' }}
         run: |
           $payloads = @(
             "crates/bir-shell/target/x86_64-pc-windows-msvc/release/bir.exe"
@@ -320,7 +312,7 @@ jobs:
         if: env.WINDOWS_SIGNING == '1'
         shell: pwsh
         env:
-          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ inputs.release && github.ref_type == 'tag' && secrets.WINDOWS_CERTIFICATE_PASSWORD || '' }}
         run: |
           $artifacts = @(
             Get-ChildItem "target/release-artifacts/*-Setup.exe"
@@ -413,8 +405,8 @@ jobs:
       - name: Resolve Windows MSIX signing mode
         shell: pwsh
         env:
-          WINDOWS_CERTIFICATE_PFX: ${{ secrets.WINDOWS_CERTIFICATE_PFX }}
-          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          WINDOWS_CERTIFICATE_PFX: ${{ inputs.release && github.ref_type == 'tag' && secrets.WINDOWS_CERTIFICATE_PFX || '' }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ inputs.release && github.ref_type == 'tag' && secrets.WINDOWS_CERTIFICATE_PASSWORD || '' }}
         run: |
           $hasPfx = -not [string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PFX)
           $hasPassword = -not [string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PASSWORD)
@@ -453,7 +445,7 @@ jobs:
       - name: Build and sign MSIX packages
         shell: pwsh
         env:
-          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ inputs.release && github.ref_type == 'tag' && secrets.WINDOWS_CERTIFICATE_PASSWORD || '' }}
         run: |
           $version = $env:WINDOWS_VERSION
           $stage = "target/windows-stage"

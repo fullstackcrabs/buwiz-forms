@@ -36,6 +36,15 @@ class NshWindowsReleaseTests(unittest.TestCase):
         self.assertNotIn('windows-nsh-preview', release)
         self.assertNotIn('artifacts/**/*-windows-x86_64.zip', release)
 
+    def test_legacy_windows_workflow_reserves_credentials_for_tagged_releases(self):
+        workflow = (ROOT / '.github/workflows/release-windows.yml').read_text()
+        self.assertNotIn('pull_request:', workflow)
+        credentials = [line for line in workflow.splitlines()
+                       if 'secrets.WINDOWS_CERTIFICATE_' in line or 'secrets.GOOGLE_CLIENT_' in line]
+        self.assertTrue(credentials)
+        for line in credentials:
+            self.assertIn("inputs.release && github.ref_type == 'tag' && secrets.", line)
+
     def test_setup_and_updater_zip_do_not_require_a_vc_redistributable(self):
         workflow = PREVIEW.read_text()
         msix = (ROOT / 'scripts/package_msix.ps1').read_text()
