@@ -669,6 +669,11 @@ sign-dev:
 publish version="":
     #!/usr/bin/env bash
     set -e
+    NEW_VER="{{version}}"
+    if [ -z "$NEW_VER" ]; then
+        NEW_VER="{{VERSION}}"
+    fi
+    {{PYTHON}} scripts/set_nsh_release_version.py "$NEW_VER"
     if [ -n "{{version}}" ]; then
         echo "Forcing version to {{version}}"
         sed -i.bak 's/^version = ".*"/version = "{{version}}"/' Cargo.toml
@@ -677,9 +682,6 @@ publish version="":
             sed -i.bak 's/^version = ".*"/version = "{{version}}"/' crates/bir-print/Cargo.toml
             rm -f crates/bir-print/Cargo.toml.bak
         fi
-        NEW_VER="{{version}}"
-    else
-        NEW_VER=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
     fi
     git add -A
     git commit -m "release: v$NEW_VER" --allow-empty
@@ -692,16 +694,16 @@ publish version="":
 publish version="":
     #!pwsh -NoProfile
     $ErrorActionPreference = 'Stop'
+    $PSNativeCommandUseErrorActionPreference = $true
     $ver = '{{version}}'
+    $NEW_VER = if ($ver) { $ver } else { "{{VERSION}}" }
+    {{PYTHON}} scripts/set_nsh_release_version.py $NEW_VER
     if ($ver) {
         Write-Host "Forcing version to $ver"
         (Get-Content Cargo.toml) -replace '^version = ".*"', "version = `"$ver`"" | Set-Content Cargo.toml
         if (Test-Path crates/bir-print/Cargo.toml) {
             (Get-Content crates/bir-print/Cargo.toml) -replace '^version = ".*"', "version = `"$ver`"" | Set-Content crates/bir-print/Cargo.toml
         }
-        $NEW_VER = $ver
-    } else {
-        $NEW_VER = "{{VERSION}}"
     }
     git add -A
     git commit -m "release: v$NEW_VER" --allow-empty
