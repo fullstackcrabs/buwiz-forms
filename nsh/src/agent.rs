@@ -297,7 +297,10 @@ mod live {
         // The window's own control plane (the plug, on the same `GPUI_AGENT_ADDR`) binds only once a
         // surface opens — after this listener starts — so it must own the base port and this one moves
         // to the next, as the Android default (`127.0.0.1:17422`) already intends.
-        let requested = SocketAddr::new(requested.ip(), requested.port() + 1);
+        let requested = SocketAddr::new(
+            requested.ip(),
+            requested.port().checked_add(1).unwrap_or(0),
+        );
         if std::net::TcpListener::bind(requested).is_err() {
             return Ok(SocketAddr::new(requested.ip(), 0));
         }
@@ -318,7 +321,8 @@ mod live {
         if !enabled || !matches!(var("GPUI_AGENT").as_deref(), Some("1" | "true")) {
             return Ok(None);
         }
-        let addr = var("GPUI_AGENT_ADDR").unwrap_or_else(|| "127.0.0.1:17422".to_owned());
+        // The default is the window plane's port: `choose` moves this listener to the port after it (17422).
+        let addr = var("GPUI_AGENT_ADDR").unwrap_or_else(|| "127.0.0.1:17421".to_owned());
         let addr: SocketAddr =
             addr.parse().map_err(|_| format!("GPUI_AGENT_ADDR {addr} is not a socket address"))?;
         let token = token()
