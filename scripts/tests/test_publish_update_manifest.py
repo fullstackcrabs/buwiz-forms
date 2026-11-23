@@ -17,10 +17,8 @@ parse_checksum_text = _MODULE.parse_checksum_text
 
 class ClassifyTests(unittest.TestCase):
     def test_platform_keys(self):
-        self.assertEqual(
-            classify_asset("eBIRForms-macOS-universal-0.1.1.dmg"),
-            "darwin-universal",
-        )
+        self.assertIsNone(classify_asset("eBIRForms-macOS-universal-0.1.1.dmg"))
+        self.assertIsNone(classify_asset("eBIRForms-0.2.0-macos-aarch64.tar.gz"))
         self.assertEqual(
             classify_asset("eBIRForms-Windows-x64-0.1.1-Setup.exe"),
             "windows-x64-setup",
@@ -80,9 +78,7 @@ class ClassifyTests(unittest.TestCase):
                 "SHA256SUMS-windows-x64.txt": "SHA256SUMS-windows-x64.txt",
             },
         )
-        darwin = manifest["platforms"]["darwin-universal"]
-        self.assertEqual(darwin["sha256"], digest)
-        self.assertTrue(darwin["checksum_url"].endswith(".dmg.sha256"))
+        self.assertNotIn("darwin-universal", manifest["platforms"])
         self.assertTrue(
             manifest["platforms"]["linux-x64-deb"]["checksum_url"].endswith(
                 "SHA256SUMS-linux-x64.txt"

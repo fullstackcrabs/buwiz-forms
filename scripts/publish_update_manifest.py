@@ -5,7 +5,9 @@ The manifest lists one asset per platform key, with the sha256 taken from the
 release's checksum sidecars (``SHA256SUMS-*.txt`` and ``*.sha256``). Both the
 tag's release workflow and the macOS publish job run this after they upload,
 so whichever finishes last rewrites a manifest that includes every asset
-already on the release.
+already on the release. macOS is deliberately absent: the NSH bundle cannot
+open the legacy app's encrypted database, so legacy clients must not
+auto-update into it here.
 
 Usage:
     python3 scripts/publish_update_manifest.py --tag v0.1.0 --repo hexuria/buwiz-forms
@@ -25,8 +27,6 @@ from pathlib import Path
 def classify_asset(name: str) -> str | None:
     """Map a release file name to a manifest platform key."""
     lower = name.lower()
-    if lower.endswith(".dmg") and "macos" in lower:
-        return "darwin-universal"
     if lower.endswith("-setup.exe") and "windows" in lower and "x64" in lower:
         return "windows-x64-setup"
     if lower.endswith(".msi") and "windows" in lower and "x64" in lower:
