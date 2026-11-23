@@ -155,7 +155,18 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
         self.assertIn('xcrun stapler staple "$DMG"', script)
         self.assertIn('xcrun stapler validate "$DMG"', script)
         self.assertIn('spctl --assess --type execute --verbose=2 "$APP"', script)
-        self.assertIn('cp assets/AppIcon.icns "$APP/Contents/Resources/"', script)
+        self.assertIn("nsh package --target macos --arch universal", script)
+        self.assertIn('"$APP/Contents/Resources/AppIcon.icns"', script)
+        self.assertIn(
+            "codesign --verify --deep --strict --verbose=2 \"$APP\"", script
+        )
+        # Update archives are made again from the signed, stapled app.
+        self.assertLess(
+            script.index('xcrun stapler staple "$APP"'),
+            script.index('tar -czf "$OUT_DIR/$archive"'),
+        )
+        self.assertNotIn("crates/bir-shell", macos + script)
+        self.assertIn("buwiz-forms/target/release-artifacts/*.tar.gz", macos)
         self.assertIn('hdiutil attach "$DMG" -nobrowse -readonly', script)
         self.assertIn(
             'python3 scripts/audit_no_legacy.py --package-root "$MOUNTED_APP"',

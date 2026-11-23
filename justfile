@@ -724,66 +724,22 @@ clean:
 
 # --- Hidden OS-specific packaging tasks ---
 
-# Packages the shipped gpui-shell app: crates/bir-shell is a standalone
-# workspace built with no features, and the .app stages app/ and
-# print-overrides/ under Contents/Resources where the shell resolves them
-# (crates/bir-shell/src/packaged.rs). The retired painted host stays buildable
-# for development but is not packaged here.
+# Packages the shipped NSH app (nsh/) as the universal release does, with the
+# same script: `nsh package --target macos --arch universal`, then the .app,
+# .dmg, update archives and checksums under target/release-artifacts. Signed
+# ad hoc unless SIGNING_IDENTITY names a Developer ID (and notarized when the
+# NOTARY_* variables are set); see scripts/package_macos_release.sh.
 _package-mac args="": build-frozen-html-identity
     #!/usr/bin/env bash
-    set -e
+    set -euo pipefail
     for arg in {{args}}; do
         case "$arg" in
             --native-evidence|--agent)
-                echo "⚠️  $arg is a bir-shell feature; the shipped shell ignores it" ;;
+                echo "⚠️  $arg is a bir-shell feature; the NSH app ignores it" ;;
         esac
     done
-    echo "Building for ARM64..."
-    cargo build --locked --release --manifest-path crates/bir-shell/Cargo.toml --target {{MAC_ARM_TARGET}}
-    echo "Building for x86_64..."
-    cargo build --locked --release --manifest-path crates/bir-shell/Cargo.toml --target {{MAC_X86_TARGET}}
-    {{PYTHON}} scripts/alias_app_bin.py crates/bir-shell/target/{{MAC_ARM_TARGET}}/release bir-shell
-    {{PYTHON}} scripts/alias_app_bin.py crates/bir-shell/target/{{MAC_X86_TARGET}}/release bir-shell
-    mkdir -p {{RELEASE_DIR}}
-    echo "Creating universal binary (lipo)..."
-    lipo -create crates/bir-shell/target/{{MAC_ARM_TARGET}}/release/bir crates/bir-shell/target/{{MAC_X86_TARGET}}/release/bir -output {{RELEASE_DIR}}/bir
-    echo "Creating .app bundle..."
-    rm -rf "{{MAC_APP}}"
-    mkdir -p "{{MAC_APP}}/Contents/MacOS" "{{MAC_APP}}/Contents/Resources"
-    cp {{RELEASE_DIR}}/bir "{{MAC_APP}}/Contents/MacOS/"
-    cp -R assets "{{MAC_APP}}/Contents/Resources/"
-    rm -rf "{{MAC_APP}}/Contents/Resources/assets/macos"
-    cp assets/AppIcon.icns "{{MAC_APP}}/Contents/Resources/"
-    cp -R app "{{MAC_APP}}/Contents/Resources/"
-    cp -R print-overrides "{{MAC_APP}}/Contents/Resources/"
-
-    cp assets/macos/Info.plist "{{MAC_APP}}/Contents/Info.plist"
-    sed -i '' "s/VERSION_PLACEHOLDER/{{VERSION}}/g" "{{MAC_APP}}/Contents/Info.plist"
-    sed -i '' "s/BUILD_NUMBER_PLACEHOLDER/{{BUILD_NUMBER}}/g" "{{MAC_APP}}/Contents/Info.plist"
-    sed -i '' "s/BUNDLE_ID_PLACEHOLDER/{{BUNDLE_ID}}/g" "{{MAC_APP}}/Contents/Info.plist"
-    sed -i '' "s/APP_NAME_PLACEHOLDER/{{APP_NAME}}/g" "{{MAC_APP}}/Contents/Info.plist"
-    if [ "$DEV_MODE" = "true" ] || [ "$DEVELOPER_MODE" = "true" ]; then
-        echo "Injecting DEVELOPER_MODE into Info.plist..."
-        /usr/libexec/PlistBuddy -c "Add :LSEnvironment dict" "{{MAC_APP}}/Contents/Info.plist" || true
-        /usr/libexec/PlistBuddy -c "Add :LSEnvironment:DEVELOPER_MODE string true" "{{MAC_APP}}/Contents/Info.plist" || true
-    fi
-    {{PYTHON}} scripts/audit_no_legacy.py --package-root "{{MAC_APP}}"
-    touch "{{MAC_APP}}"
-    
-    echo "Ad-hoc codesigning application..."
-    codesign --force --options runtime --entitlements entitlements.dev.plist --sign "-" "{{MAC_APP}}"
-    codesign --verify --strict --verbose=2 "{{MAC_APP}}"
-
-    echo "✅ {{MAC_APP}} created and codesigned"
-    
-    if command -v create-dmg >/dev/null 2>&1; then \
-        rm -f "{{RELEASE_DIR}}/{{APP_NAME}}-macOS-{{VERSION}}.dmg"; \
-        create-dmg --volname "{{APP_NAME}}" --window-size 600 400 --icon-size 100 --icon "{{APP_NAME}}.app" 150 190 --app-drop-link 450 190 "{{RELEASE_DIR}}/{{APP_NAME}}-macOS-{{VERSION}}.dmg" "{{MAC_APP}}"; \
-        echo "✅ DMG created"; \
-    else \
-        echo "⚠️ create-dmg not found. Falling back to zip..."; \
-        cd {{RELEASE_DIR}} && zip -r "{{APP_NAME}}-macOS-{{VERSION}}.zip" "{{APP_NAME}}.app"; \
-    fi
+    NSH="${NSH:-$HOME/BuwizNsh/tools/bin/nsh}" VERSION="{{VERSION}}" OUT_DIR="{{RELEASE_DIR}}" \
+        bash scripts/package_macos_release.sh
 
 # MAS/TestFlight packages the gpui-shell binary. The macOS JIT entitlement
 # combination and App Store build remain unverified until checked on macOS.
