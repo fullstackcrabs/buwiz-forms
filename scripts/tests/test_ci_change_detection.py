@@ -268,7 +268,15 @@ class CiChangeDetectionTests(unittest.TestCase):
         self.assert_decisions(
             systems=(),
             check_reason="NSH app files only (tested by the NSH app workflow)",
-            changed=("nsh/screens/home/Home.tsx", ".github/workflows/nsh.yml"),
+            changed=("nsh/screens/home/Home.tsx",),
+        )
+
+    def test_nsh_workflow_change_audits_windows_installer(self) -> None:
+        self.assert_decisions(
+            systems=("windows-latest",),
+            check_reason="Windows installer files changed",
+            packaging=("windows",),
+            changed=(".github/workflows/nsh.yml",),
         )
 
     def test_nsh_src_stays_app_code(self) -> None:
@@ -320,9 +328,11 @@ class CiChangeDetectionTests(unittest.TestCase):
                 "installer.iss",
                 "installer.wxs",
                 "assets/windows/Square44x44Logo.png",
+                "packaging/windows/nsh.wxs",
                 "scripts/audit_final_setup.ps1",
                 "scripts/audit_installer_sources.py",
                 "scripts/package_msix.ps1",
+                "scripts/package_nsh_windows.ps1",
                 "docs/platforms/windows.md",
             ),
         )

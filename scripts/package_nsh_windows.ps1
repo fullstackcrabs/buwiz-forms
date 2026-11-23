@@ -97,7 +97,7 @@ try {
     $wixDir = Join-Path $repo 'packaging/windows'
     $harvest = Join-Path $scratch 'harvest.wxs'
     $heatArgs = @(
-        'dir', $stage, '-dr', 'INSTALLDIR', '-cg', 'NshPayload', '-ag', '-sfrag', '-srd',
+        'dir', $stage, '-dr', 'INSTALLDIR', '-cg', 'NshPayload', '-ag', '-sfrag', '-srd', '-scom', '-sreg',
         '-var', 'var.SourceDir', '-t', (Join-Path $wixDir 'per-user-harvest.xsl'), '-out', $harvest
     )
     & (Join-Path $wix.FullName 'heat.exe') @heatArgs
