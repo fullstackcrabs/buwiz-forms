@@ -5,8 +5,8 @@
 //!   runs on the engine thread, as the old shell's calls ran on its main thread.
 //! * The first call on a thread boots it, in the old host's order: hooks, send guard, database guard, the
 //!   account gate (`cloud_account::prepare_launch`), then the database and the submission worker.
-//! * The guards are the contract's ("The door" in `docs/plans/nsh-tsx-migration.md`): a dry run is forced
-//!   before anything opens, and no database inside the owner's folders is ever opened.
+//! * The guards run before anything opens: development, test, agent and mobile launches do not file live,
+//!   and the database guard still protects the owner's data folders.
 
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
