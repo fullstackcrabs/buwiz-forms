@@ -91,7 +91,7 @@ mock-bir-app db app="/Applications/eBIRForms.app":
         "$HOME/Library/Application Support/dev.goldcoders.bir"
     )
     [ -f "{{db}}" ] || { echo "no database copy at {{db}}"; exit 1; }
-    db="$(cd "$(dirname "{{db}}")" && pwd -P)/$(basename "{{db}}")"
+    db="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "{{db}}")"
     for live_dir in "${live_dirs[@]}"; do
         case "$db" in
             "$live_dir"/*) echo "refusing $db: that is the app's live data folder; use a copy elsewhere"; exit 1 ;;
