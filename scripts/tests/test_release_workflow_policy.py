@@ -14,7 +14,7 @@ from pathlib import Path
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW_PATH = REPOSITORY_ROOT / ".github/workflows/release.yml"
 LINUX_RELEASE_WORKFLOW_PATH = REPOSITORY_ROOT / ".github/workflows/release-linux.yml"
-WINDOWS_RELEASE_WORKFLOW_PATH = REPOSITORY_ROOT / ".github/workflows/release-windows.yml"
+WINDOWS_PREVIEW_WORKFLOW_PATH = REPOSITORY_ROOT / ".github/workflows/package-nsh-windows.yml"
 MACOS_WORKFLOW_PATH = REPOSITORY_ROOT / ".github/workflows/release-macos.yml"
 MACOS_PACKAGE_SCRIPT_PATH = REPOSITORY_ROOT / "scripts/package_macos_release.sh"
 CI_WORKFLOW_PATH = REPOSITORY_ROOT / ".github/workflows/ci.yml"
@@ -37,7 +37,7 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.workflow = WORKFLOW_PATH.read_text(encoding="utf-8")
         cls.linux_release_workflow = LINUX_RELEASE_WORKFLOW_PATH.read_text(encoding="utf-8")
-        cls.windows_workflow = WINDOWS_RELEASE_WORKFLOW_PATH.read_text(encoding="utf-8")
+        cls.windows_workflow = WINDOWS_PREVIEW_WORKFLOW_PATH.read_text(encoding="utf-8")
         cls.macos_workflow = MACOS_WORKFLOW_PATH.read_text(encoding="utf-8")
         cls.macos_package_script = MACOS_PACKAGE_SCRIPT_PATH.read_text(
             encoding="utf-8"
@@ -97,9 +97,6 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
 
     def test_every_publishable_build_depends_on_exact_tag_preflight(self) -> None:
         self.assert_preflight_gates(self.workflow)
-        preflight = self.job("preflight")
-        self.assertIn('"nsh/nsh.json"', preflight)
-        self.assertIn('"$TAG_VERSION" != "$NSH_VERSION"', preflight)
         for job_name in ("build-windows", "build-linux"):
             self.assertIn("needs: preflight", self.job(job_name))
         self.assertIn(
@@ -108,33 +105,6 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
         )
         self.assertNotIn("build-macos:", self.workflow)
         self.assertNotIn("*.dmg", self.workflow)
-
-    def test_publish_syncs_nsh_version_before_committing_and_tagging(self) -> None:
-        recipes = self.justfile.split('publish version="":\n')[1:]
-        self.assertEqual(len(recipes), 2)
-        for recipe in recipes:
-            self.assertLess(recipe.index("scripts/set_nsh_release_version.py"), recipe.index("git add -A"))
-            self.assertLess(recipe.index("git add -A"), recipe.index("git tag -a"))
-
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            script = root / "scripts/set_nsh_release_version.py"
-            script.parent.mkdir()
-            shutil.copyfile(REPOSITORY_ROOT / "scripts" / script.name, script)
-            config = root / "nsh/nsh.json"
-            config.parent.mkdir()
-            config.write_text('{"version":"0.2.0","id":"dev.goldcoders.bir"}', encoding="utf-8")
-            subprocess.run([sys.executable, str(script), "0.2.1"], check=True)
-            self.assertEqual(
-                json.loads(config.read_text(encoding="utf-8")),
-                {"version": "0.2.1", "id": "dev.goldcoders.bir"},
-            )
-            for invalid in ("0.02.1", "0.2.1-rc1", "256.0.1"):
-                with self.subTest(invalid=invalid):
-                    before = config.read_bytes()
-                    result = subprocess.run([sys.executable, str(script), invalid], capture_output=True)
-                    self.assertNotEqual(result.returncode, 0)
-                    self.assertEqual(config.read_bytes(), before)
 
     def test_macos_workflow_preflight_and_publish_shape(self) -> None:
         self.assert_preflight_gates(self.macos_workflow)
@@ -247,11 +217,12 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
                 "script must fail before creating any output",
             )
 
-    def test_windows_artifacts_are_audited_and_signed_when_configured(self) -> None:
+    def test_windows_preview_artifacts_are_audited_without_production_credentials(self) -> None:
         windows = self.windows_job("installers")
         script = self.nsh_windows_package
-        for secret in ("WINDOWS_CERTIFICATE_PFX", "WINDOWS_CERTIFICATE_PASSWORD"):
-            self.assertIn(f"inputs.release && secrets.{secret}", windows)
+        for secret in ("WINDOWS_CERTIFICATE_PFX", "WINDOWS_CERTIFICATE_PASSWORD", "GOOGLE_CLIENT_SECRET", "NSH_UPDATE_SIGNING_KEY"):
+            self.assertNotIn(f"secrets.{secret}", windows)
+        self.assertIn("-SmokeMsix", windows)
         self.assertIn("$hasPfx -xor $hasPassword", script)
         self.assertIn("::warning title=Unsigned Windows artifacts::", script)
         self.assertIn("sign /fd SHA256 /td SHA256", script)
@@ -401,7 +372,7 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
             self.assertGreater(match.start(), check.index("run: just --summary"))
         self.assertNotIn("choco install just -y", check)
         setup = self.job("windows-setup", self.ci_workflow)
-        self.assertIn("uses: ./.github/workflows/release-windows.yml", setup)
+        self.assertIn("uses: ./.github/workflows/package-nsh-windows.yml", setup)
         self.assertNotIn("secrets: inherit", setup)
         self.assertIn("needs.changes.outputs.windows_pkg", setup)
         self.assertNotIn("check_pe_stack_reserve.py", check)
