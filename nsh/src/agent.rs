@@ -37,10 +37,10 @@ use std::cell::Cell;
 
 use nsh_core::prelude::*;
 
-// Linked only to switch on NSH's own window control plane (cargo feature `gpui-agent-server`, see Cargo.toml): the
+// Linked only to switch on the plug's window control plane (cargo feature `gpui-agent-server`, see Cargo.toml): the
 // generated macOS host and runner share this crate, so the feature reaches them through the one dependency graph.
 #[cfg(all(feature = "agent", target_os = "macos"))]
-use nsh_platform_macos as _;
+use nsh_gpui_agent_macos as _;
 
 /// What the agent remote control is doing.
 #[derive(Debug, Clone, PartialEq, JsObject)]

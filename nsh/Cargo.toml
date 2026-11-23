@@ -85,15 +85,37 @@ dispatch2 = "0.3.1"
 objc2-core-foundation = { version = "0.3.2", default-features = false, features = ["std", "objc2", "CFCGTypes"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-# The window's own control plane (semantic tree, press, type, screenshot) is NSH's, in nsh-platform-macos: feature
-# `gpui-agent-server`, a second listener. Only under `agent`; see nsh/AGENTS.md "Agent remote control".
-nsh-platform-macos = { path = "../../nsh/crates/nsh-platform-macos", default-features = false, optional = true }
+# The window's own control plane (semantic tree, press, type, screenshot) is the plug's, in nsh-gpui-agent-macos:
+# feature `gpui-agent-server`, a second listener (the in-process server, as NSH's own was). Only under `agent`;
+# see nsh/AGENTS.md "Agent remote control". Pinned to the plug's stage-2 integration commit until the platform
+# PRs land on its main (the plug's own NSH pin is redirected to this app's checkout by the [patch] below).
+nsh-gpui-agent-macos = { git = "https://github.com/hexuria/nsh-gpui-agent", rev = "1e85cf65f2957192d6341fcaa2ca575efcb3cc84", default-features = false, features = ["gpui-agent-server"], optional = true }
 
 [features]
 default = []
 # Agent remote control, as the old app (`bir-shell --features agent`): the shared gpui-agent session over a loopback listener,
-# and NSH's own window control plane on macOS. Compiled in only here; the listener still needs GPUI_AGENT=1 (see src/agent.rs).
-agent = ["bir-app-api/agent", "dep:gpui-agent", "dep:nsh-platform-macos", "nsh-platform-macos/gpui-agent-server"]
+# and the plug's window control plane on macOS. Compiled in only here; the listener still needs GPUI_AGENT=1 (see src/agent.rs).
+agent = ["bir-app-api/agent", "dep:gpui-agent", "dep:nsh-gpui-agent-macos"]
+
+# One NSH per build: the plug declares its nsh-* crates as git dependencies on hexuria/nsh, and cargo treats the
+# same crate from two sources as two different crates. Redirect every nsh-* the plug pulls to this app's own
+# checkout (the sibling ../nsh, at the buwiz-next pin — which contains everything the plug's `gpui-agent` branch
+# has). Keep this list covering every nsh-* git dependency of the plug.
+[patch."https://github.com/hexuria/nsh"]
+nsh-core = { path = "../../nsh/crates/nsh-core" }
+nsh-dev = { path = "../../nsh/crates/nsh-dev" }
+nsh-testing = { path = "../../nsh/crates/nsh-testing" }
+nsh-base = { path = "../../nsh/crates/nsh-base" }
+nsh-cli = { path = "../../nsh/crates/nsh-cli" }
+nsh-ios-host = { path = "../../nsh/crates/nsh-ios-host" }
+nsh-linux-host = { path = "../../nsh/crates/nsh-linux-host" }
+nsh-macos-host = { path = "../../nsh/crates/nsh-macos-host" }
+nsh-windows-host = { path = "../../nsh/crates/nsh-windows-host" }
+nsh-platform-android = { path = "../../nsh/crates/nsh-platform-android" }
+nsh-platform-ios = { path = "../../nsh/crates/nsh-platform-ios" }
+nsh-platform-linux = { path = "../../nsh/crates/nsh-platform-linux" }
+nsh-platform-macos = { path = "../../nsh/crates/nsh-platform-macos" }
+nsh-platform-windows = { path = "../../nsh/crates/nsh-platform-windows" }
 
 [dev-dependencies]
 futures = "0.3"
