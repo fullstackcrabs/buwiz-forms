@@ -59,7 +59,7 @@ jobs:
             in_workspace_package && /^version[[:space:]]*=/ { print $2; exit }
           ' Cargo.toml)"
 
-          NSH_VERSION="$(awk -F '"' '/^  "version":/ { print $4; exit }' nsh/nsh.json)"
+          NSH_VERSION="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["version"])' nsh/nsh.json)"
           if [ -z "$NSH_VERSION" ]; then
             echo "Could not read version from nsh/nsh.json" >&2
             exit 1
