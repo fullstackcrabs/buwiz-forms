@@ -480,46 +480,38 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
             "group: release-linux-${{ github.event_name }}-${{ github.ref }}",
             linux,
         )
-        self.assertIn("ubuntu-22.04-arm", linux)
+        self.assertIn("ubuntu-24.04-arm", linux)
+        self.assertIn("runner: ubuntu-24.04", linux)
         self.assertIn("x86_64-unknown-linux-gnu", linux)
         self.assertIn("aarch64-unknown-linux-gnu", linux)
-        # The shipped binary builds from the standalone bir-shell workspace.
-        self.assertIn(
-            "cargo build --locked --release --manifest-path crates/bir-shell/Cargo.toml --target",
-            linux,
-        )
+        self.assertIn("NSH_PINNED_REF: 70d8ff26b", linux)
+        self.assertIn("path: buwiz-forms", linux)
+        self.assertIn("path: nsh", linux)
+        self.assertIn('open("nsh/nsh.json")', linux)
+        self.assertNotIn("crates/bir-shell", linux)
         self.assertIn("build-packages.sh --version", linux)
         self.assertIn("smoke-test.sh --out", linux)
         smoke_step = linux.split("- name: Smoke test Linux packages", maxsplit=1)[1].split(
             "\n      - name:", maxsplit=1
         )[0]
         self.assertIn("timeout-minutes:", smoke_step)
-        smoke_script = LINUX_SMOKE_SCRIPT_PATH.read_text(encoding="utf-8")
-        self.assertIn('in_time=(timeout --kill-after=30 "$CONTAINER_TIMEOUT")', smoke_script)
-        self.assertNotRegex(smoke_script, r'(?m)^\s*docker run')
+        self.assertIn('in_time=(timeout --kill-after=30 "$CONTAINER_TIMEOUT")', self.linux_smoke_script)
         self.assertIn("name: linux-release-${{ matrix.arch }}", linux)
-        self.assertIn("cargo install --locked", self.linux_build_script)
-        self.assertIn("cargo-deb 3.7.0", self.linux_build_script)
-        self.assertIn("cargo-generate-rpm 0.21.0", self.linux_build_script)
-        self.assertLess(
-            self.linux_build_script.index('mkdir -p "$OUT"'),
-            self.linux_build_script.index("cargo deb --locked"),
-        )
-        self.assertIn(
-            'maintainer = "Goldcoders Corp <support@goldcoders.dev>"',
-            self.desktop_manifest,
-        )
-        self.assertIn("dpkg-deb --extract", self.linux_build_script)
-        self.assertIn("tar -xzf", self.linux_build_script)
-        self.assertIn(
-            '--package-root "$deb_root"',
-            self.linux_build_script,
-        )
-        self.assertIn(
-            '--package-root "$rpm_root"',
-            self.linux_build_script,
-        )
-        self.assertIn("--from-dir /packages", self.linux_smoke_script)
+        for command in ("nsh package --target linux", "dpkg-deb --root-owner-group --build", "rpmbuild"):
+            self.assertIn(command, self.linux_build_script)
+        self.assertNotIn("cargo-deb", self.linux_build_script)
+        self.assertNotIn("cargo-generate-rpm", self.linux_build_script)
+        self.assertNotIn("crates/bir-shell", self.linux_build_script)
+        self.assertIn('touch "$system/usr/lib/ebirforms/ebirforms-no-self-update"', self.linux_build_script)
+        self.assertIn("libgtk-4-1 (>= 4.14)", self.linux_build_script)
+        self.assertIn("libwebkitgtk-6.0-4", self.linux_build_script)
+        self.assertIn('cp -a "$ROOT/print-overrides"', self.linux_build_script)
+        self.assertNotIn('$ROOT/app', self.linux_build_script)
+        self.assertIn('updater="$name-$app_version-linux-$RPM_ARCH.tar.gz"', self.linux_build_script)
+        container_script = (REPOSITORY_ROOT / "packaging/linux/smoke-container.sh").read_text()
+        self.assertIn("--from-dir /packages", container_script)
+        self.assertIn("xvfb-run", container_script)
+        self.assertIn('test ! -e "$app"', container_script)
         self.assertIn("SHA256SUMS-linux-${ARCH}.txt", self.linux_install_script)
         self.assertIn("ebirforms-bin.PKGBUILD", self.linux_build_script)
         self.assertIn("https://github.com/hexuria/buwiz-forms/releases/download/v", self.linux_build_script)
