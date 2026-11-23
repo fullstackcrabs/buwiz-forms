@@ -109,6 +109,33 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
         self.assertNotIn("build-macos:", self.workflow)
         self.assertNotIn("*.dmg", self.workflow)
 
+    def test_publish_syncs_nsh_version_before_committing_and_tagging(self) -> None:
+        recipes = self.justfile.split('publish version="":\n')[1:]
+        self.assertEqual(len(recipes), 2)
+        for recipe in recipes:
+            self.assertLess(recipe.index("scripts/set_nsh_release_version.py"), recipe.index("git add -A"))
+            self.assertLess(recipe.index("git add -A"), recipe.index("git tag -a"))
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            script = root / "scripts/set_nsh_release_version.py"
+            script.parent.mkdir()
+            shutil.copyfile(REPOSITORY_ROOT / "scripts" / script.name, script)
+            config = root / "nsh/nsh.json"
+            config.parent.mkdir()
+            config.write_text('{"version":"0.2.0","id":"dev.goldcoders.bir"}', encoding="utf-8")
+            subprocess.run([sys.executable, str(script), "0.2.1"], check=True)
+            self.assertEqual(
+                json.loads(config.read_text(encoding="utf-8")),
+                {"version": "0.2.1", "id": "dev.goldcoders.bir"},
+            )
+            for invalid in ("0.02.1", "0.2.1-rc1", "256.0.1"):
+                with self.subTest(invalid=invalid):
+                    before = config.read_bytes()
+                    result = subprocess.run([sys.executable, str(script), invalid], capture_output=True)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertEqual(config.read_bytes(), before)
+
     def test_macos_workflow_preflight_and_publish_shape(self) -> None:
         self.assert_preflight_gates(self.macos_workflow)
         self.assertIn("pull_request:", self.macos_workflow)
