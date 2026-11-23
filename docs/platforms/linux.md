@@ -103,7 +103,6 @@ window when the system has no UI font.
 Run `scripts/setup-linux.sh`. It detects apt, dnf, pacman or zypper, installs
 the libraries, Rust and `just`, and checks the result. Other flags:
 `--check`, `--extras`, `--no-agent`. Then `just run`.
-
 On other distributions, install the equivalent of these Debian and Ubuntu
 packages:
 
@@ -125,7 +124,6 @@ sudo apt-get install -y \
   `xvfb-run -a just test`.
 - Blank window on a VM or software GPU: llvmpipe's Vulkan path can present
   stale frames. Force the GL backend with `VK_ICD_FILENAMES=/dev/null just run`.
-
 ## Data
 
 - Database: `~/.taxman-ebir/bir_data.db`. Override with `BIR_DATABASE_PATH`.
