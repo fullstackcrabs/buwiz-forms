@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import shutil
@@ -5,6 +6,7 @@ import subprocess
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
+import zipfile
 from pathlib import Path
 
 
@@ -105,6 +107,66 @@ class NshWindowsReleaseTests(unittest.TestCase):
         self.assertIsNotNone(product.find('.//w:Directory[@Id="LocalAppDataFolder"]', ns))
         self.assertIsNotNone(product.find('.//w:Directory[@Id="INSTALLDIR"][@Name="eBIRForms MSI"]', ns))
         self.assertIsNotNone(product.find('.//w:RegistryValue[@Root="HKCU"][@KeyPath="yes"]', ns))
+
+
+@unittest.skipUnless(shutil.which('nsh') and shutil.which('pwsh'), 'requires the pinned NSH CLI and PowerShell')
+class NshSignedUpdateTests(unittest.TestCase):
+    def test_signs_windows_zip_for_custom_feed_and_rejects_wrong_key(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            key, wrong_key = root / 'test', root / 'wrong'
+            for path in (key, wrong_key):
+                subprocess.run(['nsh', 'keygen', str(path)], check=True, capture_output=True, timeout=20)
+
+            app = root / 'app'
+            app.mkdir()
+            (app / 'App.tsx').touch()
+            version = '0.2.1'
+            app_id = 'dev.goldcoders.bir'
+            release_url = 'https://example.com/releases'
+            config = {
+                'name': 'eBIRForms', 'id': app_id, 'version': version,
+                'updater': {
+                    'url': f'{release_url}/latest/download/latest-nsh.json',
+                    'publicKey': key.with_suffix('.pub').read_text(encoding='utf-8').strip(),
+                },
+            }
+            (app / 'nsh.json').write_text(json.dumps(config), encoding='utf-8')
+            base_url = f'{release_url}/download/v{version}'
+
+            for signing_key in (key, wrong_key):
+                with self.subTest(key=signing_key.name):
+                    output = root / f'out-{signing_key.name}'
+                    output.mkdir()
+                    archive = output / f'eBIRForms-{version}-windows-x86_64.zip'
+                    with zipfile.ZipFile(archive, 'w') as package:
+                        package.writestr('eBIRForms/nsh/app.json', json.dumps(config))
+                    result = subprocess.run(
+                        ['pwsh', '-NoProfile', '-File', str(ROOT / 'scripts/package_nsh_update.ps1'),
+                         '-Archive', str(archive), '-BaseUrl', base_url, '-AppDir', str(app)],
+                        env={**os.environ, 'NO_COLOR': '1',
+                             'NSH_UPDATE_SIGNING_KEY': signing_key.with_suffix('.secret').read_text(encoding='utf-8').strip()},
+                        capture_output=True, text=True, timeout=20,
+                    )
+                    if signing_key == wrong_key:
+                        self.assertNotEqual(result.returncode, 0)
+                        self.assertIn('not the key', result.stderr)
+                        self.assertEqual(list(output.iterdir()), [archive])
+                        continue
+
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual({file.name for file in output.iterdir()},
+                                     {archive.name, 'latest-nsh.json', 'latest.json.sig'})
+                    self.assertTrue((output / 'latest.json.sig').read_bytes().strip())
+                    manifest = json.loads((output / 'latest-nsh.json').read_text(encoding='utf-8'))
+                    self.assertEqual((manifest['id'], manifest['version']), (app_id, version))
+                    self.assertEqual(manifest['platforms'], {
+                        'windows-x86_64': {
+                            'url': f'{base_url}/{archive.name}',
+                            'sha256': hashlib.sha256(archive.read_bytes()).hexdigest(),
+                            'size': archive.stat().st_size,
+                        },
+                    })
 
 
 if __name__ == '__main__':
