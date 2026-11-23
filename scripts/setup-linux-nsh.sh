@@ -100,7 +100,7 @@ nsh_cli_current() {
 }
 
 checkout_nsh() {
-    [ -d "$NSH/.git" ] || git clone https://github.com/hexuria/nsh "$NSH"
+    [ -e "$NSH/.git" ] || git clone https://github.com/hexuria/nsh "$NSH"
     if [ "$(git -C "$NSH" rev-parse HEAD)" != "$REF" ]; then
         log "Checking out NSH at ${REF:0:7}"
         git -C "$NSH" fetch origin "$REF"
@@ -241,7 +241,7 @@ check() {
     else report docker "MISSING or not usable without sudo" 0; fi
     if docker image inspect "$IMAGE" >/dev/null 2>&1; then report "image:$IMAGE" present 1
     else report "image:$IMAGE" MISSING 0; fi
-    if [ -d "$NSH/.git" ] && [ "$(git -C "$NSH" rev-parse HEAD)" = "$REF" ]; then report "../nsh" "${REF:0:7}" 1
+    if [ -e "$NSH/.git" ] && [ "$(git -C "$NSH" rev-parse HEAD)" = "$REF" ]; then report "../nsh" "${REF:0:7}" 1
     else report "../nsh" "MISSING or not at ${REF:0:7}" 0; fi
     if nsh_cli_current; then report "nsh CLI" "${REF:0:7}" 1
     else report "nsh CLI" "MISSING or not at ${REF:0:7}" 0; fi

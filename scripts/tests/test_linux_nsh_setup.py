@@ -15,6 +15,22 @@ def function(name):
 
 
 class LinuxNshSetupTests(unittest.TestCase):
+    def test_checkout_accepts_git_directory_or_worktree_file(self):
+        for linked in (False, True):
+            with self.subTest(linked=linked), tempfile.TemporaryDirectory() as tmp:
+                git = Path(tmp) / ".git"
+                if linked:
+                    git.write_text("gitdir: elsewhere\n")
+                else:
+                    git.mkdir()
+                result = self.run_shell(function("checkout_nsh") + r'''
+NSH="$PWD"
+REF=current
+git() { [ "$*" = "-C $NSH rev-parse HEAD" ]; echo current; }
+checkout_nsh
+''', tmp)
+                self.assertEqual(result.returncode, 0, result.stderr)
+
     def run_shell(self, source, directory):
         return subprocess.run(
             ["bash", "-euo", "pipefail", "-c", source],
