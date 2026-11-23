@@ -671,12 +671,7 @@ publish version="":
     set -e
     if [ -n "{{version}}" ]; then
         echo "Forcing version to {{version}}"
-        sed -i.bak 's/^version = ".*"/version = "{{version}}"/' Cargo.toml
-        rm -f Cargo.toml.bak
-        if [ -f crates/bir-print/Cargo.toml ]; then
-            sed -i.bak 's/^version = ".*"/version = "{{version}}"/' crates/bir-print/Cargo.toml
-            rm -f crates/bir-print/Cargo.toml.bak
-        fi
+        {{PYTHON}} scripts/set_release_version.py "{{version}}"
         NEW_VER="{{version}}"
     else
         NEW_VER=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
@@ -695,10 +690,7 @@ publish version="":
     $ver = '{{version}}'
     if ($ver) {
         Write-Host "Forcing version to $ver"
-        (Get-Content Cargo.toml) -replace '^version = ".*"', "version = `"$ver`"" | Set-Content Cargo.toml
-        if (Test-Path crates/bir-print/Cargo.toml) {
-            (Get-Content crates/bir-print/Cargo.toml) -replace '^version = ".*"', "version = `"$ver`"" | Set-Content crates/bir-print/Cargo.toml
-        }
+        {{PYTHON}} scripts/set_release_version.py "$ver"
         $NEW_VER = $ver
     } else {
         $NEW_VER = "{{VERSION}}"

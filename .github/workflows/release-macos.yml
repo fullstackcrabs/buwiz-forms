@@ -58,6 +58,12 @@ jobs:
             in_workspace_package && /^version[[:space:]]*=/ { print $2; exit }
           ' Cargo.toml)"
 
+          NSH_VERSION="$(awk -F '"' '/^  "version":/ { print $4; exit }' nsh/nsh.json)"
+          if [ -z "$NSH_VERSION" ]; then
+            echo "Could not read version from nsh/nsh.json" >&2
+            exit 1
+          fi
+
           if [ "$GITHUB_EVENT_NAME" = "push" ]; then
             test "$GITHUB_REF_TYPE" = "tag"
             test "$(git rev-parse "refs/tags/$GITHUB_REF_NAME^{commit}")" = "$GITHUB_SHA"
@@ -70,6 +76,10 @@ jobs:
             TAG_VERSION="${GITHUB_REF_NAME#v}"
             if [ -z "$CARGO_VERSION" ] || [ "$TAG_VERSION" != "$CARGO_VERSION" ]; then
               echo "Release tag version $TAG_VERSION does not match Cargo workspace version $CARGO_VERSION" >&2
+              exit 1
+            fi
+            if [ "$TAG_VERSION" != "$NSH_VERSION" ]; then
+              echo "Release tag version $TAG_VERSION does not match nsh/nsh.json version $NSH_VERSION" >&2
               exit 1
             fi
             echo "version=$TAG_VERSION" >> "$GITHUB_OUTPUT"
