@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
-export XDG_DATA_HOME=/scratch/data XDG_CACHE_HOME=/scratch/cache BIR_DATABASE_PATH=/scratch/filing.db
+export XDG_DATA_HOME=/scratch/data XDG_CACHE_HOME=/scratch/cache
+package=ebirforms-nsh-preview
+desktop_id=dev.goldcoders.bir.preview
 mkdir -p "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
 case "$KIND" in
     deb|tarball) apt-get update ;;
@@ -14,10 +16,10 @@ case "$KIND" in
         if [ "$KIND" = arch-recipe ]; then
             useradd -m builder
             install -d -o builder -g builder /build
-            cp /packages/ebirforms-bin.PKGBUILD /build/PKGBUILD
+            cp "/packages/$package-bin.PKGBUILD" /build/PKGBUILD
             cp "/packages/$BASE.pkg.tar.zst" /build/
             (cd /build && runuser -u builder -- makepkg --nodeps --noconfirm)
-            pacman -U --noconfirm /build/ebirforms-bin-*.pkg.tar.zst
+            pacman -U --noconfirm /build/"$package"-bin-*.pkg.tar.zst
         else
             pacman -U --noconfirm "/packages/$BASE.pkg.tar.zst"
         fi
@@ -29,31 +31,30 @@ case "$KIND" in
         sh /packages/install-linux.sh --from-dir /packages --version "$VERSION" --tarball
         ;;
 esac
-exe=/usr/bin/ebirforms
-app=/usr/lib/ebirforms
+exe=/usr/bin/$package
+app=/usr/lib/$package
 if [ "$KIND" = tarball ]; then
-    app="$HOME/.local/share/ebirforms"
-    exe="$HOME/.local/bin/ebirforms"
-    desktop="$XDG_DATA_HOME/applications/dev.goldcoders.bir.desktop"
+    app="$HOME/.local/share/$package"
+    exe="$HOME/.local/bin/$package"
+    desktop="$XDG_DATA_HOME/applications/$desktop_id.desktop"
     icons="$XDG_DATA_HOME/icons/hicolor"
     sizes=512
-    test ! -e "$app/ebirforms-no-self-update"
-    grep -Fx "Exec=\"$app/eBIRForms\"" "$desktop"
+    grep -Fx "Exec=\"$app/launch-preview.sh\"" "$desktop"
 else
-    desktop=/usr/share/applications/dev.goldcoders.bir.desktop
+    desktop=/usr/share/applications/$desktop_id.desktop
     icons=/usr/share/icons/hicolor
     sizes='48 64 128 256 512'
-    test -f "$app/ebirforms-no-self-update"
-    test ! -s "$app/ebirforms-no-self-update"
+    grep -Fx "Exec=$package" "$desktop"
 fi
-test "$(readlink -f "$exe")" = "$app/eBIRForms"
-test -s "$desktop"
+test -f "$app/ebirforms-no-self-update"
+test ! -s "$app/ebirforms-no-self-update"
+test "$(readlink -f "$exe")" = "$app/launch-preview.sh"
 for size in $sizes; do
-    test -s "$icons/${size}x${size}/apps/dev.goldcoders.bir.png"
+    test -s "$icons/${size}x${size}/apps/$desktop_id.png"
 done
 test -f "$app/nsh/app.json"
 test -d "$app/print-overrides"
-ldd "$exe" | tee "/evidence/$KIND-ldd.txt"
+ldd "$app/eBIRForms" | tee "/evidence/$KIND-ldd.txt"
 if grep -q 'not found' "/evidence/$KIND-ldd.txt"; then exit 1; fi
 case "$KIND" in
     deb|installer|tarball)
@@ -74,10 +75,10 @@ dbus-run-session -- xvfb-run -a -s '-screen 0 1600x1000x24' bash -euc '
     import -pause 3 -window "$window" "/evidence/$KIND-app-open.png"
 '
 case "$KIND" in
-    deb) apt-get remove -y ebirforms ;;
-    rpm) dnf remove -y ebirforms ;;
-    arch) pacman -Rns --noconfirm ebirforms ;;
-    arch-recipe) pacman -Rns --noconfirm ebirforms-bin ;;
+    deb) apt-get remove -y "$package" ;;
+    rpm) dnf remove -y "$package" ;;
+    arch) pacman -Rns --noconfirm "$package" ;;
+    arch-recipe) pacman -Rns --noconfirm "$package-bin" ;;
     installer) sh /packages/install-linux.sh --uninstall ;;
     tarball) sh /packages/install-linux.sh --uninstall --tarball ;;
 esac
@@ -86,6 +87,6 @@ test ! -L "$exe"
 test ! -e "$exe"
 test ! -e "$desktop"
 for size in $sizes; do
-    test ! -e "$icons/${size}x${size}/apps/dev.goldcoders.bir.png"
+    test ! -e "$icons/${size}x${size}/apps/$desktop_id.png"
 done
 echo "PASS: $KIND install, visible app window, uninstall (executable, resources, launcher and icons removed)" | tee "/evidence/$KIND-uninstall.txt"

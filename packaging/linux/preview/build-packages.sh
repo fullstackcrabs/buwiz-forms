@@ -30,25 +30,30 @@ payload="$stage/$name"
 cp -a ".nsh/out/$name" "$payload"
 test -x "$payload/$name"
 test ! -e "$payload/ebirforms-no-self-update"
+package=ebirforms-nsh-preview
+desktop=dev.goldcoders.bir.preview
+install -m755 "$ROOT/packaging/linux/preview/launch-preview.sh" "$payload/launch-preview.sh"
+touch "$payload/ebirforms-no-self-update"
+sed -e 's/^Name=.*/Name=eBIRForms (Native Shell Preview)/' \
+    -e "s/^Exec=.*/Exec=$package/" -e "s/^Icon=.*/Icon=$desktop/" \
+    "$ROOT/assets/linux/dev.goldcoders.bir.desktop" > "$payload/$desktop.desktop"
 # Print preview reads these beside the executable, not from NSH assets.
 cp -a "$ROOT/print-overrides" "$payload/print-overrides"
 python3 "$ROOT/scripts/audit_no_legacy.py" --package-root "$payload"
 base="eBIRForms-Linux-${ARCH}-${VERSION}"
 tar -czf "$OUT/$base.tar.gz" -C "$stage" "$name"
-updater="$name-$app_version-linux-$RPM_ARCH.tar.gz"
-test -f ".nsh/out/$updater"
-# Retain NSH's updater name and root, including the same print resources.
-cp "$OUT/$base.tar.gz" "$OUT/$updater"
 system="$stage/system"
-mkdir -p "$system/usr/lib/ebirforms" "$system/usr/bin" "$system/usr/share/applications"
-cp -a "$payload/." "$system/usr/lib/ebirforms/"
-touch "$system/usr/lib/ebirforms/ebirforms-no-self-update"
-ln -s "/usr/lib/ebirforms/$name" "$system/usr/bin/ebirforms"
-install -m644 "$ROOT/assets/linux/dev.goldcoders.bir.desktop" "$system/usr/share/applications/"
-cp -a "$ROOT/assets/linux/icons" "$system/usr/share/"
+mkdir -p "$system/usr/lib/$package" "$system/usr/bin" "$system/usr/share/applications"
+cp -a "$payload/." "$system/usr/lib/$package/"
+ln -s "/usr/lib/$package/launch-preview.sh" "$system/usr/bin/$package"
+install -m644 "$payload/$desktop.desktop" "$system/usr/share/applications/"
+for size in 48 64 128 256 512; do
+    dir="icons/hicolor/${size}x${size}/apps"
+    install -Dm644 "$ROOT/assets/linux/$dir/dev.goldcoders.bir.png" "$system/usr/share/$dir/$desktop.png"
+done
 mkdir -p "$system/DEBIAN"
 cat > "$system/DEBIAN/control" <<EOF
-Package: ebirforms
+Package: $package
 Version: $app_version~pr
 Architecture: $DEB_ARCH
 Maintainer: Goldcoders Corp <support@goldcoders.dev>
@@ -62,7 +67,7 @@ rm -rf "$system/DEBIAN"
 mkdir -p "$stage/rpm/"{BUILD,RPMS,SOURCES,SPECS,SRPMS,BUILDROOT}
 tar -czf "$stage/rpm/SOURCES/payload.tar.gz" -C "$system" .
 cat > "$stage/rpm/SPECS/ebirforms.spec" <<EOF
-Name: ebirforms
+Name: $package
 Version: ${VERSION//-/\~}
 Release: 1
 Summary: Philippine BIR tax return filing application
@@ -80,10 +85,10 @@ Prepare, validate and file Philippine BIR tax returns.
 mkdir -p %{buildroot}
 tar -xzf %{SOURCE0} -C %{buildroot}
 %files
-/usr/lib/ebirforms
-/usr/bin/ebirforms
-/usr/share/applications/dev.goldcoders.bir.desktop
-/usr/share/icons/hicolor/*/apps/dev.goldcoders.bir.png
+/usr/lib/$package
+/usr/bin/$package
+/usr/share/applications/$desktop.desktop
+/usr/share/icons/hicolor/*/apps/$desktop.png
 EOF
 rpmbuild --define "_topdir $stage/rpm" --define '__os_install_post %{nil}' -bb "$stage/rpm/SPECS/ebirforms.spec"
 cp "$stage/rpm/RPMS/$RPM_ARCH/"*.rpm "$OUT/$base.rpm"
@@ -91,8 +96,8 @@ if [ "$ARCH" = x64 ]; then
     mkdir -p "$stage/arch"
     cp -a "$system/." "$stage/arch/"
     cat > "$stage/arch/.PKGINFO" <<EOF
-pkgname = ebirforms
-pkgbase = ebirforms
+pkgname = $package
+pkgbase = $package
 pkgver = ${app_version}pr-1
 pkgdesc = Philippine BIR tax return filing application
 url = https://github.com/hexuria/buwiz-forms
@@ -109,8 +114,8 @@ depend = dbus
 depend = noto-fonts
 EOF
     tar --zstd --owner=0 --group=0 -cf "$OUT/$base.pkg.tar.zst" -C "$stage/arch" .PKGINFO usr
-    cat > "$OUT/ebirforms-bin.PKGBUILD" <<EOF
-pkgname=ebirforms-bin
+    cat > "$OUT/$package-bin.PKGBUILD" <<EOF
+pkgname=$package-bin
 pkgver=${app_version}pr
 pkgrel=1
 pkgdesc='Philippine BIR tax return filing application (Native Shell preview)'
@@ -118,8 +123,8 @@ arch=('x86_64')
 url='https://github.com/hexuria/buwiz-forms'
 license=('MIT')
 depends=('gtk4>=4.14' 'webkitgtk-6.0' 'gst-plugins-base' 'gst-plugins-good' 'dbus' 'noto-fonts')
-provides=('ebirforms')
-conflicts=('ebirforms')
+provides=('$package')
+conflicts=('$package')
 options=('!strip' '!debug')
 source=('$base.pkg.tar.zst')
 sha256sums=('$(sha256sum "$OUT/$base.pkg.tar.zst" | awk '{print $1}')')
@@ -130,6 +135,6 @@ EOF
 fi
 install -m755 "$ROOT/packaging/linux/preview/install-linux.sh" "$OUT/install-linux.sh"
 cd "$OUT"
-files=("$base.deb" "$base.rpm" "$base.tar.gz" "$updater" install-linux.sh)
-if [ "$ARCH" = x64 ]; then files+=("$base.pkg.tar.zst" ebirforms-bin.PKGBUILD); fi
+files=("$base.deb" "$base.rpm" "$base.tar.gz" install-linux.sh)
+if [ "$ARCH" = x64 ]; then files+=("$base.pkg.tar.zst" "$package-bin.PKGBUILD"); fi
 sha256sum "${files[@]}" > "SHA256SUMS-linux-${ARCH}.txt"

@@ -40,6 +40,5 @@ for kind in "${kinds[@]}"; do
         -v "$OUT:/packages:ro" -v "$EVIDENCE:/evidence" \
         -v "$SMOKE_DIR:/smoke:ro" \
         -e KIND="$kind" -e BASE="$base" -e VERSION="$version" \
-        -e BUWIZ_NO_KEYCHAIN=1 -e EBIR_TEST_ENV=1 -e BIR_AUTH_BYPASS=1 -e BIR_SFTP_DRY_RUN=1 \
         "$image" bash /smoke/smoke-container.sh
 done

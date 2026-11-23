@@ -6,15 +6,15 @@ USE_TARBALL=0
 UNINSTALL=0
 FROM_DIR=""
 TEMP_DIR=""
-APP_ID=dev.goldcoders.bir
-INSTALL_ROOT="$HOME/.local/share/ebirforms"
+PACKAGE=ebirforms-nsh-preview
+APP_ID=dev.goldcoders.bir.preview
+INSTALL_ROOT="$HOME/.local/share/$PACKAGE"
 BIN_DIR="$HOME/.local/bin"
 case "${XDG_DATA_HOME:-}" in
     /*) DESKTOP_DATA=$XDG_DATA_HOME ;;
     *) DESKTOP_DATA="$HOME/.local/share" ;;
 esac
 DESKTOP_ENTRY="$DESKTOP_DATA/applications/$APP_ID.desktop"
-ICON_SIZES="48 64 128 256 512"
 
 usage() {
     cat <<'USAGE'
@@ -63,57 +63,6 @@ cleanup() {
 }
 trap cleanup 0 HUP INT TERM
 
-if [ "$UNINSTALL" -eq 1 ]; then
-    # shellcheck source=/dev/null
-    . /etc/os-release 2>/dev/null || true
-    ID=${ID:-unknown}
-    ID_LIKE=${ID_LIKE:-}
-    if [ "$USE_TARBALL" -eq 0 ]; then
-    case "$ID $ID_LIKE" in
-        *debian*|*ubuntu*)
-            if [ "$(id -u)" -eq 0 ]; then apt-get remove -y ebirforms; else sudo apt-get remove -y ebirforms; fi
-            ;;
-        *fedora*|*rhel*|*centos*|*suse*)
-            if command -v dnf >/dev/null 2>&1; then
-                if [ "$(id -u)" -eq 0 ]; then dnf remove -y ebirforms; else sudo dnf remove -y ebirforms; fi
-            elif command -v zypper >/dev/null 2>&1; then
-                if [ "$(id -u)" -eq 0 ]; then zypper --non-interactive remove ebirforms; else sudo zypper --non-interactive remove ebirforms; fi
-            fi
-            ;;
-        *arch*|*manjaro*|*endeavouros*)
-            if [ "$(id -u)" -eq 0 ]; then pacman -Rns --noconfirm ebirforms; else sudo pacman -Rns --noconfirm ebirforms; fi
-            ;;
-    esac
-    fi
-    if [ "$USE_TARBALL" -eq 1 ]; then
-        rm -f "$BIN_DIR/ebirforms" "$DESKTOP_ENTRY"
-        for size in $ICON_SIZES; do
-            rm -f "$DESKTOP_DATA/icons/hicolor/${size}x${size}/apps/$APP_ID.png"
-        done
-        rm -rf "$INSTALL_ROOT"
-    fi
-    echo "Removed eBIRForms."
-    exit 0
-fi
-
-APP_VERSION=${APP_VERSION#v}
-case "$APP_VERSION" in
-    ""|*[!A-Za-z0-9.+~-]*)
-        echo "Invalid release version: $APP_VERSION" >&2
-        exit 2
-        ;;
-esac
-[ -n "$FROM_DIR" ] || { usage >&2; exit 2; }
-[ -d "$FROM_DIR" ] || { echo "Package directory does not exist: $FROM_DIR" >&2; exit 1; }
-FROM_DIR=$(CDPATH='' cd -- "$FROM_DIR" && pwd)
-
-MACHINE=$(uname -m)
-case "$MACHINE" in
-    x86_64|amd64) ARCH=x64 ;;
-    aarch64|arm64) ARCH=arm64 ;;
-    *) echo "Unsupported Linux architecture: $MACHINE" >&2; exit 1 ;;
-esac
-
 # shellcheck source=/dev/null
 . /etc/os-release 2>/dev/null || true
 ID=${ID:-unknown}
@@ -125,9 +74,8 @@ case "$ID $ID_LIKE" in
     *) FAMILY=unknown ;;
 esac
 
-if [ "$FAMILY" = arch ] && [ "$ARCH" != x64 ] && [ "$USE_TARBALL" -eq 0 ]; then
-    echo "The Arch package is available for x86_64 only; use --tarball on $ARCH." >&2
-    exit 1
+if [ "$FAMILY" = unknown ]; then
+    USE_TARBALL=1
 fi
 
 FONT_COMMAND=""
@@ -159,6 +107,46 @@ run_privileged() {
     fi
 }
 
+if [ "$UNINSTALL" -eq 1 ]; then
+    case "$FAMILY:$USE_TARBALL" in
+        *:1)
+            rm -f "$BIN_DIR/$PACKAGE" "$DESKTOP_ENTRY" \
+                "$DESKTOP_DATA/icons/hicolor/512x512/apps/$APP_ID.png"
+            rm -rf "$INSTALL_ROOT"
+            ;;
+        debian:0) run_privileged apt-get remove -y "$PACKAGE" ;;
+        rpm:0)
+            if command -v dnf >/dev/null 2>&1; then
+                run_privileged dnf remove -y "$PACKAGE"
+            else
+                run_privileged zypper --non-interactive remove "$PACKAGE"
+            fi
+            ;;
+        arch:0) run_privileged pacman -Rns --noconfirm "$PACKAGE" ;;
+    esac
+    echo "Removed the eBIRForms Native Shell preview."
+    exit 0
+fi
+
+if ! printf '%s\n' "$APP_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+-pr$'; then
+    echo "Invalid preview version: $APP_VERSION" >&2
+    exit 2
+fi
+[ -n "$FROM_DIR" ] || { usage >&2; exit 2; }
+[ -d "$FROM_DIR" ] || { echo "Package directory does not exist: $FROM_DIR" >&2; exit 1; }
+FROM_DIR=$(CDPATH='' cd -- "$FROM_DIR" && pwd)
+
+MACHINE=$(uname -m)
+case "$MACHINE" in
+    x86_64|amd64) ARCH=x64 ;;
+    aarch64|arm64) ARCH=arm64 ;;
+    *) echo "Unsupported Linux architecture: $MACHINE" >&2; exit 1 ;;
+esac
+if [ "$FAMILY" = arch ] && [ "$ARCH" != x64 ] && [ "$USE_TARBALL" -eq 0 ]; then
+    echo "The Arch package is available for x86_64 only; use --tarball on $ARCH." >&2
+    exit 1
+fi
+
 TEMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/ebirforms-install.XXXXXX")
 SUMS="SHA256SUMS-linux-${ARCH}.txt"
 [ -f "$FROM_DIR/$SUMS" ] || { echo "Missing checksum file: $FROM_DIR/$SUMS" >&2; exit 1; }
@@ -179,40 +167,25 @@ install_tarball() {
     payload="$TEMP_DIR/payload"
     mkdir "$payload"
     tar -xzf "$TEMP_DIR/$asset" -C "$payload" --strip-components=1
-    if [ -x "$payload/eBIRForms" ] && [ -f "$payload/nsh/app.json" ] && [ ! -e "$payload/ebirforms-no-self-update" ]; then
-        runner=eBIRForms
-        entry="$payload/$APP_ID.desktop"
-        sizes=512
-    elif [ -x "$payload/bir" ] && [ -f "$payload/app/main.js" ]; then
-        runner=bir
-        entry="$payload/assets/linux/$APP_ID.desktop"
-        sizes=$ICON_SIZES
-    else
-        echo "Unrecognized eBIRForms tarball layout" >&2
+    if [ ! -x "$payload/eBIRForms" ] || [ ! -x "$payload/launch-preview.sh" ] || \
+       [ ! -f "$payload/nsh/app.json" ] || [ ! -f "$payload/ebirforms-no-self-update" ]; then
+        echo "Unrecognized eBIRForms Native Shell preview tarball layout" >&2
         exit 1
     fi
 
     # A desktop Exec value is parsed twice; escape the path as one literal argument.
-    exec_path=$(printf '%s' "$INSTALL_ROOT/$runner" | sed 's/\\/\\\\\\\\/g; s/["`$]/\\\\&/g; s/%/%%/g')
+    exec_path=$(printf '%s' "$INSTALL_ROOT/launch-preview.sh" | sed 's/\\/\\\\\\\\/g; s/["`$]/\\\\&/g; s/%/%%/g')
     exec_path="$exec_path" awk '/^Exec=/ { print "Exec=\"" ENVIRON["exec_path"] "\""; next } { print }' \
-        "$entry" > "$TEMP_DIR/launcher.desktop"
-    for size in $sizes; do
-        if [ "$runner" = eBIRForms ]; then
-            icon="$payload/$APP_ID.png"
-        else
-            icon="$payload/assets/linux/icons/hicolor/${size}x${size}/apps/$APP_ID.png"
-        fi
-        install -m644 "$icon" "$TEMP_DIR/icon-$size.png"
-    done
+        "$payload/$APP_ID.desktop" > "$TEMP_DIR/launcher.desktop"
+    test -f "$payload/dev.goldcoders.bir.png"
 
     mkdir -p "$INSTALL_ROOT" "$BIN_DIR"
     cp -a "$payload/." "$INSTALL_ROOT/"
-    ln -sf "$INSTALL_ROOT/$runner" "$BIN_DIR/ebirforms"
+    ln -sf "$INSTALL_ROOT/launch-preview.sh" "$BIN_DIR/$PACKAGE"
     install -Dm644 "$TEMP_DIR/launcher.desktop" "$DESKTOP_ENTRY"
-    for size in $sizes; do
-        install -Dm644 "$TEMP_DIR/icon-$size.png" "$DESKTOP_DATA/icons/hicolor/${size}x${size}/apps/$APP_ID.png"
-    done
-    echo "Installed eBIRForms to $INSTALL_ROOT"
+    install -Dm644 "$payload/dev.goldcoders.bir.png" \
+        "$DESKTOP_DATA/icons/hicolor/512x512/apps/$APP_ID.png"
+    echo "Installed the eBIRForms Native Shell preview to $INSTALL_ROOT"
     echo "Add $BIN_DIR to PATH if it is not already present."
 }
 
