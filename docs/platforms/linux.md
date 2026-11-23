@@ -3,6 +3,9 @@
 Status: fully tested. Back to the [README](../../README.md). The same matrix
 for all platforms is in [FEATURES.md](../FEATURES.md).
 
+This guide describes the published live-filing packages. The [Native Shell
+preview](nsh-linux-handover.md) is a separate CI download and does not replace them.
+
 ## Feature matrix
 
 Legend: ✓ works and is covered by the platform's testing. ✗ does not exist or cannot work
