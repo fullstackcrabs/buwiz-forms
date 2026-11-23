@@ -61,18 +61,22 @@ plug)
     adb="$2" serial="$3" launcher="$4" port="$5" devport="$6"
     [ -n "${GPUI_AGENT_TOKEN:-}" ] || fail "set GPUI_AGENT_TOKEN first"
     tries="${NSH_AGENT_TOKEN_TRIES:-1800}"
-    seen_pid="__unset__" window_token=""
+    seen_pid="__unset__" window_token="" forwarded=""
     for _ in $(seq "$tries"); do
         if ! kill -0 "$launcher" 2>/dev/null; then
-            # The run ended before the relaunch: the forwards it set up would keep the ports bound for the next run.
-            "$adb" -s "$serial" forward --remove "tcp:$port" >/dev/null 2>&1 || true
-            "$adb" -s "$serial" forward --remove "tcp:$((port + 1))" >/dev/null 2>&1 || true
+            # The run ended before the relaunch: only forwards this watcher made are removed — a stale one may
+            # belong to another run.
+            if [ -n "$forwarded" ]; then
+                "$adb" -s "$serial" forward --remove "tcp:$port" >/dev/null 2>&1 || true
+                "$adb" -s "$serial" forward --remove "tcp:$((port + 1))" >/dev/null 2>&1 || true
+            fi
             exit 0
         fi
         if "$adb" -s "$serial" shell run-as "$host" true >/dev/null 2>&1; then
             # The planes' clients reach the host over forwarded loopback: set them up as soon as it is installed.
             "$adb" -s "$serial" forward "tcp:$port" "tcp:$port" >/dev/null 2>&1 || true
             "$adb" -s "$serial" forward "tcp:$((port + 1))" "tcp:$((port + 1))" >/dev/null 2>&1 || true
+            forwarded=1
             # The window plane's token sits in files/ until the relaunched process reads and deletes it; the
             # first launch has no agent extras, so it returns from AgentBridge.agentConfig before reaching it.
             if [ -z "$window_token" ]; then

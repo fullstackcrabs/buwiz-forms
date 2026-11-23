@@ -168,4 +168,12 @@ launcher=$!
 NSH_AGENT_TOKEN_TRIES=100 "$handoff" plug "$plugsdk/adb" R58M123 "$launcher" 17421 8347
 check "a dead launcher removes both forwards" bash -c 'grep -q "forward --remove tcp:17421" "$FAKE_LOG" && grep -q "forward --remove tcp:17422" "$FAKE_LOG"'
 
+# A launcher that dies before the host installs removes nothing it did not create.
+rm -f "$work/installed"; : >"$FAKE_LOG"
+sleep 30 &
+launcher=$!
+(sleep 0.3 && kill "$launcher") &
+NSH_AGENT_TOKEN_TRIES=100 "$handoff" plug "$plugsdk/adb" R58M123 "$launcher" 17421 8347
+check "a launch that never installed removes no forwards" bash -c '! grep -q "forward --remove" "$FAKE_LOG"'
+
 exit "$failed"
