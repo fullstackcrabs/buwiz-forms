@@ -97,7 +97,8 @@ checkout_nsh
                 for home, major in (("custom-jdk", 21), ("path-jdk", 17 if case == "path" else 11)):
                     java = root / home / "bin/java"
                     java.parent.mkdir(parents=True)
-                    java.write_text(f'#!/bin/bash\necho \'openjdk version "{major}.0.1"\' >&2\n')
+                    java.write_text(f'#!/bin/bash\necho \'openjdk version "{major}.0.1"\' >&2\n'
+                                    f'echo \'    java.home = {root / home}\' >&2\n')
                     java.chmod(0o755)
                 tools = root / "sdk/cmdline-tools/latest/bin"
                 tools.mkdir(parents=True)

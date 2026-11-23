@@ -188,13 +188,16 @@ install_nsh_cli() {
 }
 
 find_java_home() {
-    local java version
+    local java version java_home
     for java in "${JAVA_HOME:+$JAVA_HOME/bin/java}" "$(command -v java || true)"; do
         [ -x "$java" ] || continue
         version="$("$java" -version 2>&1 | sed -n 's/.*version "\([0-9]*\).*/\1/p' | head -1)" || continue
         if [[ "$version" =~ ^[0-9]+$ ]] && [ "$version" -ge 17 ]; then
-            dirname "$(dirname "$(readlink -f "$java")")"
-            return 0
+            java_home="$("$java" -XshowSettings:properties -version 2>&1 | sed -n 's/^ *java.home = //p' | head -1)" || continue
+            if [ -n "$java_home" ]; then
+                printf '%s\n' "$java_home"
+                return 0
+            fi
         fi
     done
     return 1
