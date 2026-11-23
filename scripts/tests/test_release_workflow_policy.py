@@ -113,6 +113,7 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
         self.assertIn("NSH_VERSION=", preflight)
         self.assertIn('"$TAG_VERSION" != "$NSH_VERSION"', preflight)
         self.assertIn("nsh/nsh.json version $NSH_VERSION", preflight)
+        self.assertIn("crates/bir-shell/Cargo.lock nsh/Cargo.lock", preflight)
         self.assertEqual(self.justfile.count("scripts/set_release_version.py"), 2)
         build_macos = self.job("build-macos", self.macos_workflow)
         self.assertIn("needs: preflight", build_macos)
