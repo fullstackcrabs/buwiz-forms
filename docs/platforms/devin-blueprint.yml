@@ -35,6 +35,8 @@ maintenance: |
   # workspace runs only maintenance and $ENVRC is reset on every build.
   # cargo-binstall comes prebuilt at the scripts/impeccable.pin version: its newest
   # release needs a newer Rust than this repo pins, so it cannot be built here.
+  # cargo-binstall and impeccable land in Cargo's bin directory, which may be off PATH here.
+  export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
   binstall=$(sed -n 's/^CARGO_BINSTALL_VERSION=//p' scripts/impeccable.pin)
   [ "$(cargo-binstall -V 2>/dev/null)" = "$binstall" ] || curl -fsSL "https://github.com/cargo-bins/cargo-binstall/releases/download/v$binstall/cargo-binstall-$(uname -m)-unknown-linux-musl.tgz" | tar -xz -C "${CARGO_HOME:-$HOME/.cargo}/bin"
   # The CLI and skill at their pins (a no-op when both match).
