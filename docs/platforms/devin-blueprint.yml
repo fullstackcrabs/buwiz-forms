@@ -38,6 +38,7 @@ maintenance: |
   # cargo-binstall and impeccable go in Cargo's install bin directory (the same one
   # scripts/setup-impeccable.sh uses), which may be off PATH here.
   cargo_bin="${CARGO_INSTALL_ROOT:-${CARGO_HOME:-$HOME/.cargo}}/bin"
+  mkdir -p "$cargo_bin"
   export PATH="$cargo_bin:$PATH"
   binstall=$(sed -n 's/^CARGO_BINSTALL_VERSION=//p' scripts/impeccable.pin)
   [ "$(cargo-binstall -V 2>/dev/null)" = "$binstall" ] || curl -fsSL "https://github.com/cargo-bins/cargo-binstall/releases/download/v$binstall/cargo-binstall-$(uname -m)-unknown-linux-musl.tgz" | tar -xz -C "$cargo_bin"
