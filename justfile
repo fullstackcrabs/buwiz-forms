@@ -697,6 +697,7 @@ publish version="":
     if ($ver) {
         Write-Host "Forcing version to $ver"
         {{PYTHON}} scripts/set_release_version.py "$ver"
+        if ($LASTEXITCODE -ne 0) { throw "set_release_version.py failed with exit code $LASTEXITCODE" }
         $NEW_VER = $ver
     } else {
         $NEW_VER = "{{VERSION}}"
