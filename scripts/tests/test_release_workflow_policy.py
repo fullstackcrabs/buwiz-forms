@@ -107,6 +107,7 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
     def test_macos_workflow_preflight_and_publish_shape(self) -> None:
         self.assert_preflight_gates(self.macos_workflow)
         self.assertIn("pull_request:", self.macos_workflow)
+        self.assertIn("- .github/workflows/nsh.yml", self.macos_workflow)
         self.assertIn(".github/workflows/release-macos.yml", self.macos_workflow)
         self.assertIn("scripts/package_macos_release.sh", self.macos_workflow)
         preflight = self.job("preflight", self.macos_workflow)
