@@ -105,6 +105,13 @@ jobs:
         working-directory: nsh
         run: cargo install --locked --path crates/nsh-cli --root "$HOME/BuwizNsh/tools"
 
+      - name: Verify update feed signing with disposable keys
+        if: ${{ !inputs.release }}
+        run: |
+          $env:Path = "$HOME\BuwizNsh\tools\bin;$env:Path"
+          Get-Command nsh -ErrorAction Stop | Out-Null
+          python -m unittest scripts.tests.test_nsh_windows_release.NshSignedUpdateTests -v
+
       - name: Build the NSH Windows app
         working-directory: buwiz-forms/nsh
         env:
