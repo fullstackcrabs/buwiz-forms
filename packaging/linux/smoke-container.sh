@@ -15,13 +15,16 @@ case "$KIND" in
     rpm) dnf install -y "/packages/$BASE.rpm" ;;
     arch) pacman -U --noconfirm "/packages/$BASE.pkg.tar.zst" ;;
     installer) sh /packages/install-linux.sh --from-dir /packages --version "$VERSION" ;;
-    tarball) sh /packages/install-linux.sh --from-dir /packages --version "$VERSION" --tarball ;;
+    tarball)
+        mkdir -p "$HOME/.local/share/ebirforms"
+        tar -xzf "/packages/$BASE.tar.gz" --strip-components=1 -C "$HOME/.local/share/ebirforms"
+        ;;
 esac
 exe=/usr/bin/ebirforms
 app=/usr/lib/ebirforms
 if [ "$KIND" = tarball ]; then
     app="$HOME/.local/share/ebirforms"
-    exe="$HOME/.local/bin/ebirforms"
+    exe="$app/eBIRForms"
     test ! -e "$app/ebirforms-no-self-update"
 else
     test -f "$app/ebirforms-no-self-update"
@@ -52,7 +55,7 @@ case "$KIND" in
     deb|installer) apt-get remove -y ebirforms ;;
     rpm) dnf remove -y ebirforms ;;
     arch) pacman -Rns --noconfirm ebirforms ;;
-    tarball) sh /packages/install-linux.sh --uninstall --tarball ;;
+    tarball) rm -rf "$app" ;;
 esac
 test ! -e "$app"
 test ! -L "$exe"

@@ -10,8 +10,8 @@ while [ "$#" -gt 0 ]; do
 done
 test -d "$OUT"
 case "$ARCH" in
-    x64) platform=linux/amd64 ;;
-    arm64) platform=linux/arm64 ;;
+    x64) platform=linux/amd64; kinds=(deb rpm arch tarball installer) ;;
+    arm64) platform=linux/arm64; kinds=(deb rpm tarball) ;;
     *) exit 2 ;;
 esac
 OUT="$(cd "$OUT" && pwd)"
@@ -28,9 +28,7 @@ archives=("$OUT/eBIRForms-Linux-$ARCH-"*.tar.gz)
 version="$(basename "${archives[0]}" .tar.gz)"
 version="${version#eBIRForms-Linux-"$ARCH"-}"
 base="eBIRForms-Linux-$ARCH-$version"
-for kind in deb rpm arch tarball installer; do
-    [ "$kind" != arch ] || [ "$ARCH" = x64 ] || continue
-    [ "$kind" != installer ] || [ "$ARCH" = x64 ] || continue
+for kind in "${kinds[@]}"; do
     case "$kind" in
         deb|tarball|installer) image=ubuntu:24.04 ;;
         rpm) image=fedora:latest ;;
