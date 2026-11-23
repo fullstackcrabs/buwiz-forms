@@ -227,7 +227,7 @@ class CiChangeDetectionTests(unittest.TestCase):
                 "docs/plans/x.md",
                 "README.md",
                 "CONTRIBUTING.md",
-                "crates/bir-shell/docs/AGENT.md",
+                "docs/agent.md",
             ),
         )
 
