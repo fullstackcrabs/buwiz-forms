@@ -178,7 +178,6 @@ upload the skill through `POST /skills` with the whole
 
 ```sh
 cargo test --locked -p bir-mcp              # protocol, allow-list, selection, tokens, discovery, HTTP tests
-scripts/check_file_tax_goal.sh              # full done-condition incl. end-to-end smoke
 ```
 
 A manual check of the HTTP transport (with `GPUI_AGENT_RUNTIME_DIR` pointing

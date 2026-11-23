@@ -363,7 +363,6 @@ class CiChangeDetectionTests(unittest.TestCase):
                 "entitlements.plist",
                 "daemon.entitlements.plist",
                 "assets/macos/AppIcon.iconset/icon_16x16.png",
-                "scripts/dev_bundle_macos.sh",
                 "scripts/package_macos_release.sh",
                 "scripts/setup_macos_release_secrets.sh",
             ),

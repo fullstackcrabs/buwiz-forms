@@ -38,8 +38,8 @@ class and runs only what those classes need. The one required status is
 | Changed files | What runs |
 | --- | --- |
 | Docs only: `docs/`, top-level Markdown, `crates/<crate>/docs/`, `.github/*.md` | nothing heavy |
-| Windows installer files: `installer.iss`, `installer.wxs`, `assets/windows/`, `scripts/audit_final_setup.ps1`, `scripts/audit_installer_sources.py`, `scripts/package_msix.ps1`, `scripts/smoke_msix.ps1` | `check` on Windows only (it builds and audits the Setup.exe) |
-| macOS packaging (`assets/macos/`, `scripts/dev_bundle_macos.sh`, `*entitlements*.plist`), Linux packaging (`packaging/linux/`), setup scripts, release workflows, `scripts/tests/` | the Python script tests (`scripts` job) |
+| Windows installer files: `assets/windows/`, `packaging/windows/`, `scripts/audit_final_setup.ps1`, `scripts/audit_installer_sources.py`, `scripts/package_msix.ps1`, `scripts/package_nsh_windows.ps1`, `scripts/smoke_msix.ps1` | `check` on Windows only (it builds and audits the Setup.exe) |
+| macOS packaging (`assets/macos/`, `scripts/package_macos_release.sh`, `scripts/setup_macos_release_secrets.sh`, `*entitlements*.plist`), Linux packaging (`packaging/linux/`), setup scripts, release workflows, `scripts/tests/` | the Python script tests (`scripts` job) |
 | Anything else, including `.github/workflows/ci.yml` | `check` on macOS, Linux and Windows, plus `windows-smoke` |
 
 Scheduled and manual runs and unknown or empty change ranges run everything. A

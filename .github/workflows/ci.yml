@@ -344,7 +344,7 @@ jobs:
         docs_re='^(docs/|[^/]+\.md$|crates/[^/]+/docs/|\.github/[^/]+\.md$)'
         # nsh.yml owns the NSH pin that generates the Windows installer source.
         windows_pkg_re='^(assets/windows/|packaging/windows/|scripts/(audit_final_setup|package_msix|package_nsh_windows|smoke_msix)\.ps1$|scripts/audit_installer_sources\.py$|\.github/workflows/(nsh|release-windows)\.yml$)'
-        macos_pkg_re='^(assets/macos/|scripts/(dev_bundle_macos|package_macos_release|setup_macos_release_secrets)\.sh$|[^/]*entitlements[^/]*\.plist$)'
+        macos_pkg_re='^(assets/macos/|scripts/(package_macos_release|setup_macos_release_secrets)\.sh$|[^/]*entitlements[^/]*\.plist$)'
         linux_pkg_re='^packaging/linux/'
         # The NSH (TSX) app is a workspace of its own that nothing `check` builds or tests reads, and nsh.yml tests it.
         # nsh/src/ stays app code: the production-boundary check scans it (bir-rules-codegen status.rs,
