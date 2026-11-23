@@ -165,6 +165,8 @@ jobs:
             artifacts/**/install-linux.sh
             artifacts/**/*-Setup.exe
             artifacts/**/*.msi
+            artifacts/**/*.msix
+            artifacts/**/*-windows-x86_64.zip
 
       - name: Check out the manifest script
         uses: actions/checkout@v4
