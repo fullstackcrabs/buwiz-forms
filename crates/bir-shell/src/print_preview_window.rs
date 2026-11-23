@@ -689,6 +689,7 @@ fn open(r: Request, cx: &mut App) {
         }
     };
     let pdf_path = html_path.with_extension("pdf");
+    let (decorations, background) = crate::host::window_frame(cx);
     let options = WindowOptions {
         window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
             None,
@@ -701,8 +702,8 @@ fn open(r: Request, cx: &mut App) {
             appears_transparent: true,
             traffic_light_position: Some(point(px(14.0), px(14.0))),
         }),
-        window_decorations: Some(crate::host::window_decorations()),
-        window_background: crate::host::window_background(),
+        window_decorations: Some(decorations),
+        window_background: background,
         ..Default::default()
     };
     let _ = cx.open_window(options, move |window, cx| {

@@ -54,11 +54,14 @@ WORK="$PWD"
 NSH="$PWD/nsh"
 REF=current
 ANDROID_HOME="$PWD/sdk"
-JAVA_HOME_IMAGE=jdk17
+NDK_VERSION=27
 log() { :; }
 die() { echo "$*" >&2; exit 1; }
 sdk_mount() { :; }
-in_image() { echo build >> builds; }
+in_image() {
+    [[ " $* " == *" -e ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27 "* ]]
+    echo build >> builds
+}
 install_android_runtime
 install_android_runtime
 ''', tmp)
@@ -83,12 +86,48 @@ checkout_nsh
 ''', tmp)
                 self.assertEqual(result.returncode, 0, result.stderr)
 
-    def run_shell(self, source, directory):
+    def run_shell(self, source, directory, *args):
         return subprocess.run(
-            ["bash", "-euo", "pipefail", "-c", source],
+            ["bash", "-euo", "pipefail", "-c", source, "test", *args],
             cwd=directory, text=True, capture_output=True,
             env={**os.environ, "JAVA_HOME": "/old-java-11"},
         )
+
+    def test_wrapper_passes_literal_paths_and_pinned_ndk(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo = root / 'repo # & "quote" $(false)'
+            sdk = root / 'SDK # & "quote" $HOME'
+            (repo / "nsh").mkdir(parents=True)
+            sdk.mkdir()
+            bin_dir = root / "bin"
+            bin_dir.mkdir()
+            docker = bin_dir / "docker"
+            docker.write_text('#!/bin/bash\nprintf "%s\\n" "$@"\n')
+            docker.chmod(0o755)
+            result = self.run_shell(
+                "\n".join(function(name) for name in
+                          ("outside_home", "sdk_mount", "write_wrapper")) + r'''
+export HOME="$PWD/home" PATH="$PWD/bin:$PATH"
+REPO="$1"
+ANDROID_HOME="$2"
+NDK_VERSION=27
+WORK="$PWD"
+MOUNTS=(-v "$HOME:$HOME")
+write_wrapper
+bash -n "$WORK/nsh2404.sh"
+bash "$WORK/nsh2404.sh" nsh run --target android
+''',
+                tmp, str(repo), str(sdk),
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            args = result.stdout.splitlines()
+            self.assertIn(str(repo / "nsh"), args)
+            self.assertIn(f"ANDROID_HOME={sdk}", args)
+            self.assertIn(f"{sdk}:{sdk}", args)
+            self.assertIn(f"ANDROID_NDK_HOME={sdk}/ndk/27", args)
+            self.assertIn("BUWIZ_ANDROID_DEV_ENV=EBIR_TEST_ENV=1;"
+                          "BUWIZ_NO_KEYCHAIN=1;BIR_SFTP_DRY_RUN=1", args)
 
     def test_sdk_selects_java_home_then_path_then_install(self):
         for case in ("home", "path", "old", "missing"):
@@ -111,7 +150,6 @@ checkout_nsh
                 emulator.chmod(0o755)
                 result = self.run_shell(function("find_java_home") + "\n" +
                                         function("install_android_sdk") + f'\ncase={case}\n' + r'''
-JAVA_HOME_IMAGE="$PWD/jdk17"
 JAVA_HOME="$PWD/not-installed"
 [ "$case" != home ] || JAVA_HOME="$PWD/custom-jdk"
 command() {
@@ -127,7 +165,11 @@ AVD=buwiz
 SUDO=""
 log() { :; }
 unzip() { :; }
-apt-get() { echo "$*" > apt-called; mkdir -p "$JAVA_HOME_IMAGE/bin"; touch "$JAVA_HOME_IMAGE/bin/java"; chmod +x "$JAVA_HOME_IMAGE/bin/java"; }
+apt-get() {
+    echo "$*" > apt-called
+    mkdir -p "$PWD/jdk17/bin"; touch "$PWD/jdk17/bin/java"; chmod +x "$PWD/jdk17/bin/java"
+}
+dpkg-query() { echo "$PWD/jdk17/bin/javac"; }
 rustup() { :; }
 install_android_sdk
 ''', tmp)
