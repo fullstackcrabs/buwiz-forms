@@ -165,6 +165,7 @@ class CiChangeDetectionTests(unittest.TestCase):
         validation_reason: str = "no validation-rules path changed",
         scripts: str = "false",
         app: str | None = None,
+        shell: str = "false",
         packaging: tuple[str, ...] = (),
         event: str = "pull_request",
         changed: tuple[str, ...] = (),
@@ -240,8 +241,8 @@ class CiChangeDetectionTests(unittest.TestCase):
         )
 
     def test_deleted_shell_paths_count_as_app_code(self) -> None:
-        # bir-shell and app/ are gone: a stray reference to their old paths
-        # must not sneak through as a no-test change.
+        # bir-shell and app/ are gone: a stray path under the retired roots is
+        # just app code, so it runs the full check matrix like any other file.
         for path in ("crates/bir-shell/src/host.rs", "app/main.js", "app/forms/1700.json"):
             with self.subTest(path=path):
                 self.assert_decisions(
@@ -249,6 +250,14 @@ class CiChangeDetectionTests(unittest.TestCase):
                     check_reason=f"app file changed: {path}",
                     changed=(path,),
                 )
+
+    def test_shell_and_app_changes_run_both(self) -> None:
+        self.assert_decisions(
+            systems=self.ALL_SYSTEMS,
+            check_reason="app file changed: crates/bir-core/src/lib.rs",
+            shell="true",
+            changed=("crates/bir-core/src/lib.rs", "app/main.js"),
+        )
 
     def test_nsh_app_only_change_skips_check(self) -> None:
         # nsh/ is a workspace of its own, which the NSH app workflow tests.
@@ -313,13 +322,35 @@ class CiChangeDetectionTests(unittest.TestCase):
             "scripts/audit_final_setup.ps1",
             "scripts/audit_installer_sources.py",
             "scripts/package_msix.ps1",
+            "scripts/package_nsh_update.ps1",
+            "scripts/tests/test_nsh_windows_release.py",
             "scripts/package_nsh_windows.ps1",
             ".github/workflows/release-windows.yml",
+            ".github/workflows/package-nsh-windows.yml",
         ):
             with self.subTest(path=path):
                 self.assert_decisions(
                     systems=("windows-latest",),
                     check_reason="Windows installer files changed",
+                    packaging=("windows",),
+                    changed=(path,),
+                )
+
+    def test_nsh_manifest_change_audits_the_windows_installers(self) -> None:
+        self.assert_decisions(
+            systems=("windows-latest",),
+            check_reason="Windows installer files changed",
+            packaging=("windows",),
+            changed=("nsh/nsh.json",),
+        )
+
+    def test_shared_packaging_input_still_tests_app_code(self) -> None:
+        for path in ("print-overrides/1601C.json", "assets/icon.png", "scripts/audit_no_legacy.py"):
+            with self.subTest(path=path):
+                self.assert_decisions(
+                    systems=self.ALL_SYSTEMS,
+                    check_reason=f"app file changed: {path}",
+                    app="true",
                     packaging=("windows",),
                     changed=(path,),
                 )
@@ -332,17 +363,6 @@ class CiChangeDetectionTests(unittest.TestCase):
             packaging=("windows",),
             changed=("packaging/windows/nsh.wxs", "crates/bir-core/src/lib.rs"),
         )
-
-    def test_deleted_installer_scripts_count_as_app_code(self) -> None:
-        # The Inno/WiX installer scripts are gone: their old paths must not
-        # classify as Windows packaging and skip the other two systems.
-        for path in ("installer.iss", "installer.wxs"):
-            with self.subTest(path=path):
-                self.assert_decisions(
-                    systems=self.ALL_SYSTEMS,
-                    check_reason=f"app file changed: {path}",
-                    changed=(path,),
-                )
 
     def test_linux_packaging_runs_only_the_script_tests(self) -> None:
         self.assert_decisions(
@@ -361,7 +381,6 @@ class CiChangeDetectionTests(unittest.TestCase):
             packaging=("macos",),
             changed=(
                 "entitlements.plist",
-                "daemon.entitlements.plist",
                 "assets/macos/AppIcon.iconset/icon_16x16.png",
                 "scripts/package_macos_release.sh",
                 "scripts/setup_macos_release_secrets.sh",
@@ -369,7 +388,7 @@ class CiChangeDetectionTests(unittest.TestCase):
         )
 
     def test_linux_desktop_entry_is_app_code(self) -> None:
-        # The app's desktop file is not packaging-only.
+        # bir-shell's tests read assets/linux/, so it is not packaging-only.
         self.assert_decisions(
             systems=self.ALL_SYSTEMS,
             check_reason="app file changed: assets/linux/dev.goldcoders.bir.desktop",
@@ -384,7 +403,6 @@ class CiChangeDetectionTests(unittest.TestCase):
             changed=(
                 ".github/workflows/release.yml",
                 ".github/workflows/release-linux.yml",
-                ".github/workflows/preview-linux-nsh.yml",
                 ".github/workflows/bir.yml",
                 "scripts/setup-linux.sh",
                 "scripts/setup-windows.ps1",
@@ -422,6 +440,7 @@ class CiChangeDetectionTests(unittest.TestCase):
             check_reason="event schedule tests everything",
             validation="true",
             validation_reason="nightly run",
+            shell="true",
             event="schedule",
         )
 
@@ -430,6 +449,7 @@ class CiChangeDetectionTests(unittest.TestCase):
             systems=self.ALL_SYSTEMS,
             check_reason="event workflow_dispatch tests everything",
             validation_reason="manual run, box not ticked",
+            shell="true",
             event="workflow_dispatch",
         )
 
@@ -439,6 +459,7 @@ class CiChangeDetectionTests(unittest.TestCase):
             check_reason="event workflow_dispatch tests everything",
             validation="true",
             validation_reason="manual run",
+            shell="true",
             event="workflow_dispatch",
             force="true",
         )

@@ -108,16 +108,16 @@ jobs:
       - name: Build the NSH Windows app
         working-directory: buwiz-forms/nsh
         env:
-          GOOGLE_CLIENT_ID: ${{ inputs.release && secrets.GOOGLE_CLIENT_ID || '' }}
-          GOOGLE_CLIENT_SECRET: ${{ inputs.release && secrets.GOOGLE_CLIENT_SECRET || '' }}
+          GOOGLE_CLIENT_ID: ${{ inputs.release && github.ref_type == 'tag' && secrets.GOOGLE_CLIENT_ID || '' }}
+          GOOGLE_CLIENT_SECRET: ${{ inputs.release && github.ref_type == 'tag' && secrets.GOOGLE_CLIENT_SECRET || '' }}
         run: |
           $env:Path = "$HOME\BuwizNsh\tools\bin;$env:Path"
           nsh package --target windows --out "$env:RUNNER_TEMP/nsh-windows"
 
       - name: Package and audit the NSH Windows installers
         env:
-          WINDOWS_CERTIFICATE_PFX: ${{ inputs.release && secrets.WINDOWS_CERTIFICATE_PFX || '' }}
-          WINDOWS_CERTIFICATE_PASSWORD: ${{ inputs.release && secrets.WINDOWS_CERTIFICATE_PASSWORD || '' }}
+          WINDOWS_CERTIFICATE_PFX: ${{ inputs.release && github.ref_type == 'tag' && secrets.WINDOWS_CERTIFICATE_PFX || '' }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ inputs.release && github.ref_type == 'tag' && secrets.WINDOWS_CERTIFICATE_PASSWORD || '' }}
         run: |
           ./scripts/package_nsh_windows.ps1 -PackageRoot "$env:RUNNER_TEMP/nsh-windows" -OutDir target/release-artifacts
 

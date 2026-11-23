@@ -135,10 +135,11 @@ there, but nobody has run it on that platform.
 ## Packaging
 
 - The `Release (Windows)` workflow is defined in
-  `.github/workflows/release-windows.yml`. Release runs require
+  `.github/workflows/release-windows.yml`. Tagged releases can use
   `WINDOWS_CERTIFICATE_PFX` (base64-encoded `.pfx`) and
-  `WINDOWS_CERTIFICATE_PASSWORD`; pull-request and manually dispatched builds
-  may be unsigned. `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are optional.
+  `WINDOWS_CERTIFICATE_PASSWORD`; CI calls the same workflow without release
+  secrets and uses a disposable certificate for MSIX smoke tests.
+  `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are optional for tagged releases.
 - `windows-release` contains only the Setup program and MSI for public GitHub
   releases. The MSIX packages are CI artifacts for testers and Store upload,
   not public release attachments.

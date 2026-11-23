@@ -386,6 +386,7 @@ Unlike the development host above, all released Windows formats contain the same
 
 ```powershell
 $package = Join-Path $env:TEMP ("ebirforms-nsh-" + [guid]::NewGuid())
+$env:CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS = '-C target-feature=+crt-static'
 Push-Location nsh
 try {
     nsh package --target windows --out $package
@@ -394,16 +395,20 @@ try {
 ./scripts/package_nsh_windows.ps1 -PackageRoot $package -OutDir target/release-artifacts
 ```
 
-Or run **Release (Windows)** from the Actions tab against the branch, leaving signing off for ordinary tests. It uploads the files in the `windows-release` workflow artifact and cannot create or promote a GitHub Release. Compare the SHA-256 of each downloaded file with `SHA256SUMS-windows-x64.txt`.
+Download the `windows-nsh-preview` artifact from the pull request's installer check, or run **NSH Windows Preview** once it is available in the Actions tab. Compare each download with `SHA256SUMS-windows-x64.txt`. The preview supports only mock or dry-run filing. Tagged public releases still ship the legacy Windows app.
 
 Before migrating, uninstall the old per-machine eBIRForms from **Settings → Apps → Installed apps**. The new installers are per-user and do not remove it or migrate its data. Test one format at a time so shortcuts and app registrations are unambiguous.
 
 | Download | Install and open | Update | Uninstall |
 |---|---|---|---|
-| `eBIRForms-Windows-x64-<v>-Setup.exe` | Run Setup as the signed-in user, then open **eBIRForms**. The default is `%LOCALAPPDATA%\Programs\eBIRForms`. | The app can download and install from the signed NSH feed. For a manual upgrade, close it and run the newer Setup as the same user. | Uninstall **eBIRForms** from Installed apps, or run the generated `unins*.exe` in its install directory. |
+| `eBIRForms-Windows-x64-<v>-Setup.exe` | Run Setup as the signed-in user, then open **eBIRForms**. The default is `%LOCALAPPDATA%\Programs\eBIRForms`; the executable is in its `eBIRForms-app` subfolder. | Close the app and run the newer preview Setup as the same user. The updater layout keeps Inno's uninstall files outside the app subfolder. | Uninstall **eBIRForms** from Installed apps, or run the generated `unins*.exe` in the install root. |
 | `eBIRForms-Windows-x64-<v>.msi` | Double-click the MSI (no administrator required), then open **eBIRForms (MSI)**. Its default directory is `%LOCALAPPDATA%\Programs\eBIRForms MSI`. | The update banner links to the release page; close the app and install the newer MSI. | Use Installed apps, or run `msiexec /x "path\to\file.msi"` as the same user. |
 | `eBIRForms-Windows-x64-<v>.msix` | With a trusted signature, run `Add-AppxPackage -Path <file.msix>` in Windows PowerShell and open **eBIRForms** from Start. An unsigned workflow artifact can be inspected but cannot be sideloaded. | The update banner links to the release page; close the app and install the newer signed MSIX from the same publisher. | Use Installed apps, or run `Get-AppxPackage -Name GOLDCODERSCORP.ebirforms \| Remove-AppxPackage` as the same user. |
 
-Keep the §3.5 safety variables set in the PowerShell session that starts the installed executable. Release builds ignore the debug account bypass; start `just mock-account` in a separate terminal and point both `BUWIZ_SERVER_URL` and `BUWIZ_ACCOUNT_URL` to `http://127.0.0.1:3008` in the app's launch session. Complete the mock sign-in and open a form with the demo taxpayer; never use production credentials or data. The installer audit covers the actual Setup install and uninstall and checks the extracted MSI, MSIX, and updater ZIP; it does not exercise app UI, MSIX registration, or a live update.
+Keep the §3.5 safety variables set in the PowerShell session that starts the installed executable. Release builds ignore the debug account bypass; start `just mock-account` in a separate terminal and point both `BUWIZ_SERVER_URL` and `BUWIZ_ACCOUNT_URL` to `http://127.0.0.1:3008` in the app's launch session. Complete the mock sign-in and open a form with the demo taxpayer; never use production credentials or data.
 
-The updater ZIP is named `eBIRForms-<v>-windows-x86_64.zip`. It has the same updateable directory layout as Setup; it is not an MSI/MSIX update. The legacy GPUI executable needed a PE main-thread stack reserve for recursive layout. NSH does that work on a dedicated Win32 UI thread with an 8 MiB stack, so CI no longer checks the old executable's PE header.
+The audit installs and uninstalls Setup, verifies that uninstall also removes files added by an update, and checks the extracted MSI, MSIX, and ZIP. The workflow registers a signed MSIX and tests launch; when the output is unsigned, it signs a disposable copy with a test certificate and leaves the downloadable artifact unsigned. Start menu activation is reported as skipped on runners with UAC disabled. This does not test a live update or mock sign-in in the app UI.
+
+The updater ZIP is named `eBIRForms-<v>-windows-x86_64.zip`. It has the same updateable directory layout as Setup; it is not an MSI/MSIX update. The preview does not publish an NSH feed, so upgrade manually. CI tests signing with disposable keys and does not change the legacy app's `latest.json`.
+
+CI checks the public GPUI executable's PE stack reserve. The NSH preview does not need that check: it does layout work on a dedicated Win32 UI thread with an 8 MiB stack.

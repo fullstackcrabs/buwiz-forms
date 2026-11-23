@@ -1,0 +1,127 @@
+name: NSH Windows Preview
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  installers:
+    runs-on: windows-2025
+    env:
+      CARGO_TERM_COLOR: always
+      RUSTUP_TOOLCHAIN: 1.99.0
+      RUST_MIN_STACK: "268435456"
+      LIBCLANG_PATH: C:\Program Files\LLVM\bin
+      BUWIZ_NO_KEYCHAIN: "1"
+      EBIR_TEST_ENV: "1"
+      BIR_AUTH_BYPASS: "1"
+      BIR_SFTP_DRY_RUN: "1"
+    defaults:
+      run:
+        working-directory: buwiz-forms
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: buwiz-forms
+          persist-credentials: false
+
+      - name: Read the NSH pin
+        id: pin
+        run: |
+          $pin = Select-String -Path .github/workflows/nsh.yml -Pattern '^\s*NSH_PINNED_REF:\s*([a-f0-9]{40})\s*$'
+          if (@($pin).Count -ne 1) { throw 'Expected one NSH_PINNED_REF in nsh.yml' }
+          "ref=$($pin.Matches[0].Groups[1].Value)" >> $env:GITHUB_OUTPUT
+
+      - uses: actions/checkout@v4
+        with:
+          repository: hexuria/nsh
+          ref: ${{ steps.pin.outputs.ref }}
+          token: ${{ secrets.NSH_REPO_TOKEN || github.token }}
+          path: nsh
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.0
+          targets: x86_64-pc-windows-msvc
+
+      - uses: ./nsh/.github/actions/cargo
+        with:
+          cache: buwiz-nsh-release-windows
+          lockfiles: buwiz-forms/nsh/Cargo.lock
+
+      - name: Install installer tools
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $false
+          choco install innosetup -y --no-progress
+          if ($LASTEXITCODE -notin 0, 3010) { throw "Inno Setup installation failed: $LASTEXITCODE" }
+          $wix = Get-ChildItem "${env:ProgramFiles(x86)}\WiX Toolset v3.*\bin" -Directory -ErrorAction SilentlyContinue |
+            Where-Object { Test-Path (Join-Path $_.FullName 'heat.exe') } | Select-Object -First 1
+          if (-not $wix) {
+            choco install wixtoolset --version=3.11.2 -y --no-progress
+            if ($LASTEXITCODE -notin 0, 3010) { throw "WiX installation failed: $LASTEXITCODE" }
+          }
+          if (-not (Test-Path C:\Strawberry\perl\bin\perl.exe)) { throw 'Strawberry Perl is not on this image' }
+          'C:\Strawberry\perl\bin' >> $env:GITHUB_PATH
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - uses: actions/checkout@v4
+        with:
+          repository: hexuria/buwiz-forms-html
+          path: buwiz-forms/.ci-html
+          persist-credentials: false
+
+      - name: Verify frozen HTML
+        run: |
+          python .ci-html/tools/formgen/freeze_html.py --verify --out html-frozen --index rules/index.json
+          python .ci-html/tools/formgen/stamp_frozen_names.py --check-all --html-root html-frozen --rules-root rules/forms --catalog .ci-html/tools/formgen/identity/catalog.json
+
+      - name: Cache the pinned NSH CLI
+        id: nsh-cli
+        uses: actions/cache@v4
+        with:
+          path: ~/BuwizNsh/tools
+          key: nsh-cli-${{ runner.os }}-${{ runner.arch }}-${{ steps.pin.outputs.ref }}
+
+      - name: Build the NSH CLI
+        if: steps.nsh-cli.outputs.cache-hit != 'true'
+        working-directory: nsh
+        run: cargo install --locked --path crates/nsh-cli --root "$HOME/BuwizNsh/tools"
+
+      - name: Verify update feed signing with disposable keys
+        run: |
+          $env:Path = "$HOME\BuwizNsh\tools\bin;$env:Path"
+          Get-Command nsh -ErrorAction Stop | Out-Null
+          python -m unittest scripts.tests.test_nsh_windows_release.NshSignedUpdateTests -v
+
+      - name: Build the NSH Windows app
+        working-directory: buwiz-forms/nsh
+        env:
+          # Setup and updater ZIP must run without an installed VC Redistributable.
+          CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS: "-C target-feature=+crt-static"
+        run: |
+          $env:Path = "$HOME\BuwizNsh\tools\bin;$env:Path"
+          nsh package --target windows --out "$env:RUNNER_TEMP/nsh-windows"
+
+      - name: Package and audit the NSH Windows installers
+        run: |
+          ./scripts/package_nsh_windows.ps1 -PackageRoot "$env:RUNNER_TEMP/nsh-windows" -OutDir target/release-artifacts -SmokeMsix
+
+      - name: Upload Windows Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-nsh-preview
+          if-no-files-found: error
+          path: |
+            buwiz-forms/target/release-artifacts/*-Setup.exe
+            buwiz-forms/target/release-artifacts/*.msi
+            buwiz-forms/target/release-artifacts/*.msix
+            buwiz-forms/target/release-artifacts/*-windows-x86_64.zip
+            buwiz-forms/target/release-artifacts/SHA256SUMS-windows-x64.txt

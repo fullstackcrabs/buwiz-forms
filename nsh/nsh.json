@@ -16,7 +16,7 @@
     }
   },
   "updater": {
-    "github": "hexuria/buwiz-forms",
+    "url": "https://github.com/hexuria/buwiz-forms/releases/latest/download/latest-nsh.json",
     "publicKey": "azPTfgyyZg7ggQ6w52Rx/Ma9BLfMVjnTvqOflxfMhsc="
   },
   "appearance": "system",

@@ -14,7 +14,7 @@ from pathlib import Path
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW_PATH = REPOSITORY_ROOT / ".github/workflows/release.yml"
 LINUX_RELEASE_WORKFLOW_PATH = REPOSITORY_ROOT / ".github/workflows/release-linux.yml"
-WINDOWS_RELEASE_WORKFLOW_PATH = REPOSITORY_ROOT / ".github/workflows/release-windows.yml"
+WINDOWS_PREVIEW_WORKFLOW_PATH = REPOSITORY_ROOT / ".github/workflows/package-nsh-windows.yml"
 MACOS_WORKFLOW_PATH = REPOSITORY_ROOT / ".github/workflows/release-macos.yml"
 MACOS_PACKAGE_SCRIPT_PATH = REPOSITORY_ROOT / "scripts/package_macos_release.sh"
 CI_WORKFLOW_PATH = REPOSITORY_ROOT / ".github/workflows/ci.yml"
@@ -35,7 +35,7 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.workflow = WORKFLOW_PATH.read_text(encoding="utf-8")
         cls.linux_release_workflow = LINUX_RELEASE_WORKFLOW_PATH.read_text(encoding="utf-8")
-        cls.windows_workflow = WINDOWS_RELEASE_WORKFLOW_PATH.read_text(encoding="utf-8")
+        cls.windows_workflow = WINDOWS_PREVIEW_WORKFLOW_PATH.read_text(encoding="utf-8")
         cls.macos_workflow = MACOS_WORKFLOW_PATH.read_text(encoding="utf-8")
         cls.macos_package_script = MACOS_PACKAGE_SCRIPT_PATH.read_text(
             encoding="utf-8"
@@ -156,7 +156,7 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
         self.assertNotIn('NSH_VERSION="$(awk', preflight)
         self.assertIn('"$TAG_VERSION" != "$NSH_VERSION"', preflight)
         self.assertIn("nsh/nsh.json version $NSH_VERSION", preflight)
-        self.assertIn("crates/bir-shell/Cargo.lock nsh/Cargo.lock", preflight)
+        self.assertIn("Cargo.lock package-lock.json nsh/Cargo.lock", preflight)
         self.assertEqual(self.justfile.count("scripts/set_release_version.py"), 2)
         build_macos = self.job("build-macos", self.macos_workflow)
         self.assertIn("needs: preflight", build_macos)
@@ -168,7 +168,7 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
         self.assertIn("needs: [preflight, build-macos]", publish)
         self.assertIn("github.event_name == 'push'", publish)
         self.assertIn("contents: write", publish)
-        self.assertNotIn("publish_update_manifest.py", publish)
+        self.assertIn("publish_update_manifest.py", publish)
         without_publish = self.macos_workflow.replace(publish, "")
         self.assertNotIn("contents: write", without_publish)
         self.assertIn("contents: read", self.macos_workflow)
@@ -265,11 +265,12 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
                 "script must fail before creating any output",
             )
 
-    def test_windows_artifacts_are_audited_and_signed_when_configured(self) -> None:
+    def test_windows_preview_artifacts_are_audited_without_production_credentials(self) -> None:
         windows = self.windows_job("installers")
         script = self.nsh_windows_package
-        for secret in ("WINDOWS_CERTIFICATE_PFX", "WINDOWS_CERTIFICATE_PASSWORD"):
-            self.assertIn(f"inputs.release && secrets.{secret}", windows)
+        for secret in ("WINDOWS_CERTIFICATE_PFX", "WINDOWS_CERTIFICATE_PASSWORD", "GOOGLE_CLIENT_SECRET", "NSH_UPDATE_SIGNING_KEY"):
+            self.assertNotIn(f"secrets.{secret}", windows)
+        self.assertIn("-SmokeMsix", windows)
         self.assertIn("$hasPfx -xor $hasPassword", script)
         self.assertIn("::warning title=Unsigned Windows artifacts::", script)
         self.assertIn("sign /fd SHA256 /td SHA256", script)
@@ -378,10 +379,11 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
             self.assertGreater(match.start(), check.index("run: just --summary"))
         self.assertNotIn("choco install just -y", check)
         setup = self.job("windows-setup", self.ci_workflow)
-        self.assertIn("uses: ./.github/workflows/release-windows.yml", setup)
+        self.assertIn("uses: ./.github/workflows/package-nsh-windows.yml", setup)
         self.assertNotIn("secrets: inherit", setup)
         self.assertIn("needs.changes.outputs.windows_pkg", setup)
-        self.assertNotIn("check_pe_stack_reserve.py", check)
+        windows = (REPOSITORY_ROOT / ".github/workflows/release-windows.yml").read_text(encoding="utf-8")
+        self.assertIn("scripts/package_nsh_windows.ps1", windows)
 
     def test_setup_scripts_keep_the_gpui_agent_version_pinned(self) -> None:
         self.assertIn('local manifest="$SCRIPT_DIR/../Cargo.toml"', self.linux_setup)

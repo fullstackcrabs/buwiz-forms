@@ -6,13 +6,13 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class LinuxNshPreviewPolicyTests(unittest.TestCase):
-    def test_public_release_keeps_the_live_filing_workflow(self) -> None:
+    def test_public_release_packages_the_nsh_app(self) -> None:
         release = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
         live = (ROOT / ".github/workflows/release-linux.yml").read_text(encoding="utf-8")
         self.assertIn("uses: ./.github/workflows/release-linux.yml", release)
         self.assertNotIn("preview-linux-nsh", release)
         self.assertNotIn("linux-nsh-preview", release)
-        self.assertIn("--manifest-path crates/bir-shell/Cargo.toml", live)
+        self.assertIn("nsh package --target linux", live + (ROOT / "packaging/linux/build-packages.sh").read_text(encoding="utf-8"))
         self.assertIn("run: packaging/linux/build-packages.sh", live)
         self.assertNotIn("packaging/linux/preview/", live)
 
