@@ -22,39 +22,25 @@
 #   - gpui-agent CLI — drives the app over 127.0.0.1 when the binary is built
 #     `--features agent` and launched with GPUI_AGENT=1. Installed at the same
 #     version the workspace pins, so protocol versions never drift apart.
-#   - impeccable CLI (verification tooling) and the impeccable-rust agent skill
-#     in .agents/skills/impeccable-rust/ (git-ignored, so downloaded), both at
-#     the versions scripts/impeccable.pin holds (see scripts/setup-impeccable.sh)
 #
 # Usage:
 #   scripts/setup-linux.sh              # install everything
 #   scripts/setup-linux.sh --check      # verify only, install nothing
 #   scripts/setup-linux.sh --extras     # also install cargo-audit/outdated/machete
 #   scripts/setup-linux.sh --no-agent   # skip installing the gpui-agent CLI
-#   scripts/setup-linux.sh --compositor # also install xcompmgr and autostart it
-#   scripts/setup-linux.sh --no-impeccable  # skip the impeccable CLI and skill
-#
-# --compositor is for X11 sessions whose window manager does not composite
-# (KWin/Xfwm with compositing off, Openbox, VMs). The app then falls back to
-# server-side decorations; with xcompmgr it keeps its own frame and shadow.
-# NSH app and Android toolchain: scripts/setup-linux-nsh.sh.
 #
 set -euo pipefail
 
 CHECK_ONLY=0
 WITH_EXTRAS=0
 WITH_AGENT=1
-WITH_COMPOSITOR=0
-WITH_IMPECCABLE=1
 for arg in "$@"; do
     case "$arg" in
         --check)    CHECK_ONLY=1 ;;
         --extras)   WITH_EXTRAS=1 ;;
         --no-agent) WITH_AGENT=0 ;;
-        --compositor) WITH_COMPOSITOR=1 ;;
-        --no-impeccable) WITH_IMPECCABLE=0 ;;
         -h|--help)
-            sed -n '2,41p' "$0"
+            sed -n '2,30p' "$0"
             exit 0
             ;;
         *) echo "Unknown option: $arg (see --help)" >&2; exit 2 ;;
@@ -66,8 +52,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 log()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33mwarning:\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }
-# shellcheck source=scripts/setup-impeccable.sh
-. "$SCRIPT_DIR/setup-impeccable.sh"
 
 SUDO=""
 if [ "$(id -u)" -ne 0 ]; then
@@ -272,24 +256,6 @@ install_gpui_agent() {
 }
 
 # ---------------------------------------------------------------------------
-# xcompmgr — a minimal X11 compositing manager. Without one, GPUI's
-# transparent client-decoration shadow has nothing to blend it; the app then
-# asks the window manager for a frame instead. Autostarted for the next login
-# and started now when an X display is up.
-# ---------------------------------------------------------------------------
-install_compositor() {
-    install_pkgs xcompmgr
-    local autostart="${XDG_CONFIG_HOME:-$HOME/.config}/autostart"
-    mkdir -p "$autostart"
-    printf '[Desktop Entry]\nType=Application\nName=xcompmgr\nExec=xcompmgr\nX-KDE-autostart-phase=1\n' \
-        > "$autostart/xcompmgr.desktop"
-    if [ -n "${DISPLAY:-}" ] && ! pgrep -x xcompmgr >/dev/null 2>&1; then
-        log "Starting xcompmgr on $DISPLAY"
-        (setsid xcompmgr >/dev/null 2>&1 &)
-    fi
-}
-
-# ---------------------------------------------------------------------------
 # --check mode: verify the toolchain end to end
 # ---------------------------------------------------------------------------
 check() {
@@ -318,9 +284,6 @@ check() {
         printf '  %-18s MISSING (app window renders blank without it)\n' "font:Noto Sans"
         ok=0
     fi
-    if [ "$WITH_IMPECCABLE" -eq 1 ]; then
-        check_impeccable 18 || ok=0
-    fi
     [ "$ok" -eq 1 ] && log "All required tooling present" || warn "Missing pieces — run scripts/setup-linux.sh"
     return $((1 - ok))
 }
@@ -348,15 +311,6 @@ main() {
     install_just
     if [ "$WITH_AGENT" -eq 1 ]; then
         install_gpui_agent
-    fi
-    if [ "$WITH_IMPECCABLE" -eq 1 ]; then
-        install_impeccable
-        install_impeccable_skill
-    fi
-
-    if [ "$WITH_COMPOSITOR" -eq 1 ]; then
-        log "Installing xcompmgr"
-        install_compositor
     fi
 
     if [ "$WITH_EXTRAS" -eq 1 ]; then
@@ -394,8 +348,8 @@ present stale frames — force the Gl backend by hiding the Vulkan ICD:
 Drive the app with gpui-agent (build the agent feature in, enable the host
 with GPUI_AGENT=1, then talk to it with the CLI):
 
-    cargo build --locked --manifest-path crates/bir-shell/Cargo.toml --features agent --bin bir-headless
-    GPUI_AGENT=1 GPUI_AGENT_TOKEN=dev-secret ./crates/bir-shell/target/debug/bir-headless &
+    cargo build --locked -p bir-cli
+    GPUI_AGENT=1 GPUI_AGENT_TOKEN=dev-secret ./target/debug/bir serve &
     GPUI_AGENT_TOKEN=dev-secret gpui-agent hello
     GPUI_AGENT_TOKEN=dev-secret gpui-agent snapshot --pretty
 

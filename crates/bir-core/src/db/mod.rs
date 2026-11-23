@@ -3114,7 +3114,7 @@ mod tests {
                 let path = default_database_path();
                 assert!(path.starts_with(home.path()), "{}", path.display());
                 assert!(
-                    path.ends_with("dev.goldcoders.bir.nsh/bir_data.db"),
+                    path.ends_with("dev.goldcoders.bir/bir_data.db"),
                     "{}",
                     path.display()
                 );

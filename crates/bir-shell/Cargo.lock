@@ -958,6 +958,7 @@ dependencies = [
  "totp-rs",
  "tracing",
  "tracing-appender",
+ "tracing-log",
  "tracing-subscriber",
  "urlencoding",
  "uuid",
@@ -1045,7 +1046,6 @@ dependencies = [
  "tracing",
  "tray-icon",
  "windows 0.62.2",
- "x11rb",
  "zip",
 ]
 

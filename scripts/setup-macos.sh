@@ -20,9 +20,6 @@
 #     The iOS Simulator needs Apple Silicon (the pinned NSH builds an arm64
 #     simulator host only) and the full Xcode app with an iOS runtime, not
 #     only the Command Line Tools. Intel Macs get the NSH macOS app only.
-#   - impeccable CLI (verification tooling) and the impeccable-rust agent skill
-#     in .agents/skills/impeccable-rust/ (git-ignored, so downloaded), both at
-#     the versions scripts/impeccable.pin holds (see scripts/setup-impeccable.sh)
 #
 # What it does NOT need (unlike Windows/Linux):
 #   - No system OpenSSL: openssl-src compiles from vendored source with the
@@ -36,7 +33,6 @@
 #   scripts/setup-macos.sh --extras     # also install cargo-audit/outdated/machete
 #   scripts/setup-macos.sh --no-agent   # skip installing the gpui-agent CLI
 #   scripts/setup-macos.sh --no-nsh     # skip the NSH app (iOS targets, nsh CLI)
-#   scripts/setup-macos.sh --no-impeccable  # skip the impeccable CLI and skill
 #
 set -euo pipefail
 
@@ -44,16 +40,14 @@ CHECK_ONLY=0
 WITH_EXTRAS=0
 WITH_AGENT=1
 WITH_NSH=1
-WITH_IMPECCABLE=1
 for arg in "$@"; do
     case "$arg" in
         --check)    CHECK_ONLY=1 ;;
         --extras)   WITH_EXTRAS=1 ;;
         --no-agent) WITH_AGENT=0 ;;
         --no-nsh)   WITH_NSH=0 ;;
-        --no-impeccable) WITH_IMPECCABLE=0 ;;
         -h|--help)
-            sed -n '2,40p' "$0"
+            sed -n '2,36p' "$0"
             exit 0
             ;;
         *) echo "Unknown option: $arg (see --help)" >&2; exit 2 ;;
@@ -68,8 +62,6 @@ cd "$REPO_ROOT"
 log()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33mwarning:\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }
-# shellcheck source=scripts/setup-impeccable.sh
-. "$REPO_ROOT/scripts/setup-impeccable.sh"
 
 BREW_PREFIX="$(uname -m | grep -q arm64 && echo /opt/homebrew || echo /usr/local)"
 NSH_TOOLS="$HOME/BuwizNsh/tools"
@@ -441,9 +433,6 @@ check() {
             warn "no available iOS Simulator runtime (needs Xcode.app; xcodebuild -downloadPlatform iOS)"
         fi
     fi
-    if [ "$WITH_IMPECCABLE" -eq 1 ]; then
-        check_impeccable 14 || ok=0
-    fi
     [ "$ok" -eq 1 ] && log "All required tooling present" || warn "Missing pieces — run scripts/setup-macos.sh"
     return $((1 - ok))
 }
@@ -464,10 +453,6 @@ main() {
     fi
     if [ "$WITH_NSH" -eq 1 ]; then
         install_nsh
-    fi
-    if [ "$WITH_IMPECCABLE" -eq 1 ]; then
-        install_impeccable
-        install_impeccable_skill
     fi
 
     if [ "$WITH_EXTRAS" -eq 1 ]; then
@@ -499,13 +484,13 @@ OpenSSL is vendored — no brew openssl needed; system perl + cc build it.
 To drive the app from the CLI (gpui-agent was installed at the Cargo.lock
 rev): build the host with the agent feature and launch with env vars —
 
-    cargo build --locked --manifest-path crates/bir-shell/Cargo.toml --features agent --bin bir-headless
+    cargo build --locked -p bir-cli
     export GPUI_AGENT=1 GPUI_AGENT_TOKEN=dev-secret
-    ./crates/bir-shell/target/debug/bir-headless &        # then, another shell:
+    ./target/debug/bir serve &        # then, another shell:
     gpui-agent hello            # protocol, app, platform, ready
     gpui-agent keybindings      # {id, chord, scope, dangerous}
 
-Full contract: crates/bir-shell/docs/AGENT.md
+Full contract: docs/agent.md
 
 EOF
     if [ "$WITH_NSH" -eq 1 ] && [ "$IOS_SIM" -eq 1 ]; then

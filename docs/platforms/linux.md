@@ -4,7 +4,7 @@ Status: fully tested. Back to the [README](../../README.md). The same matrix
 for all platforms is in [FEATURES.md](../FEATURES.md).
 
 This guide describes the published live-filing packages. The [Native Shell
-preview](nsh-linux-preview.md) is a separate CI download and does not replace them.
+preview](nsh-linux-handover.md) is a separate CI download and does not replace them.
 
 ## Feature matrix
 
@@ -102,12 +102,7 @@ window when the system has no UI font.
 
 Run `scripts/setup-linux.sh`. It detects apt, dnf, pacman or zypper, installs
 the libraries, Rust and `just`, and checks the result. Other flags:
-`--check`, `--extras`, `--no-agent`, `--compositor`. Then `just run`.
-
-For the NSH app and its Android build, run `scripts/setup-linux-nsh.sh` after
-that (needs Docker; `--no-android`, `--check`). It builds NSH in an Ubuntu
-24.04 image and writes `~/BuwizNsh/nsh2404.sh` to run NSH commands with the
-host display.
+`--check`, `--extras`, `--no-agent`. Then `just run`.
 
 On other distributions, install the equivalent of these Debian and Ubuntu
 packages:
@@ -130,11 +125,6 @@ sudo apt-get install -y \
   `xvfb-run -a just test`.
 - Blank window on a VM or software GPU: llvmpipe's Vulkan path can present
   stale frames. Force the GL backend with `VK_ICD_FILENAMES=/dev/null just run`.
-- Without a compositing manager (KWin or Xfwm with compositing off, Openbox,
-  most VMs), the app uses the window manager's title bar and frame instead of
-  its own; a transparent shadow would otherwise draw as a thick black border.
-  `scripts/setup-linux.sh --compositor` installs and autostarts `xcompmgr` to
-  keep the app's own frame.
 
 ## Data
 
@@ -206,7 +196,7 @@ sudo apt-get install -y \
 ## Notifications
 
 - In-app toasts work. Whether the system banner appears is unverified.
-  `bir-headless` uses `notify-rust`.
+  the headless `bir` uses `notify-rust`.
 
 ## Keyboard shortcuts
 

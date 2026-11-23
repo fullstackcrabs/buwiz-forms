@@ -28,6 +28,7 @@ LINUX_SETUP_PATH = REPOSITORY_ROOT / "scripts/setup-linux.sh"
 WINDOWS_SETUP_PATH = REPOSITORY_ROOT / "scripts/setup-windows.ps1"
 FINAL_SETUP_AUDIT_PATH = REPOSITORY_ROOT / "scripts/audit_final_setup.ps1"
 PACKAGE_MSIX_PATH = REPOSITORY_ROOT / "scripts/package_msix.ps1"
+NSH_WINDOWS_PACKAGE_PATH = REPOSITORY_ROOT / "scripts/package_nsh_windows.ps1"
 SMOKE_MSIX_PATH = REPOSITORY_ROOT / "scripts/smoke_msix.ps1"
 
 
@@ -52,6 +53,7 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
         cls.windows_setup = WINDOWS_SETUP_PATH.read_text(encoding="utf-8")
         cls.final_setup_audit = FINAL_SETUP_AUDIT_PATH.read_text(encoding="utf-8")
         cls.package_msix = PACKAGE_MSIX_PATH.read_text(encoding="utf-8")
+        cls.nsh_windows_package = NSH_WINDOWS_PACKAGE_PATH.read_text(encoding="utf-8")
         cls.smoke_msix = SMOKE_MSIX_PATH.read_text(encoding="utf-8")
 
     def job(self, name: str, workflow: str | None = None) -> str:
@@ -155,7 +157,18 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
         self.assertIn('xcrun stapler staple "$DMG"', script)
         self.assertIn('xcrun stapler validate "$DMG"', script)
         self.assertIn('spctl --assess --type execute --verbose=2 "$APP"', script)
-        self.assertIn('cp assets/AppIcon.icns "$APP/Contents/Resources/"', script)
+        self.assertIn("nsh package --target macos --arch universal", script)
+        self.assertIn('"$APP/Contents/Resources/AppIcon.icns"', script)
+        self.assertIn(
+            "codesign --verify --deep --strict --verbose=2 \"$APP\"", script
+        )
+        # Update archives are made again from the signed, stapled app.
+        self.assertLess(
+            script.index('xcrun stapler staple "$APP"'),
+            script.index('tar -czf "$OUT_DIR/$archive"'),
+        )
+        self.assertNotIn("crates/bir-shell", macos + script)
+        self.assertIn("buwiz-forms/target/release-artifacts/*.tar.gz", macos)
         self.assertIn('hdiutil attach "$DMG" -nobrowse -readonly', script)
         self.assertIn(
             'python3 scripts/audit_no_legacy.py --package-root "$MOUNTED_APP"',
@@ -204,74 +217,34 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
                 "script must fail before creating any output",
             )
 
-    def test_windows_public_artifacts_require_authenticode_signatures(self) -> None:
+    def test_windows_artifacts_are_audited_and_signed_when_configured(self) -> None:
         windows = self.windows_job("installers")
-        self.assertIn("secrets.WINDOWS_CERTIFICATE_PFX", windows)
-        self.assertIn("secrets.WINDOWS_CERTIFICATE_PASSWORD", windows)
-        self.assertIn("WINDOWS_SIGNTOOL sign /fd SHA256", windows)
-        self.assertIn("WINDOWS_SIGNTOOL verify /pa /all /v", windows)
-        self.assertIn("choco install openssl innosetup -y", windows)
-        self.assertIn("Audit final Windows installer payloads", windows)
-        self.assertNotIn("7z", windows.lower())
-        self.assertIn("Start-Process msiexec.exe", windows)
-        self.assertIn('WINDOWS_STAGE=$PKG', windows)
-        self.assertGreaterEqual(windows.count("$PKG = $env:WINDOWS_STAGE"), 2)
-        source_gate = windows.index("scripts/audit_installer_sources.py")
-        compile_installer = windows.index("& $ISCC")
-        self.assertLess(source_gate, compile_installer)
-        self.assertIn("scripts/audit_final_setup.ps1", windows)
-        self.assertIn(
-            "python scripts/audit_no_legacy.py --package-root $msiRoot",
-            windows,
-        )
-        self.assertIn(
-            "Expected exactly one EXE and one MSI public release artifact",
-            windows,
-        )
-        self.assertIn(
-            "Public GitHub releases must not contain MSIX artifacts",
-            windows,
-        )
-        self.assertNotIn("- name: Create MSIX Package", windows)
-        self.assertIn("if-no-files-found: error", windows)
-        self.assertNotIn("target/release-artifacts/*.zip", windows)
+        script = self.nsh_windows_package
+        for secret in ("WINDOWS_CERTIFICATE_PFX", "WINDOWS_CERTIFICATE_PASSWORD"):
+            self.assertIn(f"inputs.release && secrets.{secret}", windows)
+        self.assertIn("$hasPfx -xor $hasPassword", script)
+        self.assertIn("::warning title=Unsigned Windows artifacts::", script)
+        self.assertIn("sign /fd SHA256 /td SHA256", script)
+        self.assertIn("verify /pa /all /v", script)
+        self.assertLess(script.index("Sign-WindowsArtifact $exe"), script.index("& $iscc /Q"))
+        self.assertLess(script.index("audit_installer_sources.py"), script.index("& $iscc /Q"))
+        self.assertIn("audit_final_setup.ps1') -Installer $setup -Nsh", script)
+        self.assertIn("Start-Process msiexec.exe", script)
+        self.assertIn("makeappx.exe') unpack", script)
+        self.assertIn("audit_no_legacy.py", script)
+        self.assertNotIn("7z", script)
+        self.assertLess(script.index("CreateFromDirectory"), script.index("New-Item -ItemType File -Path (Join-Path $stage $marker)"))
 
+        self.assertIn("if-no-files-found: error", windows)
         upload = windows.split("- name: Upload Windows Artifact", maxsplit=1)[1]
-        self.assertIn("target/release-artifacts/*-Setup.exe", upload)
-        self.assertIn("target/release-artifacts/*.msi", upload)
-        self.assertNotIn("target/release-artifacts/*.msix", upload)
+        for artifact in ("*-Setup.exe", "*.msi", "*.msix", "*-windows-x86_64.zip", "SHA256SUMS-windows-x64.txt"):
+            self.assertIn(f"target/release-artifacts/{artifact}", upload)
 
         public_windows_job = self.job("build-windows")
         self.assertIn("uses: ./.github/workflows/release-windows.yml", public_windows_job)
         self.assertIn("release: true", public_windows_job)
         self.assertIn("secrets: inherit", public_windows_job)
         self.assertIn("needs: preflight", public_windows_job)
-
-        public_release = self.job("release")
-        self.assertNotIn("artifacts/**/*.msix", public_release)
-
-    def test_reusable_windows_workflow_gates_signing_and_keeps_msix_private(self) -> None:
-        windows = self.windows_job("installers")
-        signing = windows.split("- name: Resolve Windows signing mode", maxsplit=1)[1].split(
-            "\n      - name:", maxsplit=1
-        )[0]
-        self.assertIn("inputs.release", signing)
-        self.assertIn("Missing required Windows release secret", signing)
-        # No certificate yet: a release builds unsigned with a visible warning,
-        # never silently, and only when neither secret is set.
-        self.assertIn("::warning title=Unsigned Windows release::", signing)
-        self.assertIn("$hasPfx -and -not $hasPassword", signing)
-        self.assertIn("$hasPassword -and -not $hasPfx", signing)
-        self.assertIn("WINDOWS_CERTIFICATE_PFX", signing)
-        self.assertIn("WINDOWS_CERTIFICATE_PASSWORD", signing)
-
-        msix = self.windows_job("msix")
-        self.assertIn("continue-on-error: ${{ inputs.release == true }}", msix)
-        self.assertIn("powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/package_msix.ps1", msix)
-        self.assertIn("powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/smoke_msix.ps1", msix)
-        self.assertIn("name: windows-msix", msix)
-        self.assertNotIn("name: windows-release", msix)
-        self.assertIn("if: always()", msix)
 
     def test_msix_packaging_and_smoke_scripts_enforce_runtime_and_registration_policies(
         self,
@@ -286,7 +259,7 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
             self.smoke_msix,
         )
         self.assertIn("RequireActivation", self.smoke_msix)
-        self.assertIn("smoke-msix-layout-stderr.log", self.windows_job("msix"))
+        self.assertIn("ebirforms-no-self-update", self.package_msix)
 
     def test_local_setup_recipe_checks_prerequisites_and_sources_before_iscc(
         self,
@@ -397,10 +370,11 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
         ):
             self.assertGreater(match.start(), check.index("run: just --summary"))
         self.assertNotIn("choco install just -y", check)
-        self.assertIn("choco install innosetup -y", check)
-        self.assertIn("3010", check)
-        self.assertIn("just exe", check)
-        self.assertIn("scripts/audit_final_setup.ps1", check)
+        setup = self.job("windows-setup", self.ci_workflow)
+        self.assertIn("uses: ./.github/workflows/release-windows.yml", setup)
+        self.assertNotIn("secrets: inherit", setup)
+        self.assertIn("needs.changes.outputs.windows_pkg", setup)
+        self.assertNotIn("check_pe_stack_reserve.py", check)
 
     def test_setup_scripts_keep_the_gpui_agent_version_pinned(self) -> None:
         self.assertIn('local manifest="$SCRIPT_DIR/../Cargo.toml"', self.linux_setup)
@@ -414,8 +388,7 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
         )
         self.assertNotIn("gpui-agent?rev=", self.linux_setup)
         self.assertIn(
-            "cargo build --locked --manifest-path crates/bir-shell/Cargo.toml "
-            "--features agent --bin bir-headless",
+            "cargo build --locked -p bir-cli",
             self.linux_setup,
         )
         self.assertNotIn("--locked gpui-agent-cli", self.linux_setup)
@@ -428,32 +401,16 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
 
     def test_package_builds_are_deterministic_and_scope_consistent(self) -> None:
         windows = self.windows_job("installers")
+        script = self.nsh_windows_package
         self.assertIn("choco install wixtoolset --version=3.11.2 -y", windows)
-        self.assertIn("function Find-WixBin", windows)
-        self.assertIn('"WIX_BIN=$wixBin" >> $env:GITHUB_ENV', windows)
-        self.assertIn("$env:WIX_BIN", windows)
-        self.assertIn("heat.exe", windows)
-        self.assertIn("-cg HarvestedComponents -ag ", windows)
-        self.assertNotIn("-cg HarvestedComponents -gg ", windows)
-        self.assertIn("candle.exe installer.wxs harvest.wxs -arch x64", windows)
-        light_commands = [
-            line.strip()
-            for line in windows.splitlines()
-            if line.strip().startswith("light.exe ")
-        ]
-        self.assertEqual(len(light_commands), 1)
-        self.assertIn(
-            "-sice:ICE38 -sice:ICE43 -sice:ICE57",
-            light_commands[0],
-        )
-        self.assertEqual(
-            re.findall(r"-sice:\S+", self.windows_workflow),
-            ["-sice:ICE38", "-sice:ICE43", "-sice:ICE57"],
-        )
-        self.assertNotIn("-sval", self.windows_workflow)
-        self.assertIn('Root="HKLM"', self.installer_wxs)
-        self.assertNotIn('Root="HKCU"', self.installer_wxs)
-        self.assertIn('Win64="yes"', self.installer_wxs)
+        self.assertIn("'heat.exe'", script)
+        self.assertIn("'-cg', 'NshPayload', '-ag'", script)
+        self.assertNotIn("'-gg'", script)
+        self.assertIn("'-t', (Join-Path $wixDir 'per-user-harvest.xsl')", script)
+        self.assertIn("'candle.exe') (Join-Path $wixDir 'nsh.wxs') $harvest -arch x64", script)
+        self.assertEqual(re.findall(r"-sice:\S+", script), ["-sice:ICE91"])
+        self.assertNotIn("-sval", script)
+
 
         linux_job = self.job("build-linux")
         self.assertIn("uses: ./.github/workflows/release-linux.yml", linux_job)

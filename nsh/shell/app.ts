@@ -1032,7 +1032,6 @@ function pullDeviceFilings(): void {
 
 /** The host checks for a release on its own thread; polling is how the prompt appears. */
 function watchUpdate(): void {
-  if (cloudLocked()) return;
   let next: UpdateStatus;
   try {
     next = bir.update_status();

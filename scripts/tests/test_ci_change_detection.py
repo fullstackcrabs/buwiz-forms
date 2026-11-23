@@ -227,7 +227,7 @@ class CiChangeDetectionTests(unittest.TestCase):
                 "docs/plans/x.md",
                 "README.md",
                 "CONTRIBUTING.md",
-                "crates/bir-shell/docs/AGENT.md",
+                "docs/agent.md",
             ),
         )
 
@@ -268,7 +268,15 @@ class CiChangeDetectionTests(unittest.TestCase):
         self.assert_decisions(
             systems=(),
             check_reason="NSH app files only (tested by the NSH app workflow)",
-            changed=("nsh/screens/home/Home.tsx", ".github/workflows/nsh.yml"),
+            changed=("nsh/screens/home/Home.tsx",),
+        )
+
+    def test_nsh_workflow_change_audits_windows_installer(self) -> None:
+        self.assert_decisions(
+            systems=("windows-latest",),
+            check_reason="Windows installer files changed",
+            packaging=("windows",),
+            changed=(".github/workflows/nsh.yml",),
         )
 
     def test_nsh_src_stays_app_code(self) -> None:
@@ -312,20 +320,24 @@ class CiChangeDetectionTests(unittest.TestCase):
         )
 
     def test_windows_installer_change_tests_windows_only(self) -> None:
-        self.assert_decisions(
-            systems=("windows-latest",),
-            check_reason="Windows installer files changed",
-            packaging=("windows",),
-            changed=(
-                "installer.iss",
-                "installer.wxs",
-                "assets/windows/Square44x44Logo.png",
-                "scripts/audit_final_setup.ps1",
-                "scripts/audit_installer_sources.py",
-                "scripts/package_msix.ps1",
-                "docs/platforms/windows.md",
-            ),
-        )
+        for path in (
+            "installer.iss",
+            "installer.wxs",
+            "assets/windows/Square44x44Logo.png",
+            "packaging/windows/nsh.wxs",
+            "scripts/audit_final_setup.ps1",
+            "scripts/audit_installer_sources.py",
+            "scripts/package_msix.ps1",
+            "scripts/package_nsh_windows.ps1",
+            ".github/workflows/release-windows.yml",
+        ):
+            with self.subTest(path=path):
+                self.assert_decisions(
+                    systems=("windows-latest",),
+                    check_reason="Windows installer files changed",
+                    packaging=("windows",),
+                    changed=(path,),
+                )
 
     def test_windows_installer_with_app_code_tests_all_three(self) -> None:
         self.assert_decisions(
@@ -381,9 +393,6 @@ class CiChangeDetectionTests(unittest.TestCase):
                 ".github/workflows/bir.yml",
                 ".github/workflows/html-candidate-certification.yml",
                 "scripts/setup-linux.sh",
-                "scripts/setup-linux-nsh.sh",
-                "scripts/setup-impeccable.sh",
-                "scripts/impeccable.pin",
                 "scripts/setup-windows.ps1",
                 "scripts/tests/test_release_workflow_policy.py",
             ),
@@ -404,7 +413,6 @@ class CiChangeDetectionTests(unittest.TestCase):
             "packaging/linux2/x.sh",
             "scripts/tests_helper.py",
             "scripts/setup-linux.sh.orig",
-            "scripts/setup-linux-nsh.sh.orig",
             ".github/workflows/cirelease.yml",
         ):
             with self.subTest(path=path):
@@ -521,7 +529,7 @@ class CiChangeDetectionTests(unittest.TestCase):
         if needs is not None:
             self.assertEqual(
                 [name.strip() for name in needs.group(1).split(",")],
-                ["changes", "check", "shell-check", "scripts", "validation-rules", "legacy-guard"],
+                ["changes", "check", "windows-setup", "shell-check", "scripts", "validation-rules", "legacy-guard"],
             )
         # A skip caused by a failed `changes` must fail the gate.
         self.assertIn('[[ "$CHANGES" == success ]]', gate)
