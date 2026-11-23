@@ -45,6 +45,21 @@ class BumpBuildTests(unittest.TestCase):
             self.assertIn("Fetching latest build number", stderr.getvalue())
             self.assertEqual(justfile.read_text(encoding="utf-8"), original)
 
+    def test_app_recipe_passes_ephemeral_counter_into_strict_package_recipe(self) -> None:
+        justfile = (SCRIPT_PATH.parents[1] / "justfile").read_text(encoding="utf-8")
+        app_recipe = justfile.split('app *args="":', 1)[1].split(
+            'testflight *args="":', 1
+        )[0]
+
+        self.assertIn("scripts/bump_build.py --print-next", app_recipe)
+        self.assertIn('BUILD_NUMBER="$NEXT_BUILD_NUMBER"', app_recipe)
+        self.assertIn('just _package-mac-appstore', app_recipe)
+        self.assertNotIn('app *args="": bump-build', justfile)
+        self.assertIn(
+            '_package-mac-appstore args="": build-frozen-html-identity',
+            justfile,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
