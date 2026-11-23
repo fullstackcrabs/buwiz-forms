@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
-# The Android half of `just nsh-run-agent`: which adb and which device, and the hand-off of the data plane's token.
+# The Android half of `just nsh-run-agent`: which adb and which device, and the hand-off of both planes' tokens.
 #
-#   android-handoff.sh device                    prints adb's path, then the device's serial
-#   android-handoff.sh token ADB SERIAL PID      writes $GPUI_AGENT_TOKEN into the host's private files on SERIAL, for as
-#                                                long as the launcher (PID) lives
+#   android-handoff.sh device                              prints adb's path, then the device's serial
+#   android-handoff.sh token ADB SERIAL PID                keeps $GPUI_AGENT_TOKEN in the host's private files on
+#                                                          SERIAL (the data plane's agent-token and the window
+#                                                          plane's gpui-agent-token), for as long as the
+#                                                          launcher (PID) lives
+#   android-handoff.sh plug ADB SERIAL PID PORT DEVPORT    forwards both plane ports, then relaunches the host
+#                                                          once its first process is up: the window plane's
+#                                                          switch and address go as intent extras, over the
+#                                                          same dev-server url `nsh run` launched it with
 #
 # adb is the SDK's own, found as nsh finds the SDK (crates/nsh-cli/src/android.rs, Sdk::find): ANDROID_HOME, else
 # ANDROID_SDK_ROOT, else Android Studio's default place. The device is the one nsh launches on: the first that
@@ -51,7 +57,51 @@ token)
     done
     fail "the data plane's token was not stored on $serial (is the host installed?)"
     ;;
+plug)
+    adb="$2" serial="$3" launcher="$4" port="$5" devport="$6"
+    [ -n "${GPUI_AGENT_TOKEN:-}" ] || fail "set GPUI_AGENT_TOKEN first"
+    tries="${NSH_AGENT_TOKEN_TRIES:-1800}"
+    launched="" saw_down="" window_token=""
+    for _ in $(seq "$tries"); do
+        kill -0 "$launcher" 2>/dev/null || exit 0
+        if "$adb" -s "$serial" shell run-as "$host" true >/dev/null 2>&1; then
+            # The planes' clients reach the host over forwarded loopback: set them up as soon as it is installed.
+            "$adb" -s "$serial" forward "tcp:$port" "tcp:$port" >/dev/null 2>&1 || true
+            "$adb" -s "$serial" forward "tcp:$((port + 1))" "tcp:$((port + 1))" >/dev/null 2>&1 || true
+            # The window plane's token sits in files/ until the relaunched process reads and deletes it; the
+            # first launch has no agent extras, so it returns from AgentBridge.agentConfig before reaching it.
+            if [ -z "$window_token" ]; then
+                if printf %s "$GPUI_AGENT_TOKEN" | "$adb" -s "$serial" shell -T "run-as $host sh -c 'umask 077 && cat > files/gpui-agent-token.new && mv files/gpui-agent-token.new files/gpui-agent-token'" >/dev/null 2>&1; then
+                    window_token=1
+                fi
+            fi
+            if [ -z "$saw_down" ]; then
+                # `nsh run` force-stops any previous host before launching its own: the relaunch counts only a
+                # process that came up after that, or a clean device where none was running.
+                if "$adb" -s "$serial" shell pidof "$host" >/dev/null 2>&1; then :; else saw_down=1; fi
+            fi
+            if [ -n "$saw_down" ] && [ -z "$launched" ] && "$adb" -s "$serial" shell pidof "$host" >/dev/null 2>&1; then
+                launched=1
+                # The first launch's process has read and deleted the data plane's token by now: store it again
+                # for the process the relaunch starts (its take_token waits for it). Rewriting the same value
+                # early is harmless.
+                printf %s "$GPUI_AGENT_TOKEN" | "$adb" -s "$serial" shell -T "run-as $host sh -c 'umask 077 && mkdir -p $dir && cat > $dir/agent-token.new && mv $dir/agent-token.new $dir/agent-token'" >/dev/null 2>&1 || true
+                # The window plane reads its switch and address from the launch intent's extras (AgentBridge
+                # .agentConfig): nsh's first launch carried none. Relaunch the activity on the same dev-server
+                # url — -S force-stops the first process.
+                "$adb" -s "$serial" shell am start -S \
+                    -n "$host/com.longbridge.nsh.DevActivity" \
+                    --es url "ws://127.0.0.1:$devport/ws" \
+                    --es GPUI_AGENT 1 \
+                    --es GPUI_AGENT_ADDR "127.0.0.1:$port" >/dev/null 2>&1 || true
+                exit 0
+            fi
+        fi
+        sleep "${NSH_AGENT_TOKEN_PAUSE:-0.5}"
+    done
+    exit 0
+    ;;
 *)
-    fail "android-handoff.sh: device | token ADB SERIAL PID"
+    fail "android-handoff.sh: device | token ADB SERIAL PID | plug ADB SERIAL PID PORT DEVPORT"
     ;;
 esac
