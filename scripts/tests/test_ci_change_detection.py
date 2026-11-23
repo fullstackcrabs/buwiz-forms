@@ -329,6 +329,7 @@ class CiChangeDetectionTests(unittest.TestCase):
             "scripts/audit_installer_sources.py",
             "scripts/package_msix.ps1",
             "scripts/package_nsh_update.ps1",
+            "scripts/check_pe_stack_reserve.py",
             "scripts/tests/test_nsh_windows_release.py",
             "scripts/package_nsh_windows.ps1",
             ".github/workflows/release-windows.yml",
