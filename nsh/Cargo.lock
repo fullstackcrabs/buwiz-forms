@@ -1492,6 +1492,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ctor"
+version = "1.0.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ea691ed9f36489d087419b8b2ba3ef27d89621380b4178c73e2445a379e4e0f4"
+dependencies = [
+ "link-section",
+ "linktime-proc-macro",
+]
+
+[[package]]
 name = "ctr"
 version = "0.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1886,6 +1896,12 @@ name = "dotenvy"
 version = "0.15.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1aaf95b3e5c8f23aa320147307562d361db0ae0d51242340f558153b4eb2439b"
+
+[[package]]
+name = "downcast-rs"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75b325c5dbd37f80359721ad39aca5a29fb04c89279657cffdda8736d0c0b9d2"
 
 [[package]]
 name = "dtoa"
@@ -2549,6 +2565,58 @@ dependencies = [
 ]
 
 [[package]]
+name = "gdk4-wayland"
+version = "0.11.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "99cc5266dc4e8745a4c4683b26a0c54977a452809d572c940e39c6844663c0ec"
+dependencies = [
+ "gdk4",
+ "gdk4-wayland-sys",
+ "gio 0.22.11",
+ "glib 0.22.11",
+ "libc",
+ "wayland-backend",
+ "wayland-client",
+ "wayland-protocols",
+]
+
+[[package]]
+name = "gdk4-wayland-sys"
+version = "0.11.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bb55bc5225519d34fdf1412db3755af88d1388a1c2a053d92e6751db13d96e68"
+dependencies = [
+ "glib-sys 0.22.11",
+ "libc",
+ "system-deps 9.0.1",
+]
+
+[[package]]
+name = "gdk4-x11"
+version = "0.11.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "519725adee2c62e6ae4cc39e2ec9137b04f0c894f1c673ce17ab8753850534a3"
+dependencies = [
+ "gdk4",
+ "gdk4-x11-sys",
+ "gio 0.22.11",
+ "glib 0.22.11",
+ "libc",
+]
+
+[[package]]
+name = "gdk4-x11-sys"
+version = "0.11.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cbf4849da10d077290e2bb8805278a0afd980af7928fbbb5a915821eb4b2b099"
+dependencies = [
+ "gdk4-sys",
+ "glib-sys 0.22.11",
+ "libc",
+ "system-deps 9.0.1",
+]
+
+[[package]]
 name = "generic-array"
 version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2915,7 +2983,7 @@ dependencies = [
  "log",
  "presser",
  "thiserror 2.0.21",
- "windows 0.56.0",
+ "windows 0.62.2",
 ]
 
 [[package]]
@@ -3040,6 +3108,128 @@ dependencies = [
  "graphene-sys",
  "libc",
  "pango-sys",
+ "system-deps 9.0.1",
+]
+
+[[package]]
+name = "gstreamer"
+version = "0.25.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f4237e2066a25ecb7e54be6c066409e30615920265b9799b8d560ef8ac9857c6"
+dependencies = [
+ "cfg-if",
+ "futures-channel",
+ "futures-core",
+ "futures-util",
+ "glib 0.22.11",
+ "gstreamer-sys",
+ "itertools 0.15.0",
+ "kstring",
+ "libc",
+ "muldiv",
+ "num-integer",
+ "num-rational",
+ "option-operations",
+ "pastey",
+ "pin-project-lite",
+ "smallvec",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "gstreamer-app"
+version = "0.25.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97f8ae9238c2352398dcc084de28df3f7099af216ac6c160b52318d23f25c010"
+dependencies = [
+ "futures-core",
+ "futures-sink",
+ "glib 0.22.11",
+ "gstreamer",
+ "gstreamer-app-sys",
+ "gstreamer-base",
+ "libc",
+]
+
+[[package]]
+name = "gstreamer-app-sys"
+version = "0.25.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0798b8aef6694341d40bb81edc759f8979b896b59f9f0f45d8cfa3bb7bf2e743"
+dependencies = [
+ "glib-sys 0.22.11",
+ "gstreamer-base-sys",
+ "gstreamer-sys",
+ "libc",
+ "system-deps 9.0.1",
+]
+
+[[package]]
+name = "gstreamer-audio"
+version = "0.25.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "544f14e19e3b7221845be0e5c2f2cf284576b7baa16835ac16def6e734bfa866"
+dependencies = [
+ "cfg-if",
+ "glib 0.22.11",
+ "gstreamer",
+ "gstreamer-audio-sys",
+ "gstreamer-base",
+ "libc",
+ "smallvec",
+]
+
+[[package]]
+name = "gstreamer-audio-sys"
+version = "0.25.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09a010deb715bc29953a07c6714249132e736b3daf3a529e70586b58a7063888"
+dependencies = [
+ "glib-sys 0.22.11",
+ "gobject-sys 0.22.9",
+ "gstreamer-base-sys",
+ "gstreamer-sys",
+ "libc",
+ "system-deps 9.0.1",
+]
+
+[[package]]
+name = "gstreamer-base"
+version = "0.25.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "17cbd8f59586a369c40d4b0d2f3a61cf9e9287b3cf5503cdcd8e7c5faa99265e"
+dependencies = [
+ "atomic_refcell",
+ "cfg-if",
+ "glib 0.22.11",
+ "gstreamer",
+ "gstreamer-base-sys",
+ "libc",
+]
+
+[[package]]
+name = "gstreamer-base-sys"
+version = "0.25.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b05f77bfd76b5afee6b29c27dae19eaf5018b5cf8d0d17520f3de44c6385c32"
+dependencies = [
+ "glib-sys 0.22.11",
+ "gobject-sys 0.22.9",
+ "gstreamer-sys",
+ "libc",
+ "system-deps 9.0.1",
+]
+
+[[package]]
+name = "gstreamer-sys"
+version = "0.25.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "436d9532847489a8285d57b8c3670762c12a18f777fdc2ab159b52e0e6f521b9"
+dependencies = [
+ "cfg-if",
+ "glib-sys 0.22.11",
+ "gobject-sys 0.22.9",
+ "libc",
  "system-deps 9.0.1",
 ]
 
@@ -3830,6 +4020,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b4baf93f58d4425749ca49a51c50ebab072c5df6994d08fed93541c331481dc"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4027,6 +4226,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 
 [[package]]
+name = "kstring"
+version = "2.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a09b82a7f771ed02dc0dd9b27130a0fa5499fa15ed3027116c1e5e4e591bd9e"
+dependencies = [
+ "static_assertions",
+]
+
+[[package]]
 name = "kurbo"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4125,6 +4333,18 @@ name = "linebender_resource_handle"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d4a5ff6bcca6c4867b1c4fd4ef63e4db7436ef363e0ad7531d1558856bae64f4"
+
+[[package]]
+name = "link-section"
+version = "0.19.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4d9aae57673c1a235149777a74d152f3210ebd3e3b13346d2cdb6809e566bd3c"
+
+[[package]]
+name = "linktime-proc-macro"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7e57c38c1e860fd37c604281cdfb1dd2216977fd76a50f85ba2f388ef3219616"
 
 [[package]]
 name = "linux-raw-sys"
@@ -4422,6 +4642,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "muldiv"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "956787520e75e9bd233246045d19f42fb73242759cc57fba9611d940ae96d4b0"
+
+[[package]]
 name = "multiversion_no_op"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4569,7 +4795,7 @@ dependencies = [
 [[package]]
 name = "nsh-agent-actions"
 version = "0.1.0"
-source = "git+https://github.com/hexuria/nsh-gpui-agent?rev=1e85cf65f2957192d6341fcaa2ca575efcb3cc84#1e85cf65f2957192d6341fcaa2ca575efcb3cc84"
+source = "git+https://github.com/hexuria/nsh-gpui-agent?rev=1dfa3f5ad0c954448ab3d84f29099f5adddee569#1dfa3f5ad0c954448ab3d84f29099f5adddee569"
 dependencies = [
  "log",
  "nsh-core",
@@ -4602,7 +4828,11 @@ dependencies = [
  "libc",
  "lopdf",
  "nsh-core",
+ "nsh-gpui-agent 0.1.0",
+ "nsh-gpui-agent-android",
+ "nsh-gpui-agent-linux",
  "nsh-gpui-agent-macos",
+ "nsh-gpui-agent-windows",
  "objc2 0.6.5",
  "objc2-core-foundation",
  "objc2-foundation 0.3.2",
@@ -4731,20 +4961,64 @@ dependencies = [
 [[package]]
 name = "nsh-gpui-agent"
 version = "0.1.0"
-source = "git+https://github.com/hexuria/nsh-gpui-agent?rev=1e85cf65f2957192d6341fcaa2ca575efcb3cc84#1e85cf65f2957192d6341fcaa2ca575efcb3cc84"
+source = "git+https://github.com/hexuria/nsh-gpui-agent?rev=1dfa3f5ad0c954448ab3d84f29099f5adddee569#1dfa3f5ad0c954448ab3d84f29099f5adddee569"
 dependencies = [
  "gpui-agent 0.3.0",
  "log",
  "nsh-agent-actions",
+ "nsh-core",
+ "nsh-platform-ios",
+ "nsh-testing",
+ "objc2 0.6.5",
+ "objc2-core-foundation",
+ "objc2-ui-kit",
+ "serde_json",
+]
+
+[[package]]
+name = "nsh-gpui-agent"
+version = "0.6.1"
+dependencies = [
+ "gpui-agent 0.3.0",
  "nsh-core",
  "nsh-testing",
  "serde_json",
 ]
 
 [[package]]
+name = "nsh-gpui-agent-android"
+version = "0.1.0"
+source = "git+https://github.com/hexuria/nsh-gpui-agent?rev=1dfa3f5ad0c954448ab3d84f29099f5adddee569#1dfa3f5ad0c954448ab3d84f29099f5adddee569"
+dependencies = [
+ "ctor",
+ "jni 0.21.1",
+ "log",
+ "nsh-agent-actions",
+ "nsh-core",
+ "nsh-gpui-agent 0.1.0",
+ "nsh-platform-android",
+ "nsh-testing",
+]
+
+[[package]]
+name = "nsh-gpui-agent-linux"
+version = "0.1.0"
+source = "git+https://github.com/hexuria/nsh-gpui-agent?rev=1dfa3f5ad0c954448ab3d84f29099f5adddee569#1dfa3f5ad0c954448ab3d84f29099f5adddee569"
+dependencies = [
+ "log",
+ "nsh-agent-actions",
+ "nsh-base",
+ "nsh-core",
+ "nsh-gpui-agent 0.1.0",
+ "nsh-linux-host",
+ "nsh-platform-linux",
+ "nsh-testing",
+]
+
+[[package]]
 name = "nsh-gpui-agent-macos"
 version = "0.1.0"
-source = "git+https://github.com/hexuria/nsh-gpui-agent?rev=1e85cf65f2957192d6341fcaa2ca575efcb3cc84#1e85cf65f2957192d6341fcaa2ca575efcb3cc84"
+source = "git+https://github.com/hexuria/nsh-gpui-agent?rev=1dfa3f5ad0c954448ab3d84f29099f5adddee569#1dfa3f5ad0c954448ab3d84f29099f5adddee569"
 dependencies = [
  "block2 0.6.2",
  "dispatch2",
@@ -4754,7 +5028,7 @@ dependencies = [
  "nsh-agent-actions",
  "nsh-base",
  "nsh-core",
- "nsh-gpui-agent",
+ "nsh-gpui-agent 0.1.0",
  "nsh-macos-host",
  "nsh-platform-macos",
  "nsh-testing",
@@ -4765,6 +5039,22 @@ dependencies = [
  "objc2-foundation 0.3.2",
  "objc2-quartz-core",
  "serde_json",
+]
+
+[[package]]
+name = "nsh-gpui-agent-windows"
+version = "0.1.0"
+source = "git+https://github.com/hexuria/nsh-gpui-agent?rev=1dfa3f5ad0c954448ab3d84f29099f5adddee569#1dfa3f5ad0c954448ab3d84f29099f5adddee569"
+dependencies = [
+ "log",
+ "nsh-agent-actions",
+ "nsh-base",
+ "nsh-core",
+ "nsh-gpui-agent 0.1.0",
+ "nsh-platform-windows",
+ "nsh-testing",
+ "nsh-windows-host",
+ "windows 0.62.2",
 ]
 
 [[package]]
@@ -4791,6 +5081,17 @@ dependencies = [
  "tokio",
  "tokio-tungstenite",
  "url",
+]
+
+[[package]]
+name = "nsh-linux-host"
+version = "0.6.1"
+dependencies = [
+ "log",
+ "nsh-base",
+ "nsh-dev",
+ "nsh-engine",
+ "nsh-platform-linux",
 ]
 
 [[package]]
@@ -4831,6 +5132,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "nsh-platform-android"
+version = "0.6.1"
+dependencies = [
+ "jni 0.21.1",
+ "jni 0.22.4",
+ "libc",
+ "log",
+ "nsh-base",
+ "nsh-core",
+ "nsh-dev",
+ "nsh-engine",
+ "nsh-testing",
+ "rustc-hash 2.1.3",
+ "rustls-platform-verifier",
+ "serde_json",
+ "tokio",
+ "ttf-parser",
+]
+
+[[package]]
 name = "nsh-platform-apple"
 version = "0.6.1"
 dependencies = [
@@ -4852,6 +5173,64 @@ dependencies = [
 ]
 
 [[package]]
+name = "nsh-platform-ios"
+version = "0.6.1"
+dependencies = [
+ "block2 0.6.2",
+ "dispatch2",
+ "libc",
+ "log",
+ "nsh-base",
+ "nsh-core",
+ "nsh-dev",
+ "nsh-engine",
+ "nsh-platform-apple",
+ "nsh-testing",
+ "objc2 0.6.5",
+ "objc2-authentication-services",
+ "objc2-core-foundation",
+ "objc2-core-graphics",
+ "objc2-core-text",
+ "objc2-foundation 0.3.2",
+ "objc2-image-io",
+ "objc2-io-surface",
+ "objc2-quartz-core",
+ "objc2-ui-kit",
+ "rustc-hash 2.1.3",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "nsh-platform-linux"
+version = "0.6.1"
+dependencies = [
+ "crossbeam-channel",
+ "gdk4-wayland",
+ "gdk4-x11",
+ "gstreamer",
+ "gstreamer-app",
+ "gstreamer-audio",
+ "gtk4",
+ "image",
+ "log",
+ "nsh-base",
+ "nsh-core",
+ "nsh-dev",
+ "nsh-engine",
+ "nsh-gpui-agent 0.6.1",
+ "nsh-testing",
+ "pango",
+ "pangocairo",
+ "rustc-hash 2.1.3",
+ "serde_json",
+ "ttf-parser",
+ "wayland-client",
+ "wayland-protocols-plasma",
+ "webkit6",
+]
+
+[[package]]
 name = "nsh-platform-macos"
 version = "0.6.1"
 dependencies = [
@@ -4864,6 +5243,7 @@ dependencies = [
  "nsh-core",
  "nsh-dev",
  "nsh-engine",
+ "nsh-gpui-agent 0.6.1",
  "nsh-platform-apple",
  "nsh-testing",
  "objc2 0.6.5",
@@ -4878,6 +5258,30 @@ dependencies = [
  "objc2-quartz-core",
  "rustc-hash 2.1.3",
  "serde_json",
+ "unicode-bidi",
+]
+
+[[package]]
+name = "nsh-platform-windows"
+version = "0.6.1"
+dependencies = [
+ "crossbeam-channel",
+ "image",
+ "log",
+ "nsh-base",
+ "nsh-core",
+ "nsh-dev",
+ "nsh-engine",
+ "nsh-gpui-agent 0.6.1",
+ "nsh-testing",
+ "rustc-hash 2.1.3",
+ "serde_json",
+ "ttf-parser",
+ "url",
+ "webview2-com",
+ "windows 0.62.2",
+ "windows-core 0.62.2",
+ "windows-numerics",
 ]
 
 [[package]]
@@ -4910,6 +5314,17 @@ dependencies = [
  "tar",
  "thiserror 2.0.21",
  "zip 9.5.1",
+]
+
+[[package]]
+name = "nsh-windows-host"
+version = "0.6.1"
+dependencies = [
+ "log",
+ "nsh-base",
+ "nsh-dev",
+ "nsh-engine",
+ "nsh-platform-windows",
 ]
 
 [[package]]
@@ -5071,6 +5486,18 @@ dependencies = [
  "objc2-core-graphics",
  "objc2-foundation 0.3.2",
  "objc2-quartz-core",
+]
+
+[[package]]
+name = "objc2-authentication-services"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ee6d6f7dab884a28adaec1012eb3889257a49cc145724e35f93ece2d209f8b25"
+dependencies = [
+ "block2 0.6.2",
+ "objc2 0.6.5",
+ "objc2-app-kit",
+ "objc2-foundation 0.3.2",
 ]
 
 [[package]]
@@ -5340,6 +5767,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
 
 [[package]]
+name = "option-operations"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aca39cf52b03268400c16eeb9b56382ea3c3353409309b63f5c8f0b1faf42754"
+dependencies = [
+ "pastey",
+]
+
+[[package]]
 name = "ordered-channel"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5471,6 +5907,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "pangocairo"
+version = "0.22.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bd199a0fef965b3ebda91a929a1ab5e7729538882c68e8de38e1904d2e094757"
+dependencies = [
+ "cairo-rs",
+ "glib 0.22.11",
+ "pango",
+ "pangocairo-sys",
+]
+
+[[package]]
+name = "pangocairo-sys"
+version = "0.22.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a649a616d67ae68539bc85f00fb45d36fba742ed20fc20e6712a15d8ee52bd3f"
+dependencies = [
+ "cairo-sys-rs",
+ "glib-sys 0.22.11",
+ "libc",
+ "pango-sys",
+ "system-deps 9.0.1",
+]
+
+[[package]]
 name = "parking"
 version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5566,6 +6027,12 @@ checksum = "aab41826031698d6ffcd9cff78ef56ef998e39dc7e5067cdfebe373842d4723b"
 dependencies = [
  "phc",
 ]
+
+[[package]]
+name = "pastey"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2ee67f1008b1ba2321834326597b8e186293b049a023cdef258527550b9935b4"
 
 [[package]]
 name = "pbkdf2"
@@ -7093,7 +7560,7 @@ dependencies = [
  "security-framework 3.7.0",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7195,6 +7662,12 @@ dependencies = [
  "serde_derive_internals",
  "syn 3.0.10",
 ]
+
+[[package]]
+name = "scoped-tls"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e1cf6437eb19a8f4a6cc0f7dca544973b0b78843adbfeb3683d1a94a0024a294"
 
 [[package]]
 name = "scopeguard"
@@ -9276,6 +9749,68 @@ dependencies = [
 ]
 
 [[package]]
+name = "wayland-backend"
+version = "0.3.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38a91b4eaddff87b1cd1074985e3713da4af2c49742d1b356b2c01670a67a078"
+dependencies = [
+ "cc",
+ "downcast-rs",
+ "rustix",
+ "scoped-tls",
+ "smallvec",
+ "wayland-sys",
+]
+
+[[package]]
+name = "wayland-client"
+version = "0.31.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e3c36a0f861ad76d0901f2800b46321410d9f73f2ea88aac0650d86c32688073"
+dependencies = [
+ "bitflags 2.13.2",
+ "rustix",
+ "wayland-backend",
+ "wayland-scanner",
+]
+
+[[package]]
+name = "wayland-protocols"
+version = "0.32.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "23d0c813de3daa2ed6520af85a3bd49b0e722a3078506899aa9686fea58dc4b6"
+dependencies = [
+ "bitflags 2.13.2",
+ "wayland-backend",
+ "wayland-client",
+ "wayland-scanner",
+]
+
+[[package]]
+name = "wayland-protocols-plasma"
+version = "0.3.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b6d8cf1eb2c1c31ed1f5643c88a6e53538129d4af80030c8cabd1f9fa884d91"
+dependencies = [
+ "bitflags 2.13.2",
+ "wayland-backend",
+ "wayland-client",
+ "wayland-protocols",
+ "wayland-scanner",
+]
+
+[[package]]
+name = "wayland-scanner"
+version = "0.31.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "338e30461b3a2b67d70eb30a6d89f8e0c93a833e07d2ae89085cd070c4a00ac0"
+dependencies = [
+ "proc-macro2",
+ "quick-xml",
+ "quote",
+]
+
+[[package]]
 name = "wayland-sys"
 version = "0.31.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10552,28 +11087,4 @@ version = "0.6.1"
 
 [[patch.unused]]
 name = "nsh-ios-host"
-version = "0.6.1"
-
-[[patch.unused]]
-name = "nsh-linux-host"
-version = "0.6.1"
-
-[[patch.unused]]
-name = "nsh-platform-android"
-version = "0.6.1"
-
-[[patch.unused]]
-name = "nsh-platform-ios"
-version = "0.6.1"
-
-[[patch.unused]]
-name = "nsh-platform-linux"
-version = "0.6.1"
-
-[[patch.unused]]
-name = "nsh-platform-windows"
-version = "0.6.1"
-
-[[patch.unused]]
-name = "nsh-windows-host"
 version = "0.6.1"
