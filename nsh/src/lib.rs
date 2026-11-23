@@ -153,6 +153,12 @@ impl Door {
             .collect()
     }
 
+    /// An opaque database change token; null when changes cannot be determined.
+    pub fn data_change_token(_system: System) -> Result<Option<String>, String> {
+        prepare_door(_system)?;
+        door::data_change_token()
+    }
+
     /// How sending stands and which database file is named, without opening it.
     pub fn status(_system: System) -> Result<DoorStatus, String> {
         #[cfg(target_os = "android")]

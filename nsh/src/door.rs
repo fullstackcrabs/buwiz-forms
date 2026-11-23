@@ -470,6 +470,18 @@ pub fn functions() -> Vec<(String, FunctionKind)> {
         .collect()
 }
 
+/// Changes from this connection and from other connections, or unknown when SQLite cannot answer.
+pub fn data_change_token() -> Result<Option<String>, String> {
+    booted()?;
+    let handle =
+        bir_app_api::bir_module::database_handle().map_err(|error| said(error.message()))?;
+    let db =
+        bir_core::lock_timing::lock(&handle).map_err(|_| "database lock poisoned".to_owned())?;
+    Ok(db
+        .data_version()
+        .map(|version| format!("{}:{version}", db.total_changes())))
+}
+
 /// The TypeScript declarations of the `bir` module, as the Rust modules wrote them.
 pub fn declared_types() -> String {
     bir_app_api::module()
@@ -552,6 +564,26 @@ mod tests {
         let folder = tempfile::tempdir().expect("temp folder");
         let database = folder.path().join("data").join("bir_data.db");
         (folder, database)
+    }
+
+    #[test]
+    fn data_change_token_holds_for_reads_and_moves_for_local_and_external_writes() {
+        let (folder, database) = empty();
+        dev_env(Some(&database), Some(folder.path()), || {
+            let first = data_change_token().expect("token").expect("known changes");
+            call("get_setting", vec![json!("theme_preference")]).expect("read");
+            assert_eq!(
+                data_change_token().unwrap().as_deref(),
+                Some(first.as_str())
+            );
+            call("set_setting", vec![json!("theme_preference"), json!("dark")]).expect("write");
+            let second = data_change_token().unwrap().unwrap();
+            assert_ne!(second, first);
+            let other = bir_core::db::Database::open(&database).expect("another connection");
+            let before_external = data_change_token().unwrap().unwrap();
+            other.set_setting("theme_preference", "light").expect("external write");
+            assert_ne!(data_change_token().unwrap().unwrap(), before_external);
+        });
     }
 
     #[test]
