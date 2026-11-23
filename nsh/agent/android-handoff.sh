@@ -61,9 +61,14 @@ plug)
     adb="$2" serial="$3" launcher="$4" port="$5" devport="$6"
     [ -n "${GPUI_AGENT_TOKEN:-}" ] || fail "set GPUI_AGENT_TOKEN first"
     tries="${NSH_AGENT_TOKEN_TRIES:-1800}"
-    launched="" saw_down="" window_token=""
+    seen_pid="__unset__" window_token=""
     for _ in $(seq "$tries"); do
-        kill -0 "$launcher" 2>/dev/null || exit 0
+        if ! kill -0 "$launcher" 2>/dev/null; then
+            # The run ended before the relaunch: the forwards it set up would keep the ports bound for the next run.
+            "$adb" -s "$serial" forward --remove "tcp:$port" >/dev/null 2>&1 || true
+            "$adb" -s "$serial" forward --remove "tcp:$((port + 1))" >/dev/null 2>&1 || true
+            exit 0
+        fi
         if "$adb" -s "$serial" shell run-as "$host" true >/dev/null 2>&1; then
             # The planes' clients reach the host over forwarded loopback: set them up as soon as it is installed.
             "$adb" -s "$serial" forward "tcp:$port" "tcp:$port" >/dev/null 2>&1 || true
@@ -75,13 +80,14 @@ plug)
                     window_token=1
                 fi
             fi
-            if [ -z "$saw_down" ]; then
-                # `nsh run` force-stops any previous host before launching its own: the relaunch counts only a
-                # process that came up after that, or a clean device where none was running.
-                if "$adb" -s "$serial" shell pidof "$host" >/dev/null 2>&1; then :; else saw_down=1; fi
-            fi
-            if [ -n "$saw_down" ] && [ -z "$launched" ] && "$adb" -s "$serial" shell pidof "$host" >/dev/null 2>&1; then
-                launched=1
+            # `nsh run` launches with `am start -S`: the process it starts has a pid this watcher has not seen
+            # before — whether none ran or a stale host's was force-stopped (the down phase is shorter than a
+            # poll, so pidof can miss it). The first pid observed could still be a stale host; a new one is
+            # always `nsh run`'s own launch.
+            pid="$("$adb" -s "$serial" shell pidof "$host" 2>/dev/null | tr -d '[:space:]' || true)"
+            if [ "$seen_pid" = "__unset__" ]; then
+                seen_pid="$pid"
+            elif [ -n "$pid" ] && [ "$pid" != "$seen_pid" ]; then
                 # The first launch's process has read and deleted the data plane's token by now: store it again
                 # for the process the relaunch starts (its take_token waits for it). Rewriting the same value
                 # early is harmless.
