@@ -35,7 +35,8 @@ class PublishTests(unittest.TestCase):
             if args[:2] == ["nsh", "update-manifest"]:
                 key = Path(args[args.index("--key") + 1])
                 self.assertEqual(key.read_text(), "throwaway")
-                self.assertEqual(key.stat().st_mode & 0o777, 0o600)
+                if os.name == "posix":
+                    self.assertEqual(key.stat().st_mode & 0o777, 0o600)
             return ""
         with patch.dict(os.environ, {"NSH_UPDATE_KEY": "throwaway"}), patch.object(publisher, "run", side_effect=run):
             publisher.publish("v0.2.0", "owner/repo")
