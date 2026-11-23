@@ -151,6 +151,7 @@ shell-check: shell-ui-test
     cargo test --locked --manifest-path crates/bir-shell/Cargo.toml --features agent --lib agent::
     {{ if os_family() == "windows" { "$env:EBIR_TEST_ENV='1'; $env:BIR_AUTH_BYPASS='1'; $env:BIR_SFTP_DRY_RUN='1'; $env:BUWIZ_NO_KEYCHAIN='1'; cargo test --locked -p bir-app-api --features headless --lib agent::" } else { "EBIR_TEST_ENV=1 BIR_AUTH_BYPASS=1 BIR_SFTP_DRY_RUN=1 BUWIZ_NO_KEYCHAIN=1 cargo test --locked -p bir-app-api --features headless --lib agent::" } }}
     {{ if os_family() == "windows" { "$env:EBIR_TEST_ENV='1'; $env:BIR_AUTH_BYPASS='1'; $env:BIR_SFTP_DRY_RUN='1'; $env:BUWIZ_NO_KEYCHAIN='1'; cargo test --locked -p bir-cli" } else { "EBIR_TEST_ENV=1 BIR_AUTH_BYPASS=1 BIR_SFTP_DRY_RUN=1 BUWIZ_NO_KEYCHAIN=1 cargo test --locked -p bir-cli" } }}
+    cargo test --locked --manifest-path crates/bir-shell/Cargo.toml --features agent --test headless_detach
 
 # bir-core and bir-app-api tests in the plain-SQLite build the NSH app ships (no sqlcipher), with the four safety variables:
 # nothing reaches the keychain, a real database or the BIR.

@@ -7,6 +7,7 @@
 //! thread never touches GPUI. Screen changes are queued for the script
 //! (`bir.agent_take`).
 
+pub(crate) use bir_app_api::agent::headless;
 pub(crate) use bir_app_api::agent::{pop_command, send_draft};
 
 use std::rc::Rc;
