@@ -21,18 +21,6 @@ path = "src/lib.rs"
 name = "bir-shell"
 path = "src/main.rs"
 
-[[bin]]
-name = "bir-headless"
-path = "src/bin/headless.rs"
-required-features = ["agent"]
-
-# Spawns the bir-headless binary; without `agent` the binary is not built, so
-# a plain `cargo test` must skip this target instead of failing on a missing exe.
-[[test]]
-name = "headless_detach"
-path = "tests/headless_detach.rs"
-required-features = ["agent"]
-
 [features]
 # GPUI Fast (https://gpui-kit.com/docs/installation/#optional-gpui-fast-backend):
 # its retained rendering and layout engine in place of upstream GPUI, across
@@ -44,8 +32,8 @@ gpui-fast = ["gpui-kit/gpui-fast", "gpui-shell/gpui-fast", "gpui-component/gpui-
 # listener still starts only if `GPUI_AGENT=1` (and a release build also
 # needs `GPUI_AGENT_ALLOW_RELEASE=1`). Same protocol rev as bir-shell and
 # bir-mcp.
-# The session, the daemon and the CLI live in bir-app-api (`agent`, `headless`), shared with the NSH app.
-agent = ["bir-app-api/agent", "bir-app-api/headless", "dep:gpui-agent"]
+# The session lives in bir-app-api (`agent`), shared with the NSH app and the `bir` command (crates/bir-cli).
+agent = ["bir-app-api/agent", "dep:gpui-agent"]
 mas_build = ["bir-core/mas_build", "bir-app-api/mas_build"]
 
 [dependencies]
@@ -106,7 +94,7 @@ zip = { version = "2", default-features = false, features = ["deflate", "time"] 
 serde_json = "1"
 tracing = "0.1"
 # The submission worker (`bir_core::background_cron`) runs on its own Tokio
-# runtime, as in the shell GUI and `bir-headless`.
+# runtime, as in the shell GUI and the `bir` command.
 tokio = { version = "1", features = ["rt-multi-thread"] }
 # Bridges the OS sign-in prompt (run on its own thread) into a host future.
 futures = "0.3"

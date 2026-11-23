@@ -1,4 +1,4 @@
-# The `bir-v*` workflow archives bir-headless as `bir`.
+# The `bir-v*` workflow builds the `bir` command from crates/bir-cli.
 # Desktop releases stay `just publish` / `just publish 0.2.0` (tag v*).
 set dotenv-load := true
 
@@ -150,7 +150,7 @@ shell-check: shell-ui-test
     {{ if os_family() == "windows" { "$env:EBIR_TEST_ENV='1'; $env:BIR_AUTH_BYPASS='1'; $env:BIR_SFTP_DRY_RUN='1'; cargo test --locked --manifest-path crates/bir-shell/Cargo.toml" } else { "EBIR_TEST_ENV=1 BIR_AUTH_BYPASS=1 BIR_SFTP_DRY_RUN=1 cargo test --locked --manifest-path crates/bir-shell/Cargo.toml" } }}
     cargo test --locked --manifest-path crates/bir-shell/Cargo.toml --features agent --lib agent::
     {{ if os_family() == "windows" { "$env:EBIR_TEST_ENV='1'; $env:BIR_AUTH_BYPASS='1'; $env:BIR_SFTP_DRY_RUN='1'; $env:BUWIZ_NO_KEYCHAIN='1'; cargo test --locked -p bir-app-api --features headless --lib agent::" } else { "EBIR_TEST_ENV=1 BIR_AUTH_BYPASS=1 BIR_SFTP_DRY_RUN=1 BUWIZ_NO_KEYCHAIN=1 cargo test --locked -p bir-app-api --features headless --lib agent::" } }}
-    cargo test --locked --manifest-path crates/bir-shell/Cargo.toml --features agent --test headless_detach
+    {{ if os_family() == "windows" { "$env:EBIR_TEST_ENV='1'; $env:BIR_AUTH_BYPASS='1'; $env:BIR_SFTP_DRY_RUN='1'; $env:BUWIZ_NO_KEYCHAIN='1'; cargo test --locked -p bir-cli" } else { "EBIR_TEST_ENV=1 BIR_AUTH_BYPASS=1 BIR_SFTP_DRY_RUN=1 BUWIZ_NO_KEYCHAIN=1 cargo test --locked -p bir-cli" } }}
 
 # bir-core and bir-app-api tests in the plain-SQLite build the NSH app ships (no sqlcipher), with the four safety variables:
 # nothing reaches the keychain, a real database or the BIR.
@@ -1407,7 +1407,7 @@ nsh-agent-handoff-test:
 
 # Starts the app in a real window with the `agent` feature built into its host (a scratch database, dry run, no keychain; the token is made here and
 # never printed), then runs nsh/tests/window_plane.rs against both control planes: the window's (tree, press, type, screenshot) and the data plane's
-# (app.info, profile.*, form.*). Nothing is sent anywhere. See crates/bir-shell/docs/AGENT.md. nsh's CLI builds its hosts without app features;
+# (app.info, profile.*, form.*). Nothing is sent anywhere. See docs/agent.md. nsh's CLI builds its hosts without app features;
 # nsh/agent/cargo-with-agent.sh, set as $CARGO for that one command, adds the feature to the host build.
 
 # NSH: an external agent against the real app window (cargo feature `agent`, both control planes).

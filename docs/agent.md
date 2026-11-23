@@ -1,24 +1,23 @@
 # gpui-agent integration
 
-`bir-shell` owns the BIR agent control plane. The `bir-headless` binary runs
-the same DB-backed `agent::session::Session` without opening a window; UI
+The BIR agent control plane is the session in `crates/bir-app-api/src/agent/`, hosted by the
+NSH app, the gpui shell (`crates/bir-shell`) and the headless `bir` command (`crates/bir-cli`).
+`bir` runs the same DB-backed `agent::session::Session` without opening a window; UI
 commands are discarded and screenshots are unavailable. Discovery records use
-app `bir-shell`; the headless executable is `bir-headless`.
+app `bir-shell` (the name `bir-mcp` and the NSH tests select on); the headless
+daemon's record names the executable `bir-headless`, so `bir-mcp` reports it as
+headless mode.
 
 ## Build and install
 
-`bir-shell` is a standalone Cargo workspace with its own lockfile and target
-directory:
+`bir-cli` is a root workspace member, built on plain SQLite (no SQLCipher), as the NSH app:
 
 ```sh
-cargo build --locked --manifest-path crates/bir-shell/Cargo.toml \
-  --features agent --bin bir-headless
-cargo install --path crates/bir-shell --features agent \
-  --bin bir-headless --locked
+cargo build --locked -p bir-cli
+cargo install --path crates/bir-cli --locked
 ```
 
-The development binary is
-`crates/bir-shell/target/debug/bir-headless`.
+The development binary is `target/debug/bir`.
 
 ## Start a headless host
 
@@ -28,13 +27,13 @@ Set a non-empty token and opt into the agent before starting the daemon:
 GPUI_AGENT=1 \
 GPUI_AGENT_TOKEN='<local-development-token>' \
 GPUI_AGENT_ADDR=127.0.0.1:17421 \
-crates/bir-shell/target/debug/bir-headless serve
+target/debug/bir serve
 ```
 
 `GPUI_AGENT_ADDR` defaults to loopback port `17421`. The discovery record
 advertises the actual bound address, including a dynamically assigned port.
-`bir-mcp` selects records by app and executable; it identifies
-`bir-headless` as headless mode.
+`bir-mcp` selects records by app and executable; it identifies the
+record executable `bir-headless` as headless mode.
 
 Use `serve --wait` when another BIR host owns the database lock, or
 `serve --detach` to run in the background. `status`, `logs`, and `shutdown`
@@ -66,8 +65,8 @@ after the filer answers, read the return again with `form.fields`.
 
 The session (every `invoke`), the UI-command queue, the opt-in rules, the batch drain and the headless daemon with its CLI are UI-free and
 live in `crates/bir-app-api/src/agent/` (cargo features `agent`, and `headless` for the daemon): one copy, used by the gpui shell, by
-`bir-headless` and by the NSH app. `bir-shell` keeps only the gpui glue (`src/agent/mod.rs`: the drain timer, which waits `bir_app_api::agent::drain_interval`: 1 ms while a request arrived in the last 500 ms and 32 ms when idle, and the semantic tree of the
-script view). Their tests run with `cargo test -p bir-app-api --features headless --lib agent::` (the four safety variables).
+the `bir` command and by the NSH app. `bir-shell` keeps only the gpui glue (`src/agent/mod.rs`: the drain timer, which waits `bir_app_api::agent::drain_interval`: 1 ms while a request arrived in the last 500 ms and 32 ms when idle, and the semantic tree of the
+script view). Their tests run with `cargo test -p bir-app-api --features headless --lib agent::` (the four safety variables); the daemon end to end (`serve --detach`, `status`, `logs`, `shutdown`) with `cargo test -p bir-cli`.
 
 ## NSH app
 

@@ -1,4 +1,4 @@
-//! End-to-end `bir-headless serve --detach` / `logs` / `status` / `shutdown`.
+//! End-to-end `bir serve --detach` / `logs` / `status` / `shutdown`.
 //!
 //! Isolated temp DB + log + pid. Never opens the live app-group / `~/.taxman-ebir`
 //! database.
@@ -44,7 +44,7 @@ impl Harness {
         let pid = dir.path().join("bir-headless.pid");
         let runtime = dir.path().join("gpui-agent-runtime");
         let harness = Self {
-            bin: PathBuf::from(env!("CARGO_BIN_EXE_bir-headless")),
+            bin: PathBuf::from(env!("CARGO_BIN_EXE_bir")),
             _dir: dir,
             addr,
             token: "detach-e2e-secret",

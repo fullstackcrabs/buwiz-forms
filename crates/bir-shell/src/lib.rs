@@ -8,11 +8,6 @@
 #[cfg(feature = "agent")]
 mod agent;
 
-#[cfg(feature = "agent")]
-pub fn run_headless() -> std::process::ExitCode {
-    bir_host::install_hooks();
-    agent::headless::run()
-}
 mod app_menu;
 mod bir_host;
 mod blitz_render;
