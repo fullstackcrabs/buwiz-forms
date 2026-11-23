@@ -184,7 +184,7 @@ install_nsh_cli() {
     log "Building the nsh CLI at ${REF:0:7} in the image"
     in_image "$NSH" -e CARGO_TARGET_DIR="$WORK/target-nsh" -- \
         cargo install --locked --path crates/nsh-cli --root "$WORK/tools"
-    rm -f "$WORK/tools/runtime/android/.ref"   # a new CLI needs a matching runtime
+    rm -f "$WORK/tools/runtime/android/dev/nsh-ref"   # a new CLI needs a matching runtime
 }
 
 install_android_sdk() {
@@ -219,9 +219,17 @@ install_android_sdk() {
 
 # NSH's Android runtime (classes.dex + libnsh.so per ABI). xtask reads its own
 # target/ dir, so no CARGO_TARGET_DIR; the CLI looks for it next to its bin/.
+nsh_android_runtime_current() {
+    local dest="$WORK/tools/runtime/android/dev" abi
+    [ -s "$dest/classes.dex" ] && [ "$(cat "$dest/nsh-ref" 2>/dev/null)" = "$REF" ] || return 1
+    for abi in arm64-v8a armeabi-v7a x86_64; do
+        [ -s "$dest/lib/$abi/libnsh.so" ] || return 1
+    done
+}
+
 install_android_runtime() {
     local dest="$WORK/tools/runtime/android/dev"
-    if [ -d "$dest" ] && [ "$(cat "$WORK/tools/runtime/android/.ref" 2>/dev/null)" = "$REF" ]; then
+    if nsh_android_runtime_current; then
         log "NSH Android runtime already at ${REF:0:7}"
         return 0
     fi
@@ -231,7 +239,8 @@ install_android_runtime() {
         cargo xtask android --dev
     rm -rf "$dest" && mkdir -p "$WORK/tools/runtime/android"
     cp -r "$NSH/target/android/debug-dev" "$dest"
-    echo "$REF" > "$WORK/tools/runtime/android/.ref"
+    echo "$REF" > "$dest/nsh-ref"
+    nsh_android_runtime_current || die "NSH Android runtime is incomplete"
 }
 
 check() {
@@ -255,8 +264,8 @@ check() {
         else report "android ndk" MISSING 0; fi
         if "$ANDROID_HOME/emulator/emulator" -list-avds 2>/dev/null | grep -qx "$AVD"; then report "avd:$AVD" present 1
         else report "avd:$AVD" MISSING 0; fi
-        if [ -d "$WORK/tools/runtime/android/dev" ]; then report "nsh android runtime" present 1
-        else report "nsh android runtime" MISSING 0; fi
+        if nsh_android_runtime_current; then report "nsh android runtime" "${REF:0:7}" 1
+        else report "nsh android runtime" "MISSING, incomplete or stale" 0; fi
     fi
     [ "$ok" -eq 1 ] && log "NSH toolchain ready" || warn "Missing pieces — run scripts/setup-linux-nsh.sh"
     return $((1 - ok))
