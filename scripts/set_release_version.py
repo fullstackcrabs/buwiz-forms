@@ -4,39 +4,92 @@
 from __future__ import annotations
 
 import re
+import subprocess
 import sys
 from pathlib import Path
 
 VERSION_RE = re.compile(r"\d+\.\d+\.\d+")
 CARGO_VERSION_RE = re.compile(r'(?m)^(version = ")[^"]+(")')
 NSH_JSON_VERSION_RE = re.compile(r'(?m)^(  "version": ")[^"]+(")')
-
-
-def _replacement(path: Path, pattern: re.Pattern[str], version: str) -> tuple[Path, bytes]:
-    text = path.read_bytes().decode("utf-8")
-    if len(pattern.findall(text)) != 1:
-        raise ValueError(f"{path}: expected exactly one release version")
-    return path, pattern.sub(
-        lambda match: f"{match.group(1)}{version}{match.group(2)}",
-        text,
-        count=1,
-    ).encode("utf-8")
+INTERNAL_DEPENDENCY_VERSION_RE = re.compile(
+    r'(?m)^(bir-(?:core|rules)\s*=\s*\{[^\n]*version = ")[^"]+(")'
+)
+LOCKFILE_MANIFESTS = (
+    Path("Cargo.toml"),
+    Path("nsh/Cargo.toml"),
+    Path("crates/bir-shell/Cargo.toml"),
+)
 
 
 def set_version(root: Path, version: str) -> None:
     if VERSION_RE.fullmatch(version) is None:
         raise ValueError(f"release version must be MAJOR.MINOR.PATCH: {version}")
 
-    paths = [(root / "Cargo.toml", CARGO_VERSION_RE)]
-    bir_print = root / "crates/bir-print/Cargo.toml"
-    if bir_print.exists():
-        paths.append((bir_print, CARGO_VERSION_RE))
-    paths.append((root / "nsh/Cargo.toml", CARGO_VERSION_RE))
-    paths.append((root / "nsh/nsh.json", NSH_JSON_VERSION_RE))
+    paths = [
+        (root / "Cargo.toml", CARGO_VERSION_RE),
+        (root / "crates/bir-core/Cargo.toml", INTERNAL_DEPENDENCY_VERSION_RE),
+        (root / "crates/bir-print/Cargo.toml", CARGO_VERSION_RE),
+        (root / "crates/bir-print/Cargo.toml", INTERNAL_DEPENDENCY_VERSION_RE),
+        (root / "nsh/Cargo.toml", CARGO_VERSION_RE),
+        (root / "nsh/nsh.json", NSH_JSON_VERSION_RE),
+    ]
 
-    updates = [_replacement(path, pattern, version) for path, pattern in paths]
+    # bir-print has two independent replacements in one file. Group their
+    # validation before any write so a failure leaves every file unchanged.
+    grouped: dict[Path, list[re.Pattern[str]]] = {}
+    for path, pattern in paths:
+        grouped.setdefault(path, []).append(pattern)
+    updates = []
+    for path, patterns in grouped.items():
+        text = path.read_bytes().decode("utf-8")
+        for pattern in patterns:
+            if len(pattern.findall(text)) != 1:
+                raise ValueError(f"{path}: expected exactly one release version")
+            text = pattern.sub(
+                lambda match: f"{match.group(1)}{version}{match.group(2)}",
+                text,
+                count=1,
+            )
+        updates.append((path, text.encode("utf-8")))
+
     for path, content in updates:
         path.write_bytes(content)
+
+
+def refresh_lockfiles(root: Path) -> None:
+    for relative in LOCKFILE_MANIFESTS:
+        manifest = root / relative
+        if not manifest.exists():
+            continue
+        command = [
+            "cargo",
+            "metadata",
+            "--format-version",
+            "1",
+            "--manifest-path",
+            str(manifest),
+        ]
+        offline = subprocess.run(
+            [*command, "--offline"],
+            cwd=root,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+        if offline.returncode == 0:
+            continue
+        online = subprocess.run(
+            command,
+            cwd=root,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+        if online.returncode != 0:
+            detail = online.stderr.strip() or offline.stderr.strip()
+            raise RuntimeError(f"cargo metadata failed for {relative}: {detail}")
 
 
 def main(argv: list[str]) -> int:
@@ -46,7 +99,8 @@ def main(argv: list[str]) -> int:
     root = Path(__file__).resolve().parents[1]
     try:
         set_version(root, argv[1])
-    except (OSError, ValueError) as error:
+        refresh_lockfiles(root)
+    except (OSError, RuntimeError, ValueError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
     return 0

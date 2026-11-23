@@ -1,9 +1,11 @@
 """Release-version manifest rewriting."""
 
 import importlib.util
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 _PATH = Path(__file__).resolve().parents[1] / "set_release_version.py"
 _SPEC = importlib.util.spec_from_file_location("set_release_version", _PATH)
@@ -11,19 +13,26 @@ assert _SPEC is not None and _SPEC.loader is not None
 _MODULE = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(_MODULE)
 
+refresh_lockfiles = _MODULE.refresh_lockfiles
 set_version = _MODULE.set_version
 
 
 class SetReleaseVersionTests(unittest.TestCase):
     def write_tree(self, root: Path, nsh_json: str | None = None) -> None:
         (root / "crates/bir-print").mkdir(parents=True)
+        (root / "crates/bir-core").mkdir(parents=True)
         (root / "nsh").mkdir()
         (root / "Cargo.toml").write_text(
             '[workspace.package]\nversion = "0.2.0"\nedition = "2024"\n',
             encoding="utf-8",
         )
+        (root / "crates/bir-core/Cargo.toml").write_text(
+            '[dependencies]\nbir-rules = { path = "../bir-rules", version = "0.2.0" }\n',
+            encoding="utf-8",
+        )
         (root / "crates/bir-print/Cargo.toml").write_text(
-            '[package]\nname = "bir-print"\nversion = "0.2.0"\n',
+            '[package]\nname = "bir-print"\nversion = "0.2.0"\n'
+            '[dependencies]\nbir-core = { path = "../bir-core", version = "0.2.0" }\n',
             encoding="utf-8",
         )
         (root / "nsh/Cargo.toml").write_text(
@@ -47,8 +56,13 @@ class SetReleaseVersionTests(unittest.TestCase):
                 '[workspace.package]\nversion = "1.2.3"\nedition = "2024"\n',
             )
             self.assertEqual(
+                (root / "crates/bir-core/Cargo.toml").read_text(encoding="utf-8"),
+                '[dependencies]\nbir-rules = { path = "../bir-rules", version = "1.2.3" }\n',
+            )
+            self.assertEqual(
                 (root / "crates/bir-print/Cargo.toml").read_text(encoding="utf-8"),
-                '[package]\nname = "bir-print"\nversion = "1.2.3"\n',
+                '[package]\nname = "bir-print"\nversion = "1.2.3"\n'
+                '[dependencies]\nbir-core = { path = "../bir-core", version = "1.2.3" }\n',
             )
             self.assertEqual(
                 (root / "nsh/Cargo.toml").read_text(encoding="utf-8"),
@@ -75,13 +89,63 @@ class SetReleaseVersionTests(unittest.TestCase):
                 set_version(root, "1.2.3")
             self.assertEqual((root / "Cargo.toml").read_bytes(), cargo_before)
 
-    def test_a_missing_bir_print_manifest_is_optional(self):
+    def test_a_missing_bir_print_manifest_writes_nothing(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             self.write_tree(root)
             (root / "crates/bir-print/Cargo.toml").unlink()
-            set_version(root, "1.2.3")
-            self.assertIn('version = "1.2.3"', (root / "Cargo.toml").read_text(encoding="utf-8"))
+            cargo_before = (root / "Cargo.toml").read_bytes()
+            with self.assertRaises(FileNotFoundError):
+                set_version(root, "1.2.3")
+            self.assertEqual((root / "Cargo.toml").read_bytes(), cargo_before)
+
+    def test_lockfiles_refresh_offline_for_each_workspace(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.write_tree(root)
+            shell = root / "crates/bir-shell"
+            shell.mkdir()
+            (shell / "Cargo.toml").write_text('[package]\nname = "bir-shell"\n', encoding="utf-8")
+            with mock.patch.object(_MODULE.subprocess, "run") as run:
+                run.return_value = subprocess.CompletedProcess([], 0)
+                refresh_lockfiles(root)
+            self.assertEqual(run.call_count, 3)
+            commands = [call.args[0] for call in run.call_args_list]
+            self.assertTrue(all("--offline" in command for command in commands))
+            manifests = [
+                Path(command[command.index("--manifest-path") + 1]).relative_to(root).as_posix()
+                for command in commands
+            ]
+            self.assertEqual(
+                manifests,
+                ["Cargo.toml", "nsh/Cargo.toml", "crates/bir-shell/Cargo.toml"],
+            )
+
+    def test_lockfile_refresh_falls_back_online(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.write_tree(root)
+            with mock.patch.object(_MODULE.subprocess, "run") as run:
+                run.side_effect = [
+                    subprocess.CompletedProcess([], 1, stderr="missing offline cache"),
+                    subprocess.CompletedProcess([], 0),
+                    subprocess.CompletedProcess([], 0),
+                ]
+                refresh_lockfiles(root)
+            commands = [call.args[0] for call in run.call_args_list]
+            self.assertIn("--offline", commands[0])
+            self.assertNotIn("--offline", commands[1])
+            self.assertIn("--offline", commands[2])
+
+    def test_lockfile_refresh_reports_cargo_failure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.write_tree(root)
+            with mock.patch.object(_MODULE.subprocess, "run") as run:
+                run.return_value = subprocess.CompletedProcess([], 1, stderr="cargo broke")
+                with self.assertRaisesRegex(RuntimeError, "cargo broke"):
+                    refresh_lockfiles(root)
+            self.assertEqual(run.call_count, 2)
 
 
 if __name__ == "__main__":
