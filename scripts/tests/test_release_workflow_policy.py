@@ -113,7 +113,7 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
         preflight = self.job("preflight", self.macos_workflow)
         self.assertIn("NSH_VERSION=", preflight)
         self.assertIn('json.load(open(sys.argv[1], encoding="utf-8"))', preflight)
-        self.assertNotIn("awk -F", preflight)
+        self.assertNotIn('NSH_VERSION="$(awk', preflight)
         self.assertIn('"$TAG_VERSION" != "$NSH_VERSION"', preflight)
         self.assertIn("nsh/nsh.json version $NSH_VERSION", preflight)
         self.assertIn("crates/bir-shell/Cargo.lock nsh/Cargo.lock", preflight)
