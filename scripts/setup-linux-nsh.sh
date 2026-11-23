@@ -187,13 +187,32 @@ install_nsh_cli() {
     rm -f "$WORK/tools/runtime/android/dev/nsh-ref"   # a new CLI needs a matching runtime
 }
 
+find_java_home() {
+    local java version
+    for java in "${JAVA_HOME:+$JAVA_HOME/bin/java}" "$(command -v java || true)"; do
+        [ -x "$java" ] || continue
+        version="$("$java" -version 2>&1 | sed -n 's/.*version "\([0-9]*\).*/\1/p' | head -1)" || continue
+        if [[ "$version" =~ ^[0-9]+$ ]] && [ "$version" -ge 17 ]; then
+            dirname "$(dirname "$(readlink -f "$java")")"
+            return 0
+        fi
+    done
+    return 1
+}
+
 install_android_sdk() {
-    if [ ! -x "$JAVA_HOME_IMAGE/bin/java" ] || ! command -v unzip >/dev/null 2>&1; then
-        command -v apt-get >/dev/null 2>&1 || die "install a JDK 17 and unzip, then re-run"
-        log "Installing JDK 17 and unzip"
-        $SUDO apt-get install -y openjdk-17-jdk-headless unzip
+    local java_home
+    if ! java_home="$(find_java_home)"; then
+        command -v apt-get >/dev/null 2>&1 || die "install a JDK 17 or newer and set JAVA_HOME, then re-run"
+        log "Installing JDK 17"
+        $SUDO apt-get install -y openjdk-17-jdk-headless
+        java_home="$JAVA_HOME_IMAGE"
     fi
-    export JAVA_HOME="$JAVA_HOME_IMAGE"
+    export JAVA_HOME="$java_home"
+    if ! command -v unzip >/dev/null 2>&1; then
+        command -v apt-get >/dev/null 2>&1 || die "install unzip, then re-run"
+        $SUDO apt-get install -y unzip
+    fi
     local sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
     if [ ! -x "$sdkmanager" ]; then
         log "Installing Android command-line tools in $ANDROID_HOME"

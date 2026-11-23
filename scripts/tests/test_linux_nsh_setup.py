@@ -88,14 +88,15 @@ checkout_nsh
             env={**os.environ, "JAVA_HOME": "/old-java-11"},
         )
 
-    def test_sdk_uses_java_17_even_with_java_11_on_path(self):
-        for installed in (False, True):
-            with self.subTest(installed=installed), tempfile.TemporaryDirectory() as tmp:
+    def test_sdk_selects_java_home_then_path_then_install(self):
+        for case in ("home", "path", "old", "missing"):
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as tmp:
                 root = Path(tmp)
-                java = root / "jdk17/bin/java"
-                java.parent.mkdir(parents=True)
-                if installed:
-                    java.touch(mode=0o755)
+                for home, major in (("custom-jdk", 21), ("path-jdk", 17 if case == "path" else 11)):
+                    java = root / home / "bin/java"
+                    java.parent.mkdir(parents=True)
+                    java.write_text(f'#!/bin/bash\necho \'openjdk version "{major}.0.1"\' >&2\n')
+                    java.chmod(0o755)
                 tools = root / "sdk/cmdline-tools/latest/bin"
                 tools.mkdir(parents=True)
                 manager = tools / "sdkmanager"
@@ -105,24 +106,33 @@ checkout_nsh
                 emulator.parent.mkdir()
                 emulator.write_text('#!/bin/bash\necho buwiz\n')
                 emulator.chmod(0o755)
-                result = self.run_shell(function("install_android_sdk") + r'''
+                result = self.run_shell(function("find_java_home") + "\n" +
+                                        function("install_android_sdk") + f'\ncase={case}\n' + r'''
 JAVA_HOME_IMAGE="$PWD/jdk17"
+JAVA_HOME="$PWD/not-installed"
+[ "$case" != home ] || JAVA_HOME="$PWD/custom-jdk"
+command() {
+    if [ "$*" = '-v java' ]; then
+        [ "$case" != missing ] || return 1
+        echo "$PWD/path-jdk/bin/java"
+    else builtin command "$@"; fi
+}
 ANDROID_HOME="$PWD/sdk"
 NDK_VERSION=27
 SYSTEM_IMAGE=image
 AVD=buwiz
 SUDO=""
 log() { :; }
-java() { echo 'java version "11"' >&2; }
 unzip() { :; }
-apt-get() { echo "$*" > apt-called; touch "$JAVA_HOME_IMAGE/bin/java"; chmod +x "$JAVA_HOME_IMAGE/bin/java"; }
+apt-get() { echo "$*" > apt-called; mkdir -p "$JAVA_HOME_IMAGE/bin"; touch "$JAVA_HOME_IMAGE/bin/java"; chmod +x "$JAVA_HOME_IMAGE/bin/java"; }
 rustup() { :; }
 install_android_sdk
 ''', tmp)
                 self.assertEqual(result.returncode, 0, result.stderr)
+                selected = {"home": "custom-jdk", "path": "path-jdk"}.get(case, "jdk17")
                 self.assertEqual((root / "java-used").read_text().splitlines(),
-                                 [str(root / "jdk17")] * 2)
-                self.assertEqual((root / "apt-called").exists(), not installed)
+                                 [str(root / selected)] * 2)
+                self.assertEqual((root / "apt-called").exists(), case in ("old", "missing"))
 
 
 if __name__ == "__main__":
