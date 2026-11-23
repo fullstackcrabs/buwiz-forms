@@ -86,12 +86,17 @@ mock-bir *args="":
 mock-bir-app db app="/Applications/eBIRForms.app":
     #!/usr/bin/env bash
     set -euo pipefail
-    live_dir="$HOME/Library/Group Containers/group.dev.goldcoders.bir"
+    live_dirs=(
+        "$HOME/Library/Group Containers/group.dev.goldcoders.bir"
+        "$HOME/Library/Application Support/dev.goldcoders.bir"
+    )
     [ -f "{{db}}" ] || { echo "no database copy at {{db}}"; exit 1; }
     db="$(cd "$(dirname "{{db}}")" && pwd -P)/$(basename "{{db}}")"
-    case "$db" in
-        "$live_dir"/*) echo "refusing $db: that is the app's live data folder; use a copy elsewhere"; exit 1 ;;
-    esac
+    for live_dir in "${live_dirs[@]}"; do
+        case "$db" in
+            "$live_dir"/*) echo "refusing $db: that is the app's live data folder; use a copy elsewhere"; exit 1 ;;
+        esac
+    done
     env_file=target/mock-bir/app.env
     [ -f "$env_file" ] || { echo "start the mock first: just mock-bir"; exit 1; }
     unset EBIR_TEST_ENV BIR_SFTP_DRY_RUN BIR_SFTP_LIVE BIR_SFTP_HOST BIR_SFTP_PORT \
@@ -104,8 +109,9 @@ mock-bir-app db app="/Applications/eBIRForms.app":
     esac
     nc -z "$BIR_SFTP_HOST" "$BIR_SFTP_PORT" || { echo "nothing listening on $BIR_SFTP_HOST:$BIR_SFTP_PORT: start just mock-bir"; exit 1; }
     export BIR_DATABASE_PATH="$db"
+    executable="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "{{app}}/Contents/Info.plist")"
     echo "Running {{app}} on $db against the mock at $BIR_SFTP_HOST:$BIR_SFTP_PORT"
-    exec "{{app}}/Contents/MacOS/bir"
+    exec "{{app}}/Contents/MacOS/$executable"
 
 shell-ui-test:
     node --experimental-vm-modules tools/test_form_row_invalidation.mjs
