@@ -188,11 +188,12 @@ install_nsh_cli() {
 }
 
 install_android_sdk() {
-    if ! command -v java >/dev/null 2>&1 || ! command -v unzip >/dev/null 2>&1; then
+    if [ ! -x "$JAVA_HOME_IMAGE/bin/java" ] || ! command -v unzip >/dev/null 2>&1; then
         command -v apt-get >/dev/null 2>&1 || die "install a JDK 17 and unzip, then re-run"
         log "Installing JDK 17 and unzip"
         $SUDO apt-get install -y openjdk-17-jdk-headless unzip
     fi
+    export JAVA_HOME="$JAVA_HOME_IMAGE"
     local sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
     if [ ! -x "$sdkmanager" ]; then
         log "Installing Android command-line tools in $ANDROID_HOME"
