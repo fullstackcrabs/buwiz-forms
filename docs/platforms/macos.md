@@ -107,10 +107,17 @@ there, but nobody has run it on that platform.
   builds a DMG, notarizes it with `notarytool` and checks it with `spctl`.
   It needs the Apple secrets listed in
   [DEVELOPMENT.md](../DEVELOPMENT.md#cicd-secrets--codesigning).
-- `just app` builds the sandboxed Mac App Store package from the standalone
-  `bir-shell` workspace with `mas_build`, and aliases the UI binary as `bir`.
-  The macOS JIT entitlement combination and App Store build remain unverified
-  until checked on macOS. It needs App Store Connect credentials for the build number.
+- `just app` builds the sandboxed Mac App Store package from the NSH app
+  (`nsh/`): `nsh package --target macos --arch universal` with
+  `nsh/mas/cargo-with-mas.sh` as `$CARGO`, which adds the app's `mas_build`
+  feature (no global hotkey, shell cron runner or updater) to the generated
+  host's build. The recipe drops the update archive, embeds
+  `assets/macos/embedded.provisionprofile`, signs with `entitlements.plist`
+  (sandbox) and wraps the app with `productbuild`. It needs App Store Connect
+  credentials for the build number, `CODESIGN_IDENTITY` and
+  `INSTALLER_IDENTITY`. Without `CODESIGN_IDENTITY` the app is ad hoc signed
+  for a local sandbox run, without the profile and without the application and
+  team identifiers, which an ad hoc signature cannot carry.
 - Entitlement files are in `assets/macos/` and at the repository root.
 
 ## Agent control

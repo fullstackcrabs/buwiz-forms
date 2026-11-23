@@ -785,91 +785,77 @@ _package-mac args="": build-frozen-html-identity
         cd {{RELEASE_DIR}} && zip -r "{{APP_NAME}}-macOS-{{VERSION}}.zip" "{{APP_NAME}}.app"; \
     fi
 
-# MAS/TestFlight packages the gpui-shell binary. The macOS JIT entitlement
-# combination and App Store build remain unverified until checked on macOS.
+# MAS/TestFlight packages the NSH app (nsh/) with `mas_build`, the sandbox entitlements and the provisioning profile.
+# CODESIGN_IDENTITY ("Apple Distribution: ...") and INSTALLER_IDENTITY ("3rd Party Mac Developer Installer: ...") sign it for
+# the store; without them it is ad hoc signed for a local sandbox run. NSH_MAS_ARCH=arm64 builds one architecture.
 _package-mac-appstore args="": build-frozen-html-identity
     #!/usr/bin/env bash
-    set -e
+    set -euo pipefail
+    root="$(pwd)"
     CERT="${CODESIGN_IDENTITY:--}"
-    echo "Building bir-shell for the Mac App Store..."
-    # Always include mas_build feature
-    FEATURES="mas_build"
+    # nsh package has no flag for a feature of the app crate: nsh/mas/cargo-with-mas.sh, set as $CARGO, adds `mas_build`
+    # (and `agent` for --agent) to the build of the generated macOS host.
+    export NSH_MAS_AGENT=0
     for arg in {{args}}; do
         case "$arg" in
-            --agent)         FEATURES="${FEATURES},agent" ;;
+            --agent) NSH_MAS_AGENT=1 ;;
         esac
     done
-    FEATURES_FLAG="--features $FEATURES"
-    
-    echo "Building for ARM64..."
-    cargo build --locked --release --manifest-path crates/bir-shell/Cargo.toml --bin bir-shell --target {{MAC_ARM_TARGET}} $FEATURES_FLAG
-    echo "Building for x86_64..."
-    cargo build --locked --release --manifest-path crates/bir-shell/Cargo.toml --bin bir-shell --target {{MAC_X86_TARGET}} $FEATURES_FLAG
-    
-    {{PYTHON}} scripts/alias_app_bin.py crates/bir-shell/target/{{MAC_ARM_TARGET}}/release bir-shell
-    {{PYTHON}} scripts/alias_app_bin.py crates/bir-shell/target/{{MAC_X86_TARGET}}/release bir-shell
-    mkdir -p {{RELEASE_DIR}}
-    echo "Creating universal binary (lipo)..."
-    lipo -create crates/bir-shell/target/{{MAC_ARM_TARGET}}/release/bir crates/bir-shell/target/{{MAC_X86_TARGET}}/release/bir -output {{RELEASE_DIR}}/bir
-    
-    echo "Creating sandboxed .app bundle..."
-    rm -rf "{{MAC_APP}}"
-    mkdir -p "{{MAC_APP}}/Contents/MacOS" "{{MAC_APP}}/Contents/Resources"
-    cp {{RELEASE_DIR}}/bir "{{MAC_APP}}/Contents/MacOS/"
-    cp -R assets "{{MAC_APP}}/Contents/Resources/"
-    cp -R app "{{MAC_APP}}/Contents/Resources/"
-    cp -R print-overrides "{{MAC_APP}}/Contents/Resources/"
-    rm -rf "{{MAC_APP}}/Contents/Resources/assets/macos"
-    cp assets/AppIcon.icns "{{MAC_APP}}/Contents/Resources/"
-
-    
-    cp assets/macos/Info.plist "{{MAC_APP}}/Contents/Info.plist"
-    sed -i '' "s/VERSION_PLACEHOLDER/{{VERSION}}/g" "{{MAC_APP}}/Contents/Info.plist"
-    sed -i '' "s/BUILD_NUMBER_PLACEHOLDER/{{BUILD_NUMBER}}/g" "{{MAC_APP}}/Contents/Info.plist"
-    sed -i '' "s/BUNDLE_ID_PLACEHOLDER/{{BUNDLE_ID}}/g" "{{MAC_APP}}/Contents/Info.plist"
-    sed -i '' "s/APP_NAME_PLACEHOLDER/{{APP_NAME}}/g" "{{MAC_APP}}/Contents/Info.plist"
-    
-    # Add Sandbox requirement to Info.plist
-    /usr/libexec/PlistBuddy -c "Add :LSApplicationCategoryType string public.app-category.finance" "{{MAC_APP}}/Contents/Info.plist" || true
-    
-    # Automatically declare export compliance exemption to skip the Encryption popup
-    /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "{{MAC_APP}}/Contents/Info.plist" || true
-    
-    if [ "$DEV_MODE" = "true" ] || [ "$DEVELOPER_MODE" = "true" ]; then
+    ARCH="${NSH_MAS_ARCH:-universal}"
+    OUT="$root/{{RELEASE_DIR}}/mas"
+    APP="$OUT/{{APP_NAME}}.app"
+    PKG_PATH="$root/{{RELEASE_DIR}}/{{APP_NAME}}-macOS-MAS-{{VERSION}}.pkg"
+    export PATH="$HOME/BuwizNsh/tools/bin:$PATH" CARGO_TARGET_DIR="$HOME/BuwizNsh/target-nsh"
+    echo "Building the NSH app for the Mac App Store ($ARCH, build {{BUILD_NUMBER}}, agent=$NSH_MAS_AGENT)..."
+    rm -rf "$OUT"
+    mkdir -p "$OUT"
+    (cd nsh && CARGO="$root/nsh/mas/cargo-with-mas.sh" nsh package --target macos --arch "$ARCH" \
+        --build "{{BUILD_NUMBER}}" --app-version "{{VERSION}}" -o "$OUT")
+    # The store build does not update itself: drop the update archive, its feed entry and nsh's ad hoc entitlements.
+    rm -f "$OUT"/*.tar.gz "$OUT"/.nsh-updater.json "$OUT"/*.entitlements
+    PLIST="$APP/Contents/Info.plist"
+    /usr/libexec/PlistBuddy -c "Add :LSApplicationCategoryType string public.app-category.finance" "$PLIST" || true
+    # Export compliance exemption, so App Store Connect skips the encryption question.
+    /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "$PLIST" || true
+    if [ "${DEV_MODE:-}" = "true" ] || [ "${DEVELOPER_MODE:-}" = "true" ]; then
         echo "Injecting DEVELOPER_MODE into Info.plist..."
-        /usr/libexec/PlistBuddy -c "Add :LSEnvironment dict" "{{MAC_APP}}/Contents/Info.plist" || true
-        /usr/libexec/PlistBuddy -c "Add :LSEnvironment:DEVELOPER_MODE string true" "{{MAC_APP}}/Contents/Info.plist" || true
+        /usr/libexec/PlistBuddy -c "Add :LSEnvironment dict" "$PLIST" || true
+        /usr/libexec/PlistBuddy -c "Add :LSEnvironment:DEVELOPER_MODE string true" "$PLIST" || true
     fi
-    
-    if [ -f "assets/macos/embedded.provisionprofile" ]; then
-        echo "Embedding provisioning profile for TestFlight..."
-        cp "assets/macos/embedded.provisionprofile" "{{MAC_APP}}/Contents/embedded.provisionprofile"
+    ENTITLEMENTS="$root/entitlements.plist"
+    if [ "$CERT" = "-" ]; then
+        # An ad hoc signature cannot carry the store's application and team identifiers (macOS refuses to launch an app
+        # that claims them without a matching profile), so the local build keeps only the sandbox and its permissions.
+        ENTITLEMENTS="$OUT/sandbox.entitlements"
+        cp "$root/entitlements.plist" "$ENTITLEMENTS"
+        /usr/libexec/PlistBuddy -c "Delete :com.apple.application-identifier" "$ENTITLEMENTS"
+        /usr/libexec/PlistBuddy -c "Delete :com.apple.developer.team-identifier" "$ENTITLEMENTS"
+        echo "⚠️  No CODESIGN_IDENTITY: ad hoc signed with the sandbox entitlements, no provisioning profile (local testing only)."
+    elif [ -f "assets/macos/embedded.provisionprofile" ]; then
+        EXPIRES="$(security cms -D -i assets/macos/embedded.provisionprofile | plutil -extract ExpirationDate raw -)"
+        if [[ "$EXPIRES" < "$(date -u +%Y-%m-%dT%H:%M:%SZ)" ]]; then
+            echo "❌ assets/macos/embedded.provisionprofile expired $EXPIRES. Download a current Mac App Store profile for dev.goldcoders.bir." >&2
+            exit 1
+        fi
+        echo "Embedding provisioning profile for TestFlight (expires $EXPIRES)..."
+        cp "assets/macos/embedded.provisionprofile" "$APP/Contents/embedded.provisionprofile"
     else
         echo "⚠️  No embedded.provisionprofile found in assets/macos/. TestFlight builds require this."
     fi
-    {{PYTHON}} scripts/audit_no_legacy.py --package-root "{{MAC_APP}}"
-    
-    touch "{{MAC_APP}}"
-    
-    echo "Stripping extended attributes (quarantine)..."
-    xattr -cr "{{MAC_APP}}"
-    
+    {{PYTHON}} scripts/audit_no_legacy.py --package-root "$APP"
+    xattr -cr "$APP"
     echo "Codesigning application with identity: $CERT..."
-    codesign --force --options runtime --entitlements entitlements.plist --sign "$CERT" "{{MAC_APP}}"
-
-    echo "✅ {{MAC_APP}} created and codesigned"
-    
-    echo "Creating unsigned .pkg for App Store submission..."
-    PKG_PATH="{{RELEASE_DIR}}/{{APP_NAME}}-macOS-MAS-{{VERSION}}.pkg"
+    codesign --force --options runtime --timestamp=none --entitlements "$ENTITLEMENTS" --sign "$CERT" "$APP"
+    codesign --verify --strict --verbose=1 "$APP"
+    echo "✅ $APP created and codesigned"
     rm -f "$PKG_PATH"
-    
     if [ -n "${INSTALLER_IDENTITY:-}" ]; then
         echo "Creating signed .pkg for App Store submission using identity: $INSTALLER_IDENTITY..."
-        productbuild --sign "$INSTALLER_IDENTITY" --component "{{MAC_APP}}" /Applications "$PKG_PATH"
+        productbuild --sign "$INSTALLER_IDENTITY" --component "$APP" /Applications "$PKG_PATH"
         echo "✅ Signed PKG created: $PKG_PATH"
     else
         echo "Creating unsigned .pkg for App Store submission..."
-        productbuild --component "{{MAC_APP}}" /Applications "$PKG_PATH"
+        productbuild --component "$APP" /Applications "$PKG_PATH"
         echo "✅ Unsigned PKG created: $PKG_PATH"
         echo "⚠️  Note: You must also codesign the .pkg with an 'Apple Distribution' certificate before submitting."
     fi
