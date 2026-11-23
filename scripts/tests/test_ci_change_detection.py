@@ -516,7 +516,7 @@ class CiChangeDetectionTests(unittest.TestCase):
         if needs is not None:
             self.assertEqual(
                 [name.strip() for name in needs.group(1).split(",")],
-                ["changes", "check", "shell-check", "scripts", "validation-rules", "legacy-guard"],
+                ["changes", "check", "windows-setup", "shell-check", "scripts", "validation-rules", "legacy-guard"],
             )
         # A skip caused by a failed `changes` must fail the gate.
         self.assertIn('[[ "$CHANGES" == success ]]', gate)

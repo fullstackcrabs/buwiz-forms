@@ -21,7 +21,7 @@ The NSH app lives in `nsh/` of hexuria/buwiz-forms: TSX screens over one Rust cr
    | `BIR_DATABASE_PATH` | a file you name, or unset | The database file. Optional on Windows as on macOS: the guard verifies there (W7, section 5 "Database location and guard"), so a test environment's scratch database opens. Never point it into `%USERPROFILE%\BuwizNsh\data` or `\BuwizNsh\migration` (the guard refuses those names) and never at any folder holding a real eBIRForms database. |
 
 2. **Never send live, never sign in.** A run without `EBIR_TEST_ENV` is the shipped behaviour: it stops at the Buwiz account sign-in (PR #221 body) and would use the real credential store. Never do that run, never type a Buwiz or BIR credential, never open a database that is not a scratch file or the owner's copy (rule 4).
-3. **No signing, no store uploads, no installers.** Do not run `nsh package`, `nsh keygen`, `nsh certify`, `nsh publish`, `nsh update`, `nsh update-manifest`, or any `just` recipe not named in this file (the root `justfile` has release recipes). Updates stay off: `nsh/nsh.json` has no `"updater"` key and must not get one. Do not install the app on the machine.
+3. **No signing keys, store uploads, or live updates for dev tests.** Use the packaging section below only on a disposable Windows machine. Do not install over someone else's copy or apply an update from the public feed in a test. The repository signs production files in CI when the certificate is configured; no release credentials go on a test machine.
 4. **Demo taxpayer only.** Use only Juana Santos, TIN 000-123-453-00000 (`nsh/bir/testing.ts` makes her). Tests, screenshots and anything you commit name only her or generated data. If the owner brings real data, the owner puts a copy of a database file at `%USERPROFILE%\BuwizNsh\agents\<track>.db` and you point `BIR_DATABASE_PATH` there; you never open the original, never copy real names, TINs or amounts into the repository, a PR, a log you attach or a report, and pictures of real data stay under `%USERPROFILE%\BuwizNsh\evidence\` and are never attached to a PR.
 5. **Draft PRs, never merge.** Work on a branch off `feat/nsh-tsx`, open a draft PR against `feat/nsh-tsx`, and never merge anything, yours or anyone's. Never push to `feat/nsh-tsx` or `main` directly, never force-push.
 6. **Never weaken a validator, a threshold or an existing assertion** to make something pass (`rules/agent-boundaries/SKILL.md`). A test that is wrong for this OS is fixed by making it assert what is true on this OS and saying so in the PR; it is never loosened. The database guard in `nsh/src/guards.rs` is a safety guard: on Windows the job is to make it as strict as on Unix, never to relax it.
@@ -379,3 +379,31 @@ The owner's approved rules: Ctrl+Q quits (Windows too), Ctrl+H hides to the tray
 7. Tray icon, right-click: Show eBIRForms, Hide eBIRForms, Quit eBIRForms; while the window is up Show is greyed, while it is hidden Hide is greyed. Left-click: shows the window.
 8. Settings › Keyboard: record Quit as Ctrl+Shift+Q, then Hide as Ctrl+Q. The eBIRForms menu shows Hide eBIRForms Ctrl+Q and Quit eBIRForms Ctrl+Shift+Q; Ctrl+Q now hides, Ctrl+Shift+Q quits. Recording Ctrl+K says "That shortcut is already Command Palette…." under the box. Put both back (Delete removes a key; record Ctrl+Q and Ctrl+H again).
 9. Task Manager › End task on eBIRForms (a close another program asks for: NSH's `system` reason): it ends without the box. Sign out of Windows with the app running: say whether it ends cleanly or holds the sign-out.
+
+## Windows release packages
+
+Unlike the development host above, all released Windows formats contain the same packaged NSH executable and bytecode. Use a clean Windows 10 (1809 or later) or Windows 11 machine with WebView2 and the current NSH pin from `nsh.yml`. This flow also needs Inno Setup 6, WiX 3 (with Heat), and a Windows SDK with MakeAppx. Build from the repository root after applying the safety variables in §3.5:
+
+```powershell
+$package = Join-Path $env:TEMP ("ebirforms-nsh-" + [guid]::NewGuid())
+Push-Location nsh
+try {
+    nsh package --target windows --out $package
+    if ($LASTEXITCODE -ne 0) { throw "nsh package failed: $LASTEXITCODE" }
+} finally { Pop-Location }
+./scripts/package_nsh_windows.ps1 -PackageRoot $package -OutDir target/release-artifacts
+```
+
+Or run **Release (Windows)** from the Actions tab against the branch, leaving signing off for ordinary tests. It uploads the files in the `windows-release` workflow artifact and cannot create or promote a GitHub Release. Compare the SHA-256 of each downloaded file with `SHA256SUMS-windows-x64.txt`.
+
+Before migrating, uninstall the old per-machine eBIRForms from **Settings → Apps → Installed apps**. The new installers are per-user and do not remove it or migrate its data. Test one format at a time so shortcuts and app registrations are unambiguous.
+
+| Download | Install and open | Update | Uninstall |
+|---|---|---|---|
+| `eBIRForms-Windows-x64-<v>-Setup.exe` | Run Setup as the signed-in user, then open **eBIRForms**. The default is `%LOCALAPPDATA%\Programs\eBIRForms`. | The app can download and install from the signed NSH feed. For a manual upgrade, close it and run the newer Setup as the same user. | Uninstall **eBIRForms** from Installed apps, or run the generated `unins*.exe` in its install directory. |
+| `eBIRForms-Windows-x64-<v>.msi` | Double-click the MSI (no administrator required), then open **eBIRForms (MSI)**. Its default directory is `%LOCALAPPDATA%\Programs\eBIRForms MSI`. | The update banner links to the release page; close the app and install the newer MSI. | Use Installed apps, or run `msiexec /x "path\to\file.msi"` as the same user. |
+| `eBIRForms-Windows-x64-<v>.msix` | With a trusted signature, run `Add-AppxPackage -Path <file.msix>` in Windows PowerShell and open **eBIRForms** from Start. An unsigned workflow artifact can be inspected but cannot be sideloaded. | The update banner links to the release page; close the app and install the newer signed MSIX from the same publisher. | Use Installed apps, or run `Get-AppxPackage -Name GOLDCODERSCORP.ebirforms \| Remove-AppxPackage` as the same user. |
+
+Keep the safety variables set in the process that launches a test build. The released app does not honor the debug account bypass, even with the scratch database. To test form opening, use an approved test account and generated data only; without a test account, stop at the sign-in screen and record that gap. Do not use production credentials in a release smoke run. The installer audit covers the actual Setup install and uninstall and checks the extracted MSI, MSIX, and updater ZIP; it does not exercise app UI, MSIX registration, or a live update.
+
+The updater ZIP is named `eBIRForms-<v>-windows-x86_64.zip`. It has the same updateable directory layout as Setup; it is not an MSI/MSIX update. The legacy GPUI executable needed a PE main-thread stack reserve for recursive layout. NSH does that work on a dedicated Win32 UI thread with an 8 MiB stack, so CI no longer checks the old executable's PE header.
