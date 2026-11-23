@@ -10,7 +10,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/release-linux.yml
-      - packaging/linux/**
+      - packaging/linux/*.sh
       - crates/bir-shell/Cargo.toml
       - assets/linux/**
   workflow_dispatch:

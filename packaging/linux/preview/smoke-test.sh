@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+set -euo pipefail
+OUT='' ARCH=''
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --out) OUT="${2:?}"; shift 2 ;;
+        --arch) ARCH="${2:?}"; shift 2 ;;
+        *) echo "Usage: $0 --out DIRECTORY --arch x64|arm64" >&2; exit 2 ;;
+    esac
+done
+test -d "$OUT"
+case "$ARCH" in
+    x64) platform=linux/amd64; kinds=(deb rpm arch arch-recipe tarball installer) ;;
+    arm64) platform=linux/arm64; kinds=(deb rpm tarball installer) ;;
+    *) exit 2 ;;
+esac
+OUT="$(cd "$OUT" && pwd)"
+(cd "$OUT" && sha256sum -c "SHA256SUMS-linux-${ARCH}.txt")
+SMOKE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+EVIDENCE="${SMOKE_EVIDENCE:-$SMOKE_DIR/../../../target/linux-nsh-smoke}"
+mkdir -p "$EVIDENCE"
+EVIDENCE="$(cd "$EVIDENCE" && pwd)"
+CONTAINER_TIMEOUT="${SMOKE_CONTAINER_TIMEOUT:-1200}"
+in_time=(timeout --kill-after=30 "$CONTAINER_TIMEOUT")
+shopt -s nullglob
+archives=("$OUT/eBIRForms-Linux-$ARCH-"*.tar.gz)
+[ "${#archives[@]}" = 1 ] || { echo 'Expected exactly one download tarball' >&2; exit 1; }
+version="$(basename "${archives[0]}" .tar.gz)"
+version="${version#eBIRForms-Linux-"$ARCH"-}"
+base="eBIRForms-Linux-$ARCH-$version"
+test -f "$OUT/install-linux.sh"
+for kind in "${kinds[@]}"; do
+    case "$kind" in
+        deb|tarball|installer) image=ubuntu:24.04 ;;
+        rpm) image=fedora:latest ;;
+        arch) image=archlinux:latest ;;
+        arch-recipe) image=archlinux:base-devel ;;
+    esac
+    "${in_time[@]}" docker run --rm --platform "$platform" \
+        -v "$OUT:/packages:ro" -v "$EVIDENCE:/evidence" \
+        -v "$SMOKE_DIR:/smoke:ro" \
+        -e KIND="$kind" -e BASE="$base" -e VERSION="$version" \
+        "$image" bash /smoke/smoke-container.sh
+done
