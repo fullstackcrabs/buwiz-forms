@@ -351,7 +351,13 @@ jobs:
         # SHELL_SOURCE_ROOTS). So do nsh/Cargo.toml and nsh/Cargo.lock, to stay on the safe side.
         nsh_re='^(nsh/|\.github/workflows/nsh\.yml$)'
         nsh_app_re='^nsh/(src/|Cargo\.(toml|lock)$)'
+<<<<<<< HEAD
         scripts_only_re='^(scripts/tests/|scripts/setup-(linux|macos)\.sh$|scripts/setup-windows\.ps1$|\.github/workflows/(release[^/]*|bir)\.yml$)'
+||||||| 7f2db8cb
+        scripts_only_re='^(scripts/tests/|scripts/setup-(linux|macos)\.sh$|scripts/setup-windows\.ps1$|\.github/workflows/(release[^/]*|bir|html-candidate-certification)\.yml$)'
+=======
+        scripts_only_re='^(scripts/tests/|scripts/setup-(linux|macos)\.sh$|scripts/setup-windows\.ps1$|\.github/workflows/(release[^/]*|preview-linux-nsh|bir|html-candidate-certification)\.yml$)'
+>>>>>>> up/linprev
 
         app=false; scripts=false; linux_pkg=false; windows_pkg=false; macos_pkg=false; nsh=false
         app_reason=""

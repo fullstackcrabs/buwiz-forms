@@ -1,0 +1,128 @@
+name: Linux NSH Preview Packages
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/preview-linux-nsh.yml
+      - packaging/linux/preview/**
+      - nsh/**
+      - assets/linux/**
+      - print-overrides/**
+      - scripts/tests/test_linux_nsh*.py
+      - scripts/tests/test_linux_smoke_architectures.py
+
+permissions:
+  contents: read
+
+concurrency:
+  group: preview-linux-nsh-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTUP_TOOLCHAIN: '1.99.0'
+  CARGO_INCREMENTAL: '0'
+  NSH_REPOSITORY: hexuria/nsh
+  NSH_PINNED_REF: 70d8ff26b9e9dccb17a908de97cd4a3f3e381276
+  BUWIZ_NO_KEYCHAIN: '1'
+  EBIR_TEST_ENV: '1'
+  BIR_AUTH_BYPASS: '1'
+  BIR_SFTP_DRY_RUN: '1'
+
+jobs:
+  build-linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            arch: x64
+          - runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        working-directory: buwiz-forms
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: buwiz-forms
+      - name: Check out NSH beside buwiz-forms
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.NSH_REPOSITORY }}
+          ref: ${{ env.NSH_PINNED_REF }}
+          token: ${{ secrets.NSH_REPO_TOKEN || github.token }}
+          path: nsh
+          persist-credentials: false
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential pkg-config perl python3 clang libclang-dev \
+            libgtk-4-dev libwebkitgtk-6.0-dev \
+            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+            gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
+            libdbus-1-dev libssl-dev xvfb xauth at-spi2-core libxtst6 rpm zstd
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.0
+      - name: Install huacnlee/cargo
+        uses: ./nsh/.github/actions/cargo
+        with:
+          cache: buwiz-nsh-release-linux
+          lockfiles: buwiz-forms/nsh/Cargo.lock
+      - name: Cache NSH command line
+        uses: actions/cache@v4
+        id: nsh-cli
+        with:
+          path: ~/BuwizNsh/tools
+          key: nsh-cli-${{ runner.os }}-${{ runner.arch }}-${{ env.NSH_PINNED_REF }}
+      - name: Build NSH command line
+        if: steps.nsh-cli.outputs.cache-hit != 'true'
+        working-directory: nsh
+        run: cargo install --locked --path crates/nsh-cli --root "$HOME/BuwizNsh/tools"
+      - name: Put NSH on PATH
+        run: echo "$HOME/BuwizNsh/tools/bin" >> "$GITHUB_PATH"
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Check out formgen scripts from buwiz-forms-html
+        uses: actions/checkout@v4
+        with:
+          repository: hexuria/buwiz-forms-html
+          path: buwiz-forms/.ci-html
+          persist-credentials: false
+      - name: Verify frozen HTML and write build identity
+        run: |
+          python3 .ci-html/tools/formgen/freeze_html.py --verify --out html-frozen --index rules/index.json
+          python3 .ci-html/tools/formgen/stamp_frozen_names.py --check-all --html-root html-frozen --rules-root rules/forms --catalog .ci-html/tools/formgen/identity/catalog.json
+          python3 scripts/write_frozen_html_identity.py --html-frozen html-frozen --source-revision ${{ github.sha }} --out assets/form-renderer-build-identity.json
+      - name: Resolve package version
+        id: version
+        run: |
+          app_version="$(python3 -c 'import json; print(json.load(open("nsh/nsh.json"))["version"])')"
+          [[ "$app_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          echo "version=${app_version}-pr" >> "$GITHUB_OUTPUT"
+      - name: Build Linux packages
+        run: packaging/linux/preview/build-packages.sh --version "${{ steps.version.outputs.version }}" --target "${{ matrix.target }}" --out target/linux-nsh-preview
+      - name: Smoke test Linux packages
+        timeout-minutes: 30
+        run: packaging/linux/preview/smoke-test.sh --out target/linux-nsh-preview --arch "${{ matrix.arch }}"
+      - name: Upload smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-nsh-smoke-${{ matrix.arch }}
+          path: buwiz-forms/target/linux-nsh-smoke/**
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-nsh-preview-${{ matrix.arch }}
+          if-no-files-found: error
+          path: buwiz-forms/target/linux-nsh-preview/*

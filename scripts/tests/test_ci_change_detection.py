@@ -384,6 +384,7 @@ class CiChangeDetectionTests(unittest.TestCase):
             changed=(
                 ".github/workflows/release.yml",
                 ".github/workflows/release-linux.yml",
+                ".github/workflows/preview-linux-nsh.yml",
                 ".github/workflows/bir.yml",
                 "scripts/setup-linux.sh",
                 "scripts/setup-windows.ps1",
