@@ -811,8 +811,9 @@ _package-mac-appstore args="": build-frozen-html-identity
     mkdir -p "$OUT"
     (cd nsh && CARGO="$root/nsh/mas/cargo-with-mas.sh" nsh package --target macos --arch "$ARCH" \
         --build "{{BUILD_NUMBER}}" --app-version "{{VERSION}}" -o "$OUT")
-    # The store build does not update itself: drop the update archive, its feed entry and nsh's ad hoc entitlements.
-    rm -f "$OUT"/*.tar.gz "$OUT"/.nsh-updater.json "$OUT"/*.entitlements
+    # The store build does not update itself: drop the update archive, nsh's ad hoc entitlements and the updater
+    # configuration nsh packs into the bundle's assets (without it nsh/updater has no update source).
+    rm -f "$OUT"/*.tar.gz "$OUT"/.nsh-updater.json "$OUT"/*.entitlements "$APP/Contents/Resources/nsh/assets/nsh-updater.json"
     PLIST="$APP/Contents/Info.plist"
     /usr/libexec/PlistBuddy -c "Add :LSApplicationCategoryType string public.app-category.finance" "$PLIST" || true
     # Export compliance exemption, so App Store Connect skips the encryption question.
@@ -840,7 +841,8 @@ _package-mac-appstore args="": build-frozen-html-identity
         echo "Embedding provisioning profile for TestFlight (expires $EXPIRES)..."
         cp "assets/macos/embedded.provisionprofile" "$APP/Contents/embedded.provisionprofile"
     else
-        echo "⚠️  No embedded.provisionprofile found in assets/macos/. TestFlight builds require this."
+        echo "❌ No assets/macos/embedded.provisionprofile: a store build needs the Mac App Store profile for dev.goldcoders.bir." >&2
+        exit 1
     fi
     {{PYTHON}} scripts/audit_no_legacy.py --package-root "$APP"
     xattr -cr "$APP"

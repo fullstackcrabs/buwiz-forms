@@ -111,8 +111,9 @@ there, but nobody has run it on that platform.
   (`nsh/`): `nsh package --target macos --arch universal` with
   `nsh/mas/cargo-with-mas.sh` as `$CARGO`, which adds the app's `mas_build`
   feature (no global hotkey, shell cron runner or updater) to the generated
-  host's build. The recipe drops the update archive, embeds
-  `assets/macos/embedded.provisionprofile`, signs with `entitlements.plist`
+  host's build. The recipe drops the update archive and the updater's
+  configuration, embeds `assets/macos/embedded.provisionprofile` (it refuses a
+  store build whose profile is missing or expired), signs with `entitlements.plist`
   (sandbox) and wraps the app with `productbuild`. It needs App Store Connect
   credentials for the build number, `CODESIGN_IDENTITY` and
   `INSTALLER_IDENTITY`. Without `CODESIGN_IDENTITY` the app is ad hoc signed
