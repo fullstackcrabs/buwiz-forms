@@ -60,7 +60,8 @@ if [ "$UNINSTALL" -eq 1 ]; then
     . /etc/os-release 2>/dev/null || true
     ID=${ID:-unknown}
     ID_LIKE=${ID_LIKE:-}
-    case "$ID $ID_LIKE" in
+    case "$ID $ID_LIKE:$USE_TARBALL" in
+        *:1) ;;
         *debian*|*ubuntu*)
             if [ "$(id -u)" -eq 0 ]; then apt-get remove -y ebirforms; else sudo apt-get remove -y ebirforms; fi
             ;;

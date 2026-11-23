@@ -149,3 +149,30 @@ class LinuxNshInstallerTests(unittest.TestCase):
         result = self.run_installer("--version", "../bad", "--tarball")
         self.assertEqual(result.returncode, 2)
         self.assertIn("Invalid preview version", result.stderr)
+
+
+@unittest.skipUnless(platform.system() == "Linux", "uses Linux installer utilities")
+class LiveLinuxInstallerTests(unittest.TestCase):
+    def test_tarball_uninstall_does_not_invoke_system_package_manager(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            home = Path(temp)
+            bin_dir = home / ".local/bin"
+            bin_dir.mkdir(parents=True)
+            for command in ("sudo", "apt-get", "dnf", "zypper", "pacman"):
+                stub = bin_dir / command
+                stub.write_text("#!/bin/sh\nexit 67\n")
+                stub.chmod(0o755)
+            app = home / ".local/share/ebirforms"
+            app.mkdir(parents=True)
+            installed = bin_dir / "ebirforms"
+            installed.symlink_to(app / "bir")
+
+            result = subprocess.run(
+                ["sh", str(ROOT / "packaging/linux/install-linux.sh"), "--uninstall", "--tarball"],
+                env={**os.environ, "HOME": temp, "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}"},
+                text=True, capture_output=True, check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertFalse(installed.is_symlink())
+            self.assertFalse(app.exists())
