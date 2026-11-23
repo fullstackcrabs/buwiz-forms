@@ -123,6 +123,17 @@ jobs:
         run: |
           ./scripts/package_nsh_windows.ps1 -PackageRoot "$env:RUNNER_TEMP/nsh-windows" -OutDir target/release-artifacts -SmokeMsix:$${{ !inputs.release }}
 
+      - name: Sign the NSH update manifest
+        if: inputs.release && github.ref_type == 'tag'
+        env:
+          NSH_UPDATE_SIGNING_KEY: ${{ secrets.NSH_UPDATE_SIGNING_KEY }}
+        run: |
+          $env:Path = "$HOME\BuwizNsh\tools\bin;$env:Path"
+          $version = $env:GITHUB_REF_NAME.Substring(1)
+          ./scripts/package_nsh_update.ps1 `
+            -Archive "target/release-artifacts/eBIRForms-$version-windows-x86_64.zip" `
+            -BaseUrl "https://github.com/$env:GITHUB_REPOSITORY/releases/download/$env:GITHUB_REF_NAME"
+
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -134,3 +145,5 @@ jobs:
             buwiz-forms/target/release-artifacts/*.msix
             buwiz-forms/target/release-artifacts/*-windows-x86_64.zip
             buwiz-forms/target/release-artifacts/SHA256SUMS-windows-x64.txt
+            buwiz-forms/target/release-artifacts/latest-nsh.json
+            buwiz-forms/target/release-artifacts/latest.json.sig

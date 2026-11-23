@@ -172,6 +172,8 @@ jobs:
             artifacts/**/*.msi
             artifacts/**/*.msix
             artifacts/**/*-windows-x86_64.zip
+            artifacts/windows-release/latest-nsh.json
+            artifacts/windows-release/latest.json.sig
 
       - name: Check out the manifest script
         uses: actions/checkout@v4
