@@ -80,7 +80,8 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
         )
         self.assertIn(r"^v[0-9]+\.[0-9]+\.[0-9]+$", preflight)
         self.assertIn('TAG_VERSION="${GITHUB_REF_NAME#v}"', preflight)
-        self.assertIn('"$TAG_VERSION" != "$CARGO_VERSION"', preflight)
+        variable = "NSH_VERSION" if workflow == self.workflow else "CARGO_VERSION"
+        self.assertIn(f'"$TAG_VERSION" != "${variable}"', preflight)
         for required_gate in (
             "cargo fmt --all -- --check",
             "cargo clippy --locked --workspace -- -D warnings",
@@ -92,6 +93,47 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
             "python3 scripts/audit_no_legacy.py",
         ):
             self.assertIn(required_gate, preflight)
+
+    def test_nsh_signed_updates_and_dispatch_safety(self) -> None:
+        self.assertIn("workflow_dispatch:", self.workflow)
+        self.assertIn("nsh/nsh.json", self.job("preflight"))
+        self.assertIn("github.event_name == 'push'", self.job("release"))
+        for workflow, job in ((self.workflow, "release"), (self.macos_workflow, "publish")):
+            publish = self.job(job, workflow)
+            self.assertIn("secrets.NSH_UPDATE_KEY", publish)
+            self.assertIn("hexuria/nsh", publish)
+            self.assertIn("70d8ff26b9e9dccb17a908de97cd4a3f3e381276", publish)
+            self.assertIn("cargo install --locked --path", publish)
+        nsh = (REPOSITORY_ROOT / ".github/workflows/nsh.yml").read_text()
+        self.assertEqual(nsh.count('"app/forms/**"'), 2)
+
+    @unittest.skipIf(sys.platform == "win32", "release preflight runs on Ubuntu")
+    def test_nsh_version_preflight_accepts_dispatch_and_rejects_bad_tags(self) -> None:
+        step = self.job("preflight").split("        run: |\n", 1)[1].split("\n      - name:", 1)[0]
+        script = "\n".join(line[10:] for line in step.splitlines())
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "nsh").mkdir()
+            config = root / "nsh/nsh.json"
+            config.write_text(json.dumps({"version": "0.2.0"}))
+            git = root / "git"
+            git.write_text('#!/bin/sh\ncase "$1" in\nrev-parse) echo abc;;\ntag) echo "$GITHUB_REF_NAME";;\nesac\n')
+            git.chmod(0o755)
+            env = dict(os.environ, PATH=f"{root}{os.pathsep}{os.environ['PATH']}",
+                       GITHUB_EVENT_NAME="push", GITHUB_REF_TYPE="tag", GITHUB_SHA="abc",
+                       GITHUB_OUTPUT=str(root / "output"))
+            def check(tag, event="push"):
+                return subprocess.run(["bash", "-e", "-o", "pipefail", "-c", script],
+                                      cwd=root, env=dict(env, GITHUB_REF_NAME=tag, GITHUB_EVENT_NAME=event),
+                                      capture_output=True, text=True)
+            self.assertEqual(check("v0.2.0").returncode, 0)
+            self.assertEqual(check("feat/nsh-release-g", "workflow_dispatch").returncode, 0)
+            self.assertIn("does not match nsh/nsh.json", check("v0.1.0").stderr)
+            self.assertIn("exact vMAJOR.MINOR.PATCH", check("v0.2.0-test").stderr)
+            config.write_text(json.dumps({"version": ""}))
+            self.assertNotEqual(check("v0.2.0").returncode, 0)
+            config.write_text("not json")
+            self.assertNotEqual(check("v0.2.0").returncode, 0)
 
     def test_every_publishable_build_depends_on_exact_tag_preflight(self) -> None:
         self.assert_preflight_gates(self.workflow)
@@ -243,12 +285,13 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
 
         public_windows_job = self.job("build-windows")
         self.assertIn("uses: ./.github/workflows/release-windows.yml", public_windows_job)
-        self.assertIn("release: true", public_windows_job)
+        self.assertIn("release: ${{ github.event_name == 'push' }}", public_windows_job)
         self.assertIn("secrets: inherit", public_windows_job)
         self.assertIn("needs: preflight", public_windows_job)
 
         public_release = self.job("release")
-        self.assertNotIn("artifacts/**/*.msix", public_release)
+        self.assertIn("artifacts/**/*.msix", public_release)
+        self.assertIn("artifacts/**/*.zip", public_release)
 
     def test_reusable_windows_workflow_gates_signing_and_keeps_msix_private(self) -> None:
         windows = self.windows_job("installers")
@@ -457,7 +500,7 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
 
         linux_job = self.job("build-linux")
         self.assertIn("uses: ./.github/workflows/release-linux.yml", linux_job)
-        self.assertIn("tag: ${{ github.ref_name }}", linux_job)
+        self.assertIn("tag: ${{ needs.preflight.outputs.version }}", linux_job)
         # The Linux build compiles the Google OAuth client in like macOS and
         # Windows do; a called workflow only sees it through inherited secrets.
         self.assertIn("secrets: inherit", linux_job)

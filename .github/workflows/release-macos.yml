@@ -309,6 +309,9 @@ jobs:
   # release.yml's softprops job may create the same tag's release concurrently,
   # so this job creates it only when missing and then uploads the DMG.
   publish:
+    concurrency:
+      group: release-feed-${{ github.ref }}
+      cancel-in-progress: false
     needs: [preflight, build-macos]
     if: github.event_name == 'push' && needs.preflight.outputs.publish == 'true'
     runs-on: ubuntu-latest
@@ -318,6 +321,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       TAG: ${{ github.ref_name }}
+      NSH_UPDATE_KEY: ${{ secrets.NSH_UPDATE_KEY }}
     steps:
       - name: Download macOS artifact
         uses: actions/download-artifact@v4
@@ -339,6 +343,23 @@ jobs:
 
       - name: Check out the manifest script
         uses: actions/checkout@v4
+
+      - name: Check out pinned NSH CLI
+        if: env.NSH_UPDATE_KEY != ''
+        uses: actions/checkout@v4
+        with:
+          repository: hexuria/nsh
+          ref: 70d8ff26b9e9dccb17a908de97cd4a3f3e381276
+          path: .ci-nsh
+          persist-credentials: false
+
+      - name: Install NSH CLI toolchain
+        if: env.NSH_UPDATE_KEY != ''
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install pinned NSH CLI
+        if: env.NSH_UPDATE_KEY != ''
+        run: cargo install --locked --path .ci-nsh/crates/nsh-cli
 
       - name: Publish update manifest
         env:
