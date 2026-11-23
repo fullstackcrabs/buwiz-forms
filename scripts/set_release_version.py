@@ -19,6 +19,19 @@ LOCKFILE_MANIFESTS = (
     Path("nsh/Cargo.toml"),
     Path("crates/bir-shell/Cargo.toml"),
 )
+LOCKFILE_PATHS = (
+    Path("Cargo.lock"),
+    Path("nsh/Cargo.lock"),
+    Path("crates/bir-shell/Cargo.lock"),
+)
+ROLLBACK_PATHS = (
+    Path("Cargo.toml"),
+    Path("crates/bir-core/Cargo.toml"),
+    Path("crates/bir-print/Cargo.toml"),
+    Path("nsh/Cargo.toml"),
+    Path("nsh/nsh.json"),
+    *LOCKFILE_PATHS,
+)
 
 
 def set_version(root: Path, version: str) -> None:
@@ -89,7 +102,46 @@ def refresh_lockfiles(root: Path) -> None:
         )
         if online.returncode != 0:
             detail = online.stderr.strip() or offline.stderr.strip()
+            missing = ("failed to read", "failed to load", "missing", "no such file", "does not exist")
+            if relative.as_posix() == "nsh/Cargo.toml" and any(
+                marker in detail.lower() for marker in missing
+            ):
+                detail = (
+                    f"{detail}; needs ../nsh checked out at NSH_PINNED_REF "
+                    "from .github/workflows/nsh.yml"
+                )
             raise RuntimeError(f"cargo metadata failed for {relative}: {detail}")
+
+
+def snapshot_files(root: Path) -> dict[Path, bytes | None]:
+    snapshot = {}
+    for relative in ROLLBACK_PATHS:
+        path = root / relative
+        snapshot[relative] = path.read_bytes() if path.exists() else None
+    return snapshot
+
+
+def restore_files(root: Path, snapshot: dict[Path, bytes | None]) -> None:
+    for relative, content in snapshot.items():
+        path = root / relative
+        if content is None:
+            if path.exists() or path.is_symlink():
+                path.unlink()
+        else:
+            path.write_bytes(content)
+
+
+def update_version(root: Path, version: str) -> None:
+    snapshot = snapshot_files(root)
+    try:
+        set_version(root, version)
+        refresh_lockfiles(root)
+    except BaseException as error:
+        try:
+            restore_files(root, snapshot)
+        except OSError as rollback_error:
+            raise RuntimeError(f"{error}; rollback failed: {rollback_error}") from error
+        raise
 
 
 def main(argv: list[str]) -> int:
@@ -98,8 +150,7 @@ def main(argv: list[str]) -> int:
         return 2
     root = Path(__file__).resolve().parents[1]
     try:
-        set_version(root, argv[1])
-        refresh_lockfiles(root)
+        update_version(root, argv[1])
     except (OSError, RuntimeError, ValueError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1

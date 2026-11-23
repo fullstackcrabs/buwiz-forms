@@ -15,6 +15,7 @@ _SPEC.loader.exec_module(_MODULE)
 
 refresh_lockfiles = _MODULE.refresh_lockfiles
 set_version = _MODULE.set_version
+update_version = _MODULE.update_version
 
 
 class SetReleaseVersionTests(unittest.TestCase):
@@ -146,6 +147,39 @@ class SetReleaseVersionTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "cargo broke"):
                     refresh_lockfiles(root)
             self.assertEqual(run.call_count, 2)
+
+    def test_a_lockfile_failure_rolls_everything_back(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.write_tree(root)
+            (root / "Cargo.lock").write_bytes(b"root lock")
+            (root / "nsh/Cargo.lock").write_bytes(b"nsh lock")
+            tracked = [
+                root / "Cargo.toml",
+                root / "Cargo.lock",
+                root / "crates/bir-core/Cargo.toml",
+                root / "crates/bir-print/Cargo.toml",
+                root / "nsh/Cargo.toml",
+                root / "nsh/Cargo.lock",
+                root / "nsh/nsh.json",
+            ]
+            before = {path: path.read_bytes() for path in tracked}
+
+            def fail_on_nsh(command, **_kwargs):
+                manifest = command[command.index("--manifest-path") + 1]
+                if manifest.endswith("nsh/Cargo.toml"):
+                    (root / "Cargo.lock").write_bytes(b"corrupt root lock")
+                    (root / "nsh/Cargo.lock").write_bytes(b"corrupt nsh lock")
+                    return subprocess.CompletedProcess([], 1, stderr="missing ../nsh")
+                return subprocess.CompletedProcess([], 0)
+
+            with mock.patch.object(_MODULE.subprocess, "run") as run:
+                run.side_effect = fail_on_nsh
+                with self.assertRaises(RuntimeError) as failure:
+                    update_version(root, "1.2.3")
+            self.assertIn("../nsh checked out", str(failure.exception))
+            for path, content in before.items():
+                self.assertEqual(path.read_bytes(), content, str(path))
 
 
 if __name__ == "__main__":
