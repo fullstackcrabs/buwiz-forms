@@ -475,6 +475,147 @@ _package-mac args="": build-frozen-html-identity
 # ---------------------------------------------------------------------------
 
 # NSH: cargo check of nsh/'s crate, then tsc over the TSX against the generated types.
+# MAS/TestFlight packages the NSH app (nsh/) with `mas_build`, the sandbox
+# entitlements and the provisioning profile.
+app *args="":
+    @if [ "{{os()}}" = "macos" ]; then \
+        set -a && source .env && set +a; \
+        if ! NEXT_BUILD_NUMBER="$(uv run scripts/bump_build.py --print-next)"; then \
+            echo "Could not resolve the next App Store build number" >&2; exit 1; \
+        fi; \
+        case "$NEXT_BUILD_NUMBER" in \
+            ''|*[!0-9]*) echo "Invalid App Store build number: $NEXT_BUILD_NUMBER" >&2; exit 1 ;; \
+        esac; \
+        echo "Building App Store package with build $NEXT_BUILD_NUMBER"; \
+        BUILD_NUMBER="$NEXT_BUILD_NUMBER" just _package-mac-appstore "{{args}}"; \
+    else \
+        echo "⚠️ App Store builds are only supported on macOS."; \
+    fi
+
+testflight *args="": (app args) testflight-upload
+
+testflight-agent *args="": (testflight "--agent" args)
+
+testflight-upload:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "{{os()}}" != "macos" ]; then
+        echo "⚠️ TestFlight uploads are only supported on macOS." >&2; exit 1
+    fi
+    set -a && source .env && set +a
+    for var in APP_STORE_KEY_ID APP_STORE_ISSUER_ID APP_STORE_P8_PATH; do
+        if [ -z "${!var:-}" ]; then echo "❌ $var is not set in .env" >&2; exit 1; fi
+    done
+    if [ ! -f "$APP_STORE_P8_PATH" ]; then
+        echo "❌ APP_STORE_P8_PATH does not point to a file: $APP_STORE_P8_PATH" >&2; exit 1
+    fi
+    TRANSPORTER="${TRANSPORTER:-/Applications/Transporter.app/Contents/itms/bin/iTMSTransporter}"
+    if [ ! -x "$TRANSPORTER" ]; then
+        echo "❌ iTMSTransporter not found at $TRANSPORTER" >&2
+        echo "   Install Transporter from the Mac App Store, or set TRANSPORTER." >&2
+        exit 1
+    fi
+    PKG_PATH="$(pwd)/{{RELEASE_DIR}}/{{APP_NAME}}-macOS-MAS-{{VERSION}}.pkg"
+    if [ ! -f "$PKG_PATH" ]; then
+        echo "❌ $PKG_PATH not found. Build it first with: just app" >&2; exit 1
+    fi
+    if ! pkgutil --check-signature "$PKG_PATH" >/dev/null 2>&1; then
+        echo "❌ $PKG_PATH is unsigned. Set INSTALLER_IDENTITY in .env and rebuild with: just app" >&2; exit 1
+    fi
+    BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "{{RELEASE_DIR}}/mas/{{APP_NAME}}.app/Contents/Info.plist" 2>/dev/null || echo '?')"
+    # iTMSTransporter only reads the key from a fixed set of private_keys
+    # directories; stage it in a throwaway one instead of touching $HOME.
+    KEY_DIR="$(mktemp -d)"
+    trap 'rm -rf "$KEY_DIR"' EXIT
+    mkdir "$KEY_DIR/private_keys"
+    ln -s "$(cd "$(dirname "$APP_STORE_P8_PATH")" && pwd)/$(basename "$APP_STORE_P8_PATH")" \
+        "$KEY_DIR/private_keys/AuthKey_${APP_STORE_KEY_ID}.p8"
+    echo "Uploading {{APP_NAME}} {{VERSION}} (build $BUILD) to App Store Connect..."
+    (cd "$KEY_DIR" && "$TRANSPORTER" -m upload -assetFile "$PKG_PATH" \
+        -apiKey "$APP_STORE_KEY_ID" -apiIssuer "$APP_STORE_ISSUER_ID" -v informational)
+    echo "✅ Uploaded. Processing takes ~10–30 min; then add the build to a TestFlight group in App Store Connect."
+
+_package-mac-appstore args="": build-frozen-html-identity
+    #!/usr/bin/env bash
+    set -euo pipefail
+    root="$(pwd)"
+    CERT="${CODESIGN_IDENTITY:--}"
+    # nsh package has no flag for a feature of the app crate: nsh/mas/cargo-with-mas.sh, set as $CARGO, adds `mas_build`
+    # (and `agent` for --agent) to the build of the generated macOS host.
+    export NSH_MAS_AGENT=0
+    for arg in {{args}}; do
+        case "$arg" in
+            --agent) NSH_MAS_AGENT=1 ;;
+        esac
+    done
+    ARCH="${NSH_MAS_ARCH:-universal}"
+    OUT="$root/{{RELEASE_DIR}}/mas"
+    APP="$OUT/{{APP_NAME}}.app"
+    PKG_PATH="$root/{{RELEASE_DIR}}/{{APP_NAME}}-macOS-MAS-{{VERSION}}.pkg"
+    PROFILE="assets/macos/embedded.provisionprofile"
+    if [ "$CERT" != "-" ]; then
+        # A store build needs a current profile; check it before the long build.
+        if [ ! -f "$PROFILE" ]; then
+            echo "❌ No $PROFILE: a store build needs the Mac App Store profile for dev.goldcoders.bir." >&2
+            exit 1
+        fi
+        EXPIRES="$(security cms -D -i "$PROFILE" | plutil -extract ExpirationDate raw -)"
+        if [[ "$EXPIRES" < "$(date -u +%Y-%m-%dT%H:%M:%SZ)" ]]; then
+            echo "❌ $PROFILE expired $EXPIRES. Download a current Mac App Store profile for dev.goldcoders.bir." >&2
+            exit 1
+        fi
+    fi
+    export PATH="$HOME/BuwizNsh/tools/bin:$PATH" CARGO_TARGET_DIR="$HOME/BuwizNsh/target-nsh"
+    echo "Building the NSH app for the Mac App Store ($ARCH, build {{BUILD_NUMBER}}, agent=$NSH_MAS_AGENT)..."
+    rm -rf "$OUT"
+    mkdir -p "$OUT"
+    (cd nsh && CARGO="$root/nsh/mas/cargo-with-mas.sh" nsh package --target macos --arch "$ARCH" \
+        --build "{{BUILD_NUMBER}}" --app-version "{{VERSION}}" -o "$OUT")
+    # The store build does not update itself: drop the update archive, nsh's ad hoc entitlements and the updater
+    # configuration nsh packs into the bundle's assets (without it nsh/updater has no update source).
+    rm -f "$OUT"/*.tar.gz "$OUT"/.nsh-updater.json "$OUT"/*.entitlements "$APP/Contents/Resources/nsh/assets/nsh-updater.json"
+    # The print renderer reads the per-form CSS fixes from Contents/Resources/print-overrides (bir-app-api print_sheet.rs).
+    cp -R print-overrides "$APP/Contents/Resources/"
+    PLIST="$APP/Contents/Info.plist"
+    /usr/libexec/PlistBuddy -c "Add :LSApplicationCategoryType string public.app-category.finance" "$PLIST" || true
+    # Export compliance exemption, so App Store Connect skips the encryption question.
+    /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "$PLIST" || true
+    if [ "${DEV_MODE:-}" = "true" ] || [ "${DEVELOPER_MODE:-}" = "true" ]; then
+        echo "Injecting DEVELOPER_MODE into Info.plist..."
+        /usr/libexec/PlistBuddy -c "Add :LSEnvironment dict" "$PLIST" || true
+        /usr/libexec/PlistBuddy -c "Add :LSEnvironment:DEVELOPER_MODE string true" "$PLIST" || true
+    fi
+    ENTITLEMENTS="$root/entitlements.plist"
+    if [ "$CERT" = "-" ]; then
+        # An ad hoc signature cannot carry the store's application and team identifiers (macOS refuses to launch an app
+        # that claims them without a matching profile), so the local build keeps only the sandbox and its permissions.
+        ENTITLEMENTS="$OUT/sandbox.entitlements"
+        cp "$root/entitlements.plist" "$ENTITLEMENTS"
+        /usr/libexec/PlistBuddy -c "Delete :com.apple.application-identifier" "$ENTITLEMENTS"
+        /usr/libexec/PlistBuddy -c "Delete :com.apple.developer.team-identifier" "$ENTITLEMENTS"
+        echo "⚠️  No CODESIGN_IDENTITY: ad hoc signed with the sandbox entitlements, no provisioning profile (local testing only)."
+    else
+        echo "Embedding provisioning profile for TestFlight (expires $EXPIRES)..."
+        cp "$PROFILE" "$APP/Contents/embedded.provisionprofile"
+    fi
+    {{PYTHON}} scripts/audit_no_legacy.py --package-root "$APP"
+    xattr -cr "$APP"
+    echo "Codesigning application with identity: $CERT..."
+    codesign --force --options runtime --timestamp=none --entitlements "$ENTITLEMENTS" --sign "$CERT" "$APP"
+    codesign --verify --strict --verbose=1 "$APP"
+    echo "✅ $APP created and codesigned"
+    rm -f "$PKG_PATH"
+    if [ -n "${INSTALLER_IDENTITY:-}" ]; then
+        echo "Creating signed .pkg for App Store submission using identity: $INSTALLER_IDENTITY..."
+        productbuild --sign "$INSTALLER_IDENTITY" --component "$APP" /Applications "$PKG_PATH"
+        echo "✅ Signed PKG created: $PKG_PATH"
+    else
+        echo "Creating unsigned .pkg for App Store submission..."
+        productbuild --component "$APP" /Applications "$PKG_PATH"
+        echo "✅ Unsigned PKG created: $PKG_PATH"
+        echo "⚠️  Note: You must also codesign the .pkg with an 'Apple Distribution' certificate before submitting."
+    fi
+
 [unix]
 nsh-check *args="":
     #!/usr/bin/env bash
