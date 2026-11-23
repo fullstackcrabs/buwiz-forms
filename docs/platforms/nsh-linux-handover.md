@@ -1,9 +1,9 @@
 # eBIRForms Linux Native Shell preview
 
 The [published Linux packages](linux.md) still use the live-filing app. Native
-Shell is a CI-only preview: it cannot file live and does not migrate existing
-encrypted filings. Do not replace a working install or point it at real filing
-data. The public cutover waits until both migration and live filing are verified.
+Shell is a CI-only preview; it does not migrate existing encrypted filings.
+Do not replace a working install, point it at real filing data, or submit a
+return. The public cutover waits until both migration and live filing are verified.
 
 ## Requirements and safety
 
@@ -84,7 +84,7 @@ Checksums detect corruption, not a malicious release publisher.
 | `eBIRForms-Linux-x64-<v>.pkg.tar.zst` | `sudo pacman -U ./eBIRForms-Linux-x64-<v>.pkg.tar.zst` | Quit the app, install the newer package with `pacman -U` | `sudo pacman -Rns ebirforms` |
 | `ebirforms-bin.PKGBUILD` (x64) | Copy to an empty folder as `PKGBUILD` beside its `.pkg.tar.zst`; inspect it; `makepkg -si` as an ordinary user | Use the newer artifact's recipe and repeat | `sudo pacman -Rns ebirforms-bin` |
 | `eBIRForms-Linux-<arch>-<v>.tar.gz` | Install runtime dependencies first; extract into a user-writable folder; run `eBIRForms/eBIRForms` | Quit and replace the **whole** extracted folder with a newer preview tarball | Quit; remove the extracted folder and any links/desktop entries you created |
-| `install-linux.sh` (from the x64 artifact; detects host architecture) | `sh install-linux.sh --from-dir ./downloads --version <v>` selects the distribution package | Run the installer with the newer version | `sh install-linux.sh --uninstall` |
+| `install-linux.sh` (detects host architecture) | `sh install-linux.sh --from-dir ./downloads --version <v>` selects the distribution package | Run the installer with the newer version | `sh install-linux.sh --uninstall` |
 | Installer with tarball | `sh install-linux.sh --from-dir ./downloads --tarball --version <v>` | Re-run with the newer preview artifact | `sh install-linux.sh --tarball --uninstall` |
 
 The installer never downloads public releases. The directory passed to `--from-dir`

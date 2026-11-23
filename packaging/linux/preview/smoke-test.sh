@@ -10,7 +10,7 @@ while [ "$#" -gt 0 ]; do
 done
 test -d "$OUT"
 case "$ARCH" in
-    x64) platform=linux/amd64; kinds=(deb rpm arch tarball installer) ;;
+    x64) platform=linux/amd64; kinds=(deb rpm arch arch-recipe tarball installer) ;;
     arm64) platform=linux/arm64; kinds=(deb rpm tarball installer) ;;
     *) exit 2 ;;
 esac
@@ -28,21 +28,18 @@ archives=("$OUT/eBIRForms-Linux-$ARCH-"*.tar.gz)
 version="$(basename "${archives[0]}" .tar.gz)"
 version="${version#eBIRForms-Linux-"$ARCH"-}"
 base="eBIRForms-Linux-$ARCH-$version"
-installer=/smoke/install-linux.sh
-if [ "$ARCH" = x64 ]; then
-    test -f "$OUT/install-linux.sh"
-    installer=/packages/install-linux.sh
-fi
+test -f "$OUT/install-linux.sh"
 for kind in "${kinds[@]}"; do
     case "$kind" in
         deb|tarball|installer) image=ubuntu:24.04 ;;
         rpm) image=fedora:latest ;;
         arch) image=archlinux:latest ;;
+        arch-recipe) image=archlinux:base-devel ;;
     esac
     "${in_time[@]}" docker run --rm --platform "$platform" \
         -v "$OUT:/packages:ro" -v "$EVIDENCE:/evidence" \
         -v "$SMOKE_DIR:/smoke:ro" \
-        -e KIND="$kind" -e BASE="$base" -e VERSION="$version" -e INSTALLER="$installer" \
+        -e KIND="$kind" -e BASE="$base" -e VERSION="$version" \
         -e BUWIZ_NO_KEYCHAIN=1 -e EBIR_TEST_ENV=1 -e BIR_AUTH_BYPASS=1 -e BIR_SFTP_DRY_RUN=1 \
         "$image" bash /smoke/smoke-container.sh
 done

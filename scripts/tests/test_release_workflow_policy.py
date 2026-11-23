@@ -414,7 +414,8 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
         )
         self.assertNotIn("gpui-agent?rev=", self.linux_setup)
         self.assertIn(
-            "cargo build --locked -p bir-cli",
+            "cargo build --locked --manifest-path crates/bir-shell/Cargo.toml "
+            "--features agent --bin bir-headless",
             self.linux_setup,
         )
         self.assertNotIn("--locked gpui-agent-cli", self.linux_setup)

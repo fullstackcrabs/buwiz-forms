@@ -31,9 +31,6 @@ class LinuxSmokeArchitectureTests(unittest.TestCase):
             "from pathlib import Path\n"
             "kind = next(x[5:] for x in sys.argv if x.startswith('KIND='))\n"
             "with open(os.environ['DOCKER_CALLS'], 'a') as f: f.write(kind + '\\n')\n"
-            "platform = sys.argv[sys.argv.index('--platform') + 1]\n"
-            "installer = next(x.split('=', 1)[1] for x in sys.argv if x.startswith('INSTALLER='))\n"
-            "assert installer == ('/packages/install-linux.sh' if platform == 'linux/amd64' else '/smoke/install-linux.sh')\n"
             "sys.exit(1 if os.environ.get('FAIL_KIND') == kind else 0)\n"
         )
         docker.chmod(0o755)
@@ -58,12 +55,11 @@ class LinuxSmokeArchitectureTests(unittest.TestCase):
         (self.downloads / f"SHA256SUMS-linux-{arch}.txt").write_text(
             f"{digest}  {archive.name}\n"
         )
-        if arch == "x64":
-            (self.downloads / "install-linux.sh").touch()
+        (self.downloads / "install-linux.sh").touch()
 
     def test_cases_match_architecture_outputs(self) -> None:
         for arch, expected in (
-            ("x64", ["deb", "rpm", "arch", "tarball", "installer"]),
+            ("x64", ["deb", "rpm", "arch", "arch-recipe", "tarball", "installer"]),
             ("arm64", ["deb", "rpm", "tarball", "installer"]),
         ):
             with self.subTest(arch=arch):
@@ -86,9 +82,9 @@ class LinuxSmokeArchitectureTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(self.calls.read_text().splitlines(), ["deb", "rpm"])
 
-    def test_x64_output_must_include_installer(self) -> None:
-        self.prepare_downloads("x64")
+    def test_arm64_output_must_also_include_installer(self) -> None:
+        self.prepare_downloads("arm64")
         (self.downloads / "install-linux.sh").unlink()
-        result = self.run_smoke("x64")
+        result = self.run_smoke("arm64")
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse(self.calls.exists())

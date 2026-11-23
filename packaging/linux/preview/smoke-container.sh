@@ -9,15 +9,24 @@ esac
 case "$KIND" in
     deb) apt-get install -y --no-install-recommends "/packages/$BASE.deb" ;;
     rpm) dnf install -y "/packages/$BASE.rpm" ;;
-    arch)
+    arch|arch-recipe)
         pacman -Syu --noconfirm
-        pacman -U --noconfirm "/packages/$BASE.pkg.tar.zst"
+        if [ "$KIND" = arch-recipe ]; then
+            useradd -m builder
+            install -d -o builder -g builder /build
+            cp /packages/ebirforms-bin.PKGBUILD /build/PKGBUILD
+            cp "/packages/$BASE.pkg.tar.zst" /build/
+            (cd /build && runuser -u builder -- makepkg --nodeps --noconfirm)
+            pacman -U --noconfirm /build/ebirforms-bin-*.pkg.tar.zst
+        else
+            pacman -U --noconfirm "/packages/$BASE.pkg.tar.zst"
+        fi
         ;;
-    installer) sh "$INSTALLER" --from-dir /packages --version "$VERSION" ;;
+    installer) sh /packages/install-linux.sh --from-dir /packages --version "$VERSION" ;;
     tarball)
         apt-get install -y --no-install-recommends libgtk-4-1 libwebkitgtk-6.0-4 \
             gstreamer1.0-plugins-base gstreamer1.0-plugins-good fonts-noto-core
-        sh "$INSTALLER" --from-dir /packages --version "$VERSION" --tarball
+        sh /packages/install-linux.sh --from-dir /packages --version "$VERSION" --tarball
         ;;
 esac
 exe=/usr/bin/ebirforms
@@ -51,7 +60,7 @@ case "$KIND" in
         apt-get install -y xvfb xauth dbus-x11 xdotool imagemagick
         ;;
     rpm) dnf install -y xorg-x11-server-Xvfb xorg-x11-xauth dbus-x11 xdotool ImageMagick ;;
-    arch) pacman -S --noconfirm xorg-server-xvfb xorg-xauth dbus xdotool imagemagick ;;
+    arch|arch-recipe) pacman -S --noconfirm xorg-server-xvfb xorg-xauth dbus xdotool imagemagick ;;
 esac
 export EXE="$exe" GSK_RENDERER=cairo
 # shellcheck disable=SC2016
@@ -68,8 +77,9 @@ case "$KIND" in
     deb) apt-get remove -y ebirforms ;;
     rpm) dnf remove -y ebirforms ;;
     arch) pacman -Rns --noconfirm ebirforms ;;
-    installer) sh "$INSTALLER" --uninstall ;;
-    tarball) sh "$INSTALLER" --uninstall --tarball ;;
+    arch-recipe) pacman -Rns --noconfirm ebirforms-bin ;;
+    installer) sh /packages/install-linux.sh --uninstall ;;
+    tarball) sh /packages/install-linux.sh --uninstall --tarball ;;
 esac
 test ! -e "$app"
 test ! -L "$exe"

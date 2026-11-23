@@ -127,9 +127,9 @@ package() {
   cp -a "\$srcdir/usr" "\$pkgdir/"
 }
 EOF
-    install -m755 "$ROOT/packaging/linux/preview/install-linux.sh" "$OUT/install-linux.sh"
 fi
+install -m755 "$ROOT/packaging/linux/preview/install-linux.sh" "$OUT/install-linux.sh"
 cd "$OUT"
-files=("$base.deb" "$base.rpm" "$base.tar.gz" "$updater")
-if [ "$ARCH" = x64 ]; then files+=("$base.pkg.tar.zst" ebirforms-bin.PKGBUILD install-linux.sh); fi
+files=("$base.deb" "$base.rpm" "$base.tar.gz" "$updater" install-linux.sh)
+if [ "$ARCH" = x64 ]; then files+=("$base.pkg.tar.zst" ebirforms-bin.PKGBUILD); fi
 sha256sum "${files[@]}" > "SHA256SUMS-linux-${ARCH}.txt"
