@@ -161,14 +161,90 @@ pub fn run(root: PathBuf) -> anyhow::Result<()> {
 /// Linux client decorations paint a shadow in the inset, so the surface has
 /// to be transparent there. Other platforms keep the opaque default.
 pub(crate) fn window_background() -> WindowBackgroundAppearance {
+    frame(compositing()).1
+}
+
+/// Client decorations everywhere, except a Linux desktop with no compositor:
+/// there the window manager draws the frame (see `linux_csd`).
+pub(crate) fn window_decorations() -> WindowDecorations {
+    frame(compositing()).0
+}
+
+/// Without a compositor nothing blends the transparent shadow inset and it
+/// shows as a thick black frame, so Linux then asks for server decorations
+/// and an opaque surface.
+fn frame(compositing: bool) -> (WindowDecorations, WindowBackgroundAppearance) {
+    match (cfg!(target_os = "linux"), compositing) {
+        (true, true) => (
+            WindowDecorations::Client,
+            WindowBackgroundAppearance::Transparent,
+        ),
+        (true, false) => (
+            WindowDecorations::Server,
+            WindowBackgroundAppearance::Opaque,
+        ),
+        (false, _) => (
+            WindowDecorations::Client,
+            WindowBackgroundAppearance::Opaque,
+        ),
+    }
+}
+
+/// Whether something can blend the transparent shadow inset, decided once.
+/// gpui answers this too broadly: it also counts any EWMH window manager
+/// (`_NET_SUPPORTING_WM_CHECK`) as a compositor, so on KWin, Xfwm or Openbox
+/// with compositing off it grants client decorations and the 20 px shadow
+/// inset renders as a thick black border.
+fn compositing() -> bool {
     #[cfg(target_os = "linux")]
     {
-        WindowBackgroundAppearance::Transparent
+        static COMPOSITING: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        *COMPOSITING.get_or_init(|| {
+            let set = |name: &str| std::env::var_os(name).is_some_and(|value| !value.is_empty());
+            let compositing = linux_compositing(
+                set("WAYLAND_DISPLAY"),
+                set("DISPLAY"),
+                x11_compositor_running,
+            );
+            if !compositing {
+                tracing::info!("x11: no compositing manager; using server-side window decorations");
+            }
+            compositing
+        })
     }
     #[cfg(not(target_os = "linux"))]
-    {
-        WindowBackgroundAppearance::Opaque
+    true
+}
+
+/// Wayland always composites. On X11 a compositing manager owns
+/// `_NET_WM_CM_S<screen>`. No display, or an X server that cannot be asked,
+/// keeps client decorations.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+fn linux_compositing(wayland: bool, x11: bool, probe: impl FnOnce() -> Option<bool>) -> bool {
+    if wayland || !x11 {
+        return true;
     }
+    probe().unwrap_or(true)
+}
+
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+fn compositor_selection(screen: usize) -> String {
+    format!("_NET_WM_CM_S{screen}")
+}
+
+#[cfg(target_os = "linux")]
+fn x11_compositor_running() -> Option<bool> {
+    use x11rb::protocol::xproto::ConnectionExt as _;
+    let (conn, screen) = x11rb::connect(None).ok()?;
+    let selection = compositor_selection(screen);
+    let atom = conn
+        .intern_atom(false, selection.as_bytes())
+        .ok()?
+        .reply()
+        .ok()?
+        .atom;
+    let owner = conn.get_selection_owner(atom).ok()?.reply().ok()?.owner;
+    Some(owner != x11rb::NONE)
 }
 
 fn open_main_window(cx: &mut App, runtime: Rc<ShellRuntime>, root: PathBuf) {
@@ -191,7 +267,7 @@ fn open_main_window(cx: &mut App, runtime: Rc<ShellRuntime>, root: PathBuf) {
             appears_transparent: true,
             traffic_light_position: Some(point(px(14.0), px(14.0))),
         }),
-        window_decorations: Some(WindowDecorations::Client),
+        window_decorations: Some(window_decorations()),
         window_background: window_background(),
         window_min_size: Some(size(px(420.0), px(480.0))),
         ..Default::default()
@@ -282,6 +358,58 @@ fn hold_window_size(window: &mut Window, cx: &mut App, target: Size<Pixels>) {
 mod tests {
     use super::*;
     use std::fs;
+
+    #[test]
+    fn compositor_decision() {
+        let never = || -> Option<bool> { panic!("no X11 probe expected") };
+        assert!(linux_compositing(true, true, never), "Wayland composites");
+        assert!(
+            linux_compositing(false, false, never),
+            "no display keeps client decorations"
+        );
+        assert!(linux_compositing(false, true, || Some(true)));
+        assert!(
+            !linux_compositing(false, true, || Some(false)),
+            "EWMH WM without compositing"
+        );
+        assert!(
+            linux_compositing(false, true, || None),
+            "unreachable X server"
+        );
+        // The selection is per screen number, not per root window id.
+        assert_eq!(compositor_selection(0), "_NET_WM_CM_S0");
+        assert_eq!(compositor_selection(1), "_NET_WM_CM_S1");
+    }
+
+    #[test]
+    fn frame_follows_compositing() {
+        if cfg!(target_os = "linux") {
+            assert_eq!(
+                frame(true),
+                (
+                    WindowDecorations::Client,
+                    WindowBackgroundAppearance::Transparent
+                )
+            );
+            assert_eq!(
+                frame(false),
+                (
+                    WindowDecorations::Server,
+                    WindowBackgroundAppearance::Opaque
+                )
+            );
+        } else {
+            for compositing in [true, false] {
+                assert_eq!(
+                    frame(compositing),
+                    (
+                        WindowDecorations::Client,
+                        WindowBackgroundAppearance::Opaque
+                    )
+                );
+            }
+        }
+    }
 
     struct Tree(PathBuf);
 
