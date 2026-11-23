@@ -29,7 +29,7 @@ Replace the gpui-shell UI (`app/` JavaScript hosted by `crates/bir-shell`) with 
 | Data | Plain SQLite copy of the owner's data (done). Scrubbed of PINs, mail credentials, send grants. |
 | Encryption | Gone for the NSH app: plain SQLite, no DB key, no keychain read for it. The old shell keeps SQLCipher through a cargo feature until it is deleted. |
 | Sign-in and locks | Build all of them (Buwiz account gate, PIN, authenticator, recovery key, Touch ID recovery, first-run setup). Dev builds skip them. |
-| App identity | Name `eBIRForms`, id `dev.goldcoders.bir.nsh`, its own data folder. Runs side by side with 0.2.0. |
+| App identity | Name `eBIRForms`, id `dev.goldcoders.bir`, its own data folder. Replaces the old app without migrating its data. |
 | Stop line | Desktop parity on macOS, all 43 forms. |
 | Phone-ready | Every screen has a wide and a narrow layout and a test at 390x844. |
 | Extras in this round | Print preview and PDF, app menu and shortcuts, tray and hide-to-tray, global hotkey, import/export, jobs and logs, Gmail/inbox connect, help-desk mode, agent remote control, auto-update (code only; signing is parked), Windows and Linux (code paths and CI files; real builds are parked if no machine). |
@@ -70,7 +70,7 @@ crates/bir-app-api/     UI-free. A `Hooks` trait for what needs a UI (menu refre
                         account_gate, auth_limiter, logging) and their tests. Depends on bir-core, bir-print, bir-rules only.
 crates/bir-shell/       Old host. Keeps only gpui glue; adapts bir-app-api's modules to gpui_shell::HostModule.
 crates/bir-core/        Gains cargo feature `sqlcipher` (default on). Off = plain SQLite: no key lookup, data folder for
-                        `dev.goldcoders.bir.nsh`, a wrong-format file is an error and is never renamed.
+                        `dev.goldcoders.bir`, a wrong-format file is an error and is never renamed.
                         bir-print and bir-app-api take bir-core with default-features = false and pass `sqlcipher` through;
                         bir-shell turns it on; `nsh/` leaves it off.
 nsh/                    The new app. Its own cargo workspace (like crates/bir-shell).

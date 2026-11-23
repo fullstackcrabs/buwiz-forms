@@ -487,6 +487,7 @@ dependencies = [
  "totp-rs",
  "tracing",
  "tracing-appender",
+ "tracing-log",
  "tracing-subscriber",
  "urlencoding",
  "uuid",

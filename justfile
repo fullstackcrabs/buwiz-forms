@@ -1226,7 +1226,7 @@ _nsh-db-guard $db:
                     if identity(os.path.join(folder, name)) == (info.st_dev, info.st_ino):
                         refuse("it is a hard link to a file in " + folder)
     '@
-    $script | & "{{PYTHON}}" -I - $db "dev.goldcoders.bir.nsh"
+    $script | & "{{PYTHON}}" -I - $db "dev.goldcoders.bir"
     exit $LASTEXITCODE
 
 # The database comes from the caller: just nsh-run ~/BuwizNsh/agents/<track>.db, or BIR_DATABASE_PATH in the environment.
@@ -1352,7 +1352,7 @@ nsh-run-agent target $db=env_var_or_default("BIR_DATABASE_PATH", "") *args="": (
         # stops itself when this shell is gone (a closed window, a killed process). It keeps the token in memory and
         # writes it to adb's standard input itself, so no file on this machine holds it.
         $agentHost = 'com.longbridge.nsh.host'
-        $tokenDir = 'files/nsh/dev.goldcoders.bir.nsh'
+        $tokenDir = 'files/nsh/dev.goldcoders.bir'
         $writer = Start-Job -ScriptBlock {
             param($adb, $serial, $token, $pkg, $dir, $launcher, $launcherStarted)
             for ($i = 0; $i -lt 1800; $i++) {

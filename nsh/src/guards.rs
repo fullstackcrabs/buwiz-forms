@@ -1149,12 +1149,12 @@ mod tests {
             None
         );
         assert_eq!(
-            home.refusal(&home.path("Library/Group Containers/group.dev.goldcoders.bir.nsh/x.db")),
+            home.refusal(&home.path("Library/Group Containers/group.dev.goldcoders.bir.example/x.db")),
             None
         );
         assert_eq!(
             home.refusal(
-                &home.path("Library/Application Support/dev.goldcoders.bir.nsh/bir_data.db")
+                &home.path("Library/Application Support/dev.goldcoders.bir/bir_data.db")
             ),
             None
         );
