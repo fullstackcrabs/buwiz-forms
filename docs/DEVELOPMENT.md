@@ -81,7 +81,7 @@ version. Set `GPUI_AGENT_TOKEN` for secure driving. For local-only driving,
 # Build the shell GUI with the control plane. `dev-tools` is not required;
 # add it only for --dev-export-live-database or to open a form that is still
 # being certified from a *release* build.
-cargo build --locked --manifest-path crates/bir-shell/Cargo.toml --bin bir-shell --features agent
+cargo build --locked --manifest-path crates/bir-app-api/Cargo.toml --features headless
 
 export GPUI_AGENT=1
 export GPUI_AGENT_TOKEN=<local-development-token> # required to bind (protocol v2 HMAC)
@@ -89,7 +89,7 @@ export GPUI_AGENT_ADDR=127.0.0.1:17421      # default; use 127.0.0.1:17423 when 
 # Release binaries also need:
 # export GPUI_AGENT_ALLOW_RELEASE=1
 export GPUI_AGENT_SCREENSHOT_DIR=/tmp/bir-shots
-./crates/bir-shell/target/debug/bir-shell
+./target/debug/bir
 ```
 
 Then, from another shell with the same `GPUI_AGENT_TOKEN` / `GPUI_AGENT_ADDR`:
@@ -228,7 +228,8 @@ The **macOS** release job codesigns and notarizes the DMG. Configure these Repos
 - `crates/bir-core/`: Contains all domain logic, SQLite database integrations, API communications, IMAP automated email tracking, cryptography, and XML generation logic.
   - `forms/` — Form data models, `FormValidator` trait, ATC tax code tables, and the form registry.
   - `db/` — Decomposed database layer with domain-specific modules (`profiles.rs`, `drafts.rs`, `submissions.rs`, `receipts.rs`, `jobs.rs`, `notices.rs`, `migrations.rs`).
-- `crates/bir-shell/`: The GPUI-based frontend application managing windows, forms, inputs, locking, and theming. Opt-in gpui-agent / headless `bir` runbook: [`docs/agent.md`](agent.md).
+- `crates/bir-app-api/`: The UI-free host functions both hosts share: windows, forms, inputs, locking, and theming. Opt-in gpui-agent / headless `bir` runbook: [`docs/agent.md`](agent.md).
+- `nsh/`: The eBIRForms app on Native Shell — windows, forms, printing and the tray live here.
   - `components/form_engine.rs` — `FormViewTrait` providing shared status pipeline, header, and action infrastructure for all tax forms.
   - `components/form_parts.rs` — Reusable UI primitives: `form_accordion`, `taxpayer_info_section`, `atc_schedule_table`, `computation_row_*`, `penalty_summary_section`, and more.
   - `views/` — Per-form view implementations (e.g., `form_2551q_view.rs`, `form_1701q_view.rs`) that compose the shared components.

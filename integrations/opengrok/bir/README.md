@@ -35,7 +35,7 @@ each instance a name with `GPUI_AGENT_CONNECT_ID`, so the user can tell them
 apart and pick one (otherwise it is listed as `pid:<pid>`):
 
 ```sh
-rtk cargo build --locked --release -p bir-shell --features agent
+rtk cargo build --locked --release -p bir-cli
 GPUI_AGENT=1 GPUI_AGENT_TOKEN='<agent token>' GPUI_AGENT_CONNECT_ID=bir target/release/bir
 ```
 
@@ -48,7 +48,7 @@ port and publishes it in its discovery record:
 ```sh
 EBIR_TEST_ENV=1 BIR_DATABASE_PATH=/tmp/bir-demo/bir_data.db \
 GPUI_AGENT=1 GPUI_AGENT_TOKEN='<demo agent token>' GPUI_AGENT_CONNECT_ID=bir-demo \
-  target/debug/bir-shell
+  target/debug/bir
 ```
 
 ## Agent tokens: `BIR_MCP_TOKENS`

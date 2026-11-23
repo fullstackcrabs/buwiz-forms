@@ -101,14 +101,14 @@ there, but nobody has run it on that platform.
 
 ## Packaging
 
-- The release workflow builds `bir-shell` for arm64 and x86_64, joins them
-  with `lipo`, makes the `.app` — `Contents/MacOS/bir` plus `app/`,
+- The release workflow builds the NSH app for arm64 and x86_64, joins them
+  with `lipo`, makes the `.app` — `Contents/MacOS/bir` plus `nsh/`,
   `print-overrides/` and `assets/` under `Contents/Resources` — signs it,
   builds a DMG, notarizes it with `notarytool` and checks it with `spctl`.
   It needs the Apple secrets listed in
   [DEVELOPMENT.md](../DEVELOPMENT.md#cicd-secrets--codesigning).
-- `just app` builds the sandboxed Mac App Store package from the standalone
-  `bir-shell` workspace with `mas_build`, and aliases the UI binary as `bir`.
+- `just app` builds the sandboxed Mac App Store package from the `nsh/`
+  workspace with `mas_build`, and aliases the UI binary as `bir`.
   The macOS JIT entitlement combination and App Store build remain unverified
   until checked on macOS. It needs App Store Connect credentials for the build number.
 - Entitlement files are in `assets/macos/` and at the repository root.

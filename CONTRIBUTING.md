@@ -44,7 +44,7 @@ class and runs only what those classes need. The one required status is
 
 Scheduled and manual runs and unknown or empty change ranges run everything. A
 path may only join a packaging class if no crate, build script or Rust test
-reads it: `assets/linux/` is read by bir-shell's desktop-entry test, so it is
+reads it: `assets/linux/` is read by the Linux packaging's desktop-entry test, so it is
 app code. Markdown under `rules/` or `scripts/`, crate `README.md` files, and
 anything under `evidence/` are app code too, because they feed code generation
 or policy checks.
@@ -63,4 +63,4 @@ failed on main" issue.
 
 ## UI performance
 
-Read [docs/ui-performance-rules.md](docs/ui-performance-rules.md) before changing `app/shell`.
+Read [docs/ui-performance-rules.md](docs/ui-performance-rules.md) before changing `nsh/`.
