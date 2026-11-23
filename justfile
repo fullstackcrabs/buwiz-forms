@@ -501,7 +501,7 @@ testflight-upload:
     if ! pkgutil --check-signature "$PKG_PATH" >/dev/null 2>&1; then
         echo "❌ $PKG_PATH is unsigned. Set INSTALLER_IDENTITY in .env and rebuild with: just app" >&2; exit 1
     fi
-    BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "{{MAC_APP}}/Contents/Info.plist" 2>/dev/null || echo '?')"
+    BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "{{RELEASE_DIR}}/mas/{{APP_NAME}}.app/Contents/Info.plist" 2>/dev/null || echo '?')"
     # iTMSTransporter only reads the key from a fixed set of private_keys
     # directories; stage it in a throwaway one instead of touching $HOME.
     KEY_DIR="$(mktemp -d)"
@@ -805,6 +805,19 @@ _package-mac-appstore args="": build-frozen-html-identity
     OUT="$root/{{RELEASE_DIR}}/mas"
     APP="$OUT/{{APP_NAME}}.app"
     PKG_PATH="$root/{{RELEASE_DIR}}/{{APP_NAME}}-macOS-MAS-{{VERSION}}.pkg"
+    PROFILE="assets/macos/embedded.provisionprofile"
+    if [ "$CERT" != "-" ]; then
+        # A store build needs a current profile; check it before the long build.
+        if [ ! -f "$PROFILE" ]; then
+            echo "❌ No $PROFILE: a store build needs the Mac App Store profile for dev.goldcoders.bir." >&2
+            exit 1
+        fi
+        EXPIRES="$(security cms -D -i "$PROFILE" | plutil -extract ExpirationDate raw -)"
+        if [[ "$EXPIRES" < "$(date -u +%Y-%m-%dT%H:%M:%SZ)" ]]; then
+            echo "❌ $PROFILE expired $EXPIRES. Download a current Mac App Store profile for dev.goldcoders.bir." >&2
+            exit 1
+        fi
+    fi
     export PATH="$HOME/BuwizNsh/tools/bin:$PATH" CARGO_TARGET_DIR="$HOME/BuwizNsh/target-nsh"
     echo "Building the NSH app for the Mac App Store ($ARCH, build {{BUILD_NUMBER}}, agent=$NSH_MAS_AGENT)..."
     rm -rf "$OUT"
@@ -814,6 +827,8 @@ _package-mac-appstore args="": build-frozen-html-identity
     # The store build does not update itself: drop the update archive, nsh's ad hoc entitlements and the updater
     # configuration nsh packs into the bundle's assets (without it nsh/updater has no update source).
     rm -f "$OUT"/*.tar.gz "$OUT"/.nsh-updater.json "$OUT"/*.entitlements "$APP/Contents/Resources/nsh/assets/nsh-updater.json"
+    # The print renderer reads the per-form CSS fixes from Contents/Resources/print-overrides (bir-app-api print_sheet.rs).
+    cp -R print-overrides "$APP/Contents/Resources/"
     PLIST="$APP/Contents/Info.plist"
     /usr/libexec/PlistBuddy -c "Add :LSApplicationCategoryType string public.app-category.finance" "$PLIST" || true
     # Export compliance exemption, so App Store Connect skips the encryption question.
@@ -832,17 +847,9 @@ _package-mac-appstore args="": build-frozen-html-identity
         /usr/libexec/PlistBuddy -c "Delete :com.apple.application-identifier" "$ENTITLEMENTS"
         /usr/libexec/PlistBuddy -c "Delete :com.apple.developer.team-identifier" "$ENTITLEMENTS"
         echo "⚠️  No CODESIGN_IDENTITY: ad hoc signed with the sandbox entitlements, no provisioning profile (local testing only)."
-    elif [ -f "assets/macos/embedded.provisionprofile" ]; then
-        EXPIRES="$(security cms -D -i assets/macos/embedded.provisionprofile | plutil -extract ExpirationDate raw -)"
-        if [[ "$EXPIRES" < "$(date -u +%Y-%m-%dT%H:%M:%SZ)" ]]; then
-            echo "❌ assets/macos/embedded.provisionprofile expired $EXPIRES. Download a current Mac App Store profile for dev.goldcoders.bir." >&2
-            exit 1
-        fi
-        echo "Embedding provisioning profile for TestFlight (expires $EXPIRES)..."
-        cp "assets/macos/embedded.provisionprofile" "$APP/Contents/embedded.provisionprofile"
     else
-        echo "❌ No assets/macos/embedded.provisionprofile: a store build needs the Mac App Store profile for dev.goldcoders.bir." >&2
-        exit 1
+        echo "Embedding provisioning profile for TestFlight (expires $EXPIRES)..."
+        cp "$PROFILE" "$APP/Contents/embedded.provisionprofile"
     fi
     {{PYTHON}} scripts/audit_no_legacy.py --package-root "$APP"
     xattr -cr "$APP"

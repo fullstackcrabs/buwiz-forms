@@ -114,7 +114,9 @@ there, but nobody has run it on that platform.
   host's build. The recipe drops the update archive and the updater's
   configuration, embeds `assets/macos/embedded.provisionprofile` (it refuses a
   store build whose profile is missing or expired), signs with `entitlements.plist`
-  (sandbox) and wraps the app with `productbuild`. It needs App Store Connect
+  (sandbox), adds `print-overrides/` under `Contents/Resources` and wraps the
+  app with `productbuild`. The store build inherits the NSH minimum of macOS 14
+  (the `bir-shell` store build declared macOS 13). It needs App Store Connect
   credentials for the build number, `CODESIGN_IDENTITY` and
   `INSTALLER_IDENTITY`. Without `CODESIGN_IDENTITY` the app is ad hoc signed
   for a local sandbox run, without the profile and without the application and
