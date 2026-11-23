@@ -22,6 +22,9 @@
 #   - gpui-agent CLI — drives the app over 127.0.0.1 when the binary is built
 #     `--features agent` and launched with GPUI_AGENT=1. Installed at the same
 #     version the workspace pins, so protocol versions never drift apart.
+#   - impeccable CLI (verification tooling) and the impeccable-rust agent skill
+#     in .agents/skills/impeccable-rust/ (git-ignored, so downloaded), both at
+#     the versions scripts/impeccable.pin holds (see scripts/setup-impeccable.sh)
 #
 # Usage:
 #   scripts/setup-linux.sh              # install everything
@@ -29,6 +32,7 @@
 #   scripts/setup-linux.sh --extras     # also install cargo-audit/outdated/machete
 #   scripts/setup-linux.sh --no-agent   # skip installing the gpui-agent CLI
 #   scripts/setup-linux.sh --compositor # also install xcompmgr and autostart it
+#   scripts/setup-linux.sh --no-impeccable  # skip the impeccable CLI and skill
 #
 # --compositor is for X11 sessions whose window manager does not composite
 # (KWin/Xfwm with compositing off, Openbox, VMs). The app then falls back to
@@ -41,14 +45,16 @@ CHECK_ONLY=0
 WITH_EXTRAS=0
 WITH_AGENT=1
 WITH_COMPOSITOR=0
+WITH_IMPECCABLE=1
 for arg in "$@"; do
     case "$arg" in
         --check)    CHECK_ONLY=1 ;;
         --extras)   WITH_EXTRAS=1 ;;
         --no-agent) WITH_AGENT=0 ;;
         --compositor) WITH_COMPOSITOR=1 ;;
+        --no-impeccable) WITH_IMPECCABLE=0 ;;
         -h|--help)
-            sed -n '2,37p' "$0"
+            sed -n '2,41p' "$0"
             exit 0
             ;;
         *) echo "Unknown option: $arg (see --help)" >&2; exit 2 ;;
@@ -60,6 +66,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 log()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33mwarning:\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }
+# shellcheck source=scripts/setup-impeccable.sh
+. "$SCRIPT_DIR/setup-impeccable.sh"
 
 SUDO=""
 if [ "$(id -u)" -ne 0 ]; then
@@ -310,6 +318,9 @@ check() {
         printf '  %-18s MISSING (app window renders blank without it)\n' "font:Noto Sans"
         ok=0
     fi
+    if [ "$WITH_IMPECCABLE" -eq 1 ]; then
+        check_impeccable 18 || ok=0
+    fi
     [ "$ok" -eq 1 ] && log "All required tooling present" || warn "Missing pieces — run scripts/setup-linux.sh"
     return $((1 - ok))
 }
@@ -337,6 +348,10 @@ main() {
     install_just
     if [ "$WITH_AGENT" -eq 1 ]; then
         install_gpui_agent
+    fi
+    if [ "$WITH_IMPECCABLE" -eq 1 ]; then
+        install_impeccable
+        install_impeccable_skill
     fi
 
     if [ "$WITH_COMPOSITOR" -eq 1 ]; then
