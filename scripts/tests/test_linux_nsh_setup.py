@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -14,6 +15,7 @@ def function(name):
     return source[start:source.index("\n}", start) + 2]
 
 
+@unittest.skipUnless(sys.platform.startswith("linux"), "Linux-only Bash setup tests")
 class LinuxNshSetupTests(unittest.TestCase):
     def test_runtime_requires_current_pin_and_all_artifacts(self):
         artifacts = ["classes.dex", "nsh-ref"] + [
