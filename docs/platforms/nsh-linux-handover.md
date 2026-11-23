@@ -20,12 +20,44 @@ mkdir -p "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
 ```
 
 Never set `BIR_SFTP_LIVE`. Never launch bir-shell or `just run` for this handover.
-**Release builds deliberately compile out `BIR_AUTH_BYPASS`.** They can show the
-Buwiz sign-in window but cannot open a form on a fresh scratch database without a
-valid account session. Do not weaken the gate, sign in, or claim a form screenshot
-was checked when only the sign-in window was rendered. Opening a sample form on a
-real machine with an authorized session is an owner check. A debug/test build is
-not evidence for the released package.
+**Release builds deliberately compile out `BIR_AUTH_BYPASS`.** Use the local
+account mock below to sign in to a packaged release without real credentials.
+Do not weaken the gate or claim a form screenshot was checked when only the
+sign-in window was rendered. A debug/test build is not evidence for the released
+package.
+
+### Local account sign-in with a release package
+
+Start `just mock-account --auto-approve` from the repository root. It listens only
+on loopback by default; never expose it publicly. Launch the installed release
+with the safety/scratch variables above and these additional variables:
+
+```sh
+export BUWIZ_SERVER_URL=http://127.0.0.1:3008
+export BUWIZ_ACCOUNT_URL=http://127.0.0.1:3008
+ebirforms
+```
+
+For a Linux Docker sidecar, use `--network host` and pass both URL variables and
+the safety/scratch variables into the container. `configured_server()` and
+`configured_account()` in `crates/bir-core/src/cloud_account.rs` honor runtime
+URL overrides in release builds too; `EBIR_TEST_ENV` isolates the account state,
+but is not what enables the URL overrides. With `BUWIZ_NO_KEYCHAIN=1`, the mock
+session is saved as `buwiz-cloud-account.json` beside the scratch database
+(mode `0600`), not in the real account's keychain. Never print or commit that file.
+
+Choose **Sign in**. The mock approves the real device-code flow automatically
+as `dev@buwiz.local`; no browser interaction or password is needed. On first run:
+
+1. Choose **Just me or my business**.
+2. Create the demo taxpayer: TIN `000123453`, name `Juana Santos`, head-office
+   address `Quezon City`. Optional fields can remain blank.
+3. Add a tax year, choose form `0605` (Payment Form), and save the forms.
+4. Choose **New return**, then **Open form**, and capture the populated form UI.
+
+This exercises the released package with a real mock-issued session, not the
+compiled-out bypass. Do not queue or submit the return. The mock does not model
+production account or filing services. See [Cloud account](../cloud-account.md).
 
 ## Download and verify
 
