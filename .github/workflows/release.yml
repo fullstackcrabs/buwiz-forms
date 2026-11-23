@@ -56,11 +56,6 @@ jobs:
             echo "Release tag version $TAG_VERSION does not match Cargo workspace version $CARGO_VERSION" >&2
             exit 1
           fi
-          NSH_VERSION="$(python3 -c 'import json; print(json.load(open("nsh/nsh.json"))["version"])')"
-          if [ "$TAG_VERSION" != "$NSH_VERSION" ]; then
-            echo "Release tag version $TAG_VERSION does not match NSH app version $NSH_VERSION" >&2
-            exit 1
-          fi
 
       - name: Install system dependencies
         run: |
@@ -170,10 +165,6 @@ jobs:
             artifacts/**/install-linux.sh
             artifacts/**/*-Setup.exe
             artifacts/**/*.msi
-            artifacts/**/*.msix
-            artifacts/**/*-windows-x86_64.zip
-            artifacts/windows-release/latest-nsh.json
-            artifacts/windows-release/latest.json.sig
 
       - name: Check out the manifest script
         uses: actions/checkout@v4

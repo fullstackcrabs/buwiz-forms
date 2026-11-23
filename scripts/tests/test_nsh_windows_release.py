@@ -11,11 +11,12 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
+PREVIEW = ROOT / '.github/workflows/package-nsh-windows.yml'
 
 
 class NshWindowsReleaseTests(unittest.TestCase):
     def test_packaging_is_reusable_and_does_not_publish(self):
-        workflow = (ROOT / '.github/workflows/release-windows.yml').read_text()
+        workflow = PREVIEW.read_text()
         self.assertIn('workflow_dispatch:', workflow)
         self.assertIn('workflow_call:', workflow)
         self.assertIn('nsh package --target windows', workflow)
@@ -24,16 +25,19 @@ class NshWindowsReleaseTests(unittest.TestCase):
         self.assertNotIn('gh-release', workflow)
         self.assertNotIn('bir-shell', workflow)
 
-    def test_ci_and_tagged_release_use_the_same_packaging_workflow(self):
+    def test_tagged_release_keeps_the_legacy_windows_app(self):
         ci = (ROOT / '.github/workflows/ci.yml').read_text()
         release = (ROOT / '.github/workflows/release.yml').read_text()
-        for workflow in (ci, release):
-            self.assertIn('uses: ./.github/workflows/release-windows.yml', workflow)
-        self.assertIn('artifacts/**/*.msix', release)
-        self.assertIn('artifacts/**/*-windows-x86_64.zip', release)
+        public_windows = (ROOT / '.github/workflows/release-windows.yml').read_text()
+        self.assertIn('uses: ./.github/workflows/package-nsh-windows.yml', ci)
+        self.assertNotIn('package-nsh-windows', release)
+        self.assertIn('uses: ./.github/workflows/release-windows.yml', release)
+        self.assertIn('crates/bir-shell/Cargo.toml', public_windows)
+        self.assertNotIn('windows-nsh-preview', release)
+        self.assertNotIn('artifacts/**/*-windows-x86_64.zip', release)
 
     def test_setup_and_updater_zip_do_not_require_a_vc_redistributable(self):
-        workflow = (ROOT / '.github/workflows/release-windows.yml').read_text()
+        workflow = PREVIEW.read_text()
         msix = (ROOT / 'scripts/package_msix.ps1').read_text()
         self.assertIn('CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS: "-C target-feature=+crt-static"', workflow)
         self.assertIn('if ($NshPayload -and $runtimeImports.Count -gt 0)', msix)
@@ -44,12 +48,12 @@ class NshWindowsReleaseTests(unittest.TestCase):
         name = updater['url'].rsplit('/', 1)[-1]
         self.assertEqual(name, 'latest-nsh.json')
         self.assertNotIn('github', updater)
-        windows = (ROOT / '.github/workflows/release-windows.yml').read_text()
+        preview = PREVIEW.read_text()
         release = (ROOT / '.github/workflows/release.yml').read_text()
-        self.assertIn("if: inputs.release && github.ref_type == 'tag'", windows)
         for asset in (name, 'latest.json.sig'):
-            self.assertIn(f'buwiz-forms/target/release-artifacts/{asset}', windows)
-            self.assertIn(f'artifacts/windows-release/{asset}', release)
+            self.assertNotIn(asset, preview)
+            self.assertNotIn(asset, release)
+        self.assertIn('NshSignedUpdateTests', preview)
         self.assertIn('scripts/publish_update_manifest.py', release)
 
     @unittest.skipUnless(shutil.which('pwsh'), 'requires PowerShell')

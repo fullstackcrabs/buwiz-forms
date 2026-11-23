@@ -332,6 +332,7 @@ class CiChangeDetectionTests(unittest.TestCase):
             "scripts/tests/test_nsh_windows_release.py",
             "scripts/package_nsh_windows.ps1",
             ".github/workflows/release-windows.yml",
+            ".github/workflows/package-nsh-windows.yml",
         ):
             with self.subTest(path=path):
                 self.assert_decisions(
