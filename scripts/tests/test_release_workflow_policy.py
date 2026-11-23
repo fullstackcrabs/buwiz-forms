@@ -126,6 +126,7 @@ class ReleaseWorkflowPolicyTests(unittest.TestCase):
         self.assertIn("needs: [preflight, build-macos]", publish)
         self.assertIn("github.event_name == 'push'", publish)
         self.assertIn("contents: write", publish)
+        self.assertNotIn("publish_update_manifest.py", publish)
         without_publish = self.macos_workflow.replace(publish, "")
         self.assertNotIn("contents: write", without_publish)
         self.assertIn("contents: read", self.macos_workflow)

@@ -2,12 +2,10 @@
 """Publish ``latest.json`` for the desktop auto-updater.
 
 The manifest lists one asset per platform key, with the sha256 taken from the
-release's checksum sidecars (``SHA256SUMS-*.txt`` and ``*.sha256``). Both the
-tag's release workflow and the macOS publish job run this after they upload,
-so whichever finishes last rewrites a manifest that includes every asset
-already on the release. macOS is deliberately absent: the NSH bundle cannot
-open the legacy app's encrypted database, so legacy clients must not
-auto-update into it here.
+release's checksum sidecars (``SHA256SUMS-*.txt`` and ``*.sha256``). The tag's
+release workflow runs it after the Windows and Linux artifacts upload. macOS
+is deliberately absent: the NSH bundle cannot open the legacy app's encrypted
+database, so legacy clients must not auto-update into it here.
 
 Usage:
     python3 scripts/publish_update_manifest.py --tag v0.1.0 --repo hexuria/buwiz-forms
