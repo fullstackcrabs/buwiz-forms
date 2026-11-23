@@ -408,7 +408,6 @@ jobs:
             || gh release create "$TAG" --verify-tag --title "$TAG" --generate-notes \
             || gh release view "$TAG" >/dev/null 2>&1
           gh release upload "$TAG" ./*.dmg ./*.tar.gz ./*.sha256 --clobber
-<<<<<<< HEAD
 
       - name: Check out the manifest script
         uses: actions/checkout@v4
@@ -435,15 +434,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: python3 scripts/publish_update_manifest.py --tag "$TAG" --repo "$GH_REPO"
-||||||| 462645d7
 
-      - name: Check out the manifest script
-        uses: actions/checkout@v4
-
-      - name: Publish update manifest
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: python3 scripts/publish_update_manifest.py --tag "$TAG" --repo "$GH_REPO"
-=======
->>>>>>> up/macfix
