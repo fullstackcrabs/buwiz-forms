@@ -46,8 +46,7 @@ maintenance: |
   stamp="${CARGO_HOME:-$HOME/.cargo}/.impeccable-host-setup"
   want="$(impeccable --version) / cargo-binstall $binstall"
   if [ "$(cat "$stamp" 2>/dev/null)" != "$want" ]; then
-    IMPECCABLE_BACKEND=host impeccable setup host --with-kani
-    printf '%s\n' "$want" > "$stamp"
+    IMPECCABLE_BACKEND=host impeccable setup host --with-kani && printf '%s\n' "$want" > "$stamp"
   fi
   # The host backend keeps runs off impeccable's Docker toolbox, whose Rust is older
   # than this repo's rust-toolchain.toml.
