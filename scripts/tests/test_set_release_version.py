@@ -26,6 +26,10 @@ class SetReleaseVersionTests(unittest.TestCase):
             '[package]\nname = "bir-print"\nversion = "0.2.0"\n',
             encoding="utf-8",
         )
+        (root / "nsh/Cargo.toml").write_text(
+            '[package]\nname = "nsh-app-ebirforms"\nversion = "0.2.0"\n',
+            encoding="utf-8",
+        )
         (root / "nsh/nsh.json").write_text(
             nsh_json
             if nsh_json is not None
@@ -45,6 +49,10 @@ class SetReleaseVersionTests(unittest.TestCase):
             self.assertEqual(
                 (root / "crates/bir-print/Cargo.toml").read_text(encoding="utf-8"),
                 '[package]\nname = "bir-print"\nversion = "1.2.3"\n',
+            )
+            self.assertEqual(
+                (root / "nsh/Cargo.toml").read_text(encoding="utf-8"),
+                '[package]\nname = "nsh-app-ebirforms"\nversion = "1.2.3"\n',
             )
             self.assertEqual(
                 (root / "nsh/nsh.json").read_text(encoding="utf-8"),

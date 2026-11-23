@@ -31,6 +31,7 @@ def set_version(root: Path, version: str) -> None:
     bir_print = root / "crates/bir-print/Cargo.toml"
     if bir_print.exists():
         paths.append((bir_print, CARGO_VERSION_RE))
+    paths.append((root / "nsh/Cargo.toml", CARGO_VERSION_RE))
     paths.append((root / "nsh/nsh.json", NSH_JSON_VERSION_RE))
 
     updates = [_replacement(path, pattern, version) for path, pattern in paths]
