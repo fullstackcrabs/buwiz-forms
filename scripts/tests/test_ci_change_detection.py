@@ -167,6 +167,7 @@ class CiChangeDetectionTests(unittest.TestCase):
         app: str | None = None,
         shell: str = "false",
         packaging: tuple[str, ...] = (),
+        windows_legacy: str | None = None,
         event: str = "pull_request",
         changed: tuple[str, ...] = (),
         git_fails: bool = False,
@@ -197,6 +198,8 @@ class CiChangeDetectionTests(unittest.TestCase):
         )
         if app is None:
             app = "true" if systems == self.ALL_SYSTEMS else "false"
+        if windows_legacy is None:
+            windows_legacy = "true" if "windows" in packaging else "false"
         self.assertEqual(
             outputs,
             {
@@ -207,6 +210,7 @@ class CiChangeDetectionTests(unittest.TestCase):
                 "shell": shell,
                 "linux_pkg": "true" if "linux" in packaging else "false",
                 "windows_pkg": "true" if "windows" in packaging else "false",
+                "windows_legacy": windows_legacy,
                 "macos_pkg": "true" if "macos" in packaging else "false",
             },
         )
@@ -316,8 +320,17 @@ class CiChangeDetectionTests(unittest.TestCase):
             check_reason="app file changed: .github/workflows/ci.yml",
             validation="true",
             validation_reason="validation-rules paths changed",
+            windows_legacy="true",
             changed=(".github/workflows/ci.yml",),
         )
+
+    def test_gpui_linker_policy_changes_require_legacy_installers(self) -> None:
+        for path in ("crates/bir-shell/build.rs", "crates/bir-shell/Cargo.toml", "crates/bir-shell/.cargo/config.toml"):
+            with self.subTest(path=path):
+                outputs, _ = self.run_decide(changed=(path,))
+                self.assertEqual(outputs["shell"], "true")
+                self.assertEqual(outputs["windows_legacy"], "true")
+                self.assertEqual(outputs["windows_pkg"], "false")
 
     def test_windows_installer_change_tests_windows_only(self) -> None:
         for path in (
@@ -451,6 +464,7 @@ class CiChangeDetectionTests(unittest.TestCase):
             validation="true",
             validation_reason="nightly run",
             shell="true",
+            windows_legacy="true",
             event="schedule",
         )
 
@@ -460,6 +474,7 @@ class CiChangeDetectionTests(unittest.TestCase):
             check_reason="event workflow_dispatch tests everything",
             validation_reason="manual run, box not ticked",
             shell="true",
+            windows_legacy="true",
             event="workflow_dispatch",
         )
 
@@ -470,6 +485,7 @@ class CiChangeDetectionTests(unittest.TestCase):
             validation="true",
             validation_reason="manual run",
             shell="true",
+            windows_legacy="true",
             event="workflow_dispatch",
             force="true",
         )
@@ -480,6 +496,7 @@ class CiChangeDetectionTests(unittest.TestCase):
             check_reason="change range unknown",
             validation="true",
             validation_reason="change range unknown",
+            windows_legacy="true",
             event="push",
             push_before="0000000000000000000000000000000000000000",
         )
@@ -490,6 +507,7 @@ class CiChangeDetectionTests(unittest.TestCase):
             check_reason="change range unknown",
             validation="true",
             validation_reason="change range unknown",
+            windows_legacy="true",
             pr_base="",
         )
 
@@ -499,6 +517,7 @@ class CiChangeDetectionTests(unittest.TestCase):
             check_reason="change range unknown",
             validation="true",
             validation_reason="change range unknown",
+            windows_legacy="true",
             git_fails=True,
         )
 
@@ -506,6 +525,7 @@ class CiChangeDetectionTests(unittest.TestCase):
         self.assert_decisions(
             systems=self.ALL_SYSTEMS,
             check_reason="no changed files",
+            windows_legacy="true",
         )
 
     def test_docs_only_pull_request_with_validation_label_keeps_audit(self) -> None:
@@ -551,10 +571,11 @@ class CiChangeDetectionTests(unittest.TestCase):
         if needs is not None:
             self.assertEqual(
                 [name.strip() for name in needs.group(1).split(",")],
-                ["changes", "check", "windows-setup", "shell-check", "scripts", "validation-rules", "legacy-guard"],
+                ["changes", "check", "windows-setup", "windows-legacy", "shell-check", "scripts", "validation-rules", "legacy-guard"],
             )
         # A skip caused by a failed `changes` must fail the gate.
         self.assertIn('[[ "$CHANGES" == success ]]', gate)
+        self.assertIn('expect windows-legacy "$WINDOWS_LEGACY" "$WANT_WINDOWS_LEGACY"', gate)
         # windows-smoke is report-only and must not hold the gate.
         self.assertNotIn("windows-smoke", gate.split("    steps:", 1)[0])
 

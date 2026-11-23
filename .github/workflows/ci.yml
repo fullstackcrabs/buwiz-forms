@@ -43,8 +43,6 @@ jobs:
       matrix: ${{ fromJSON(needs.changes.outputs.check_matrix) }}
 
     runs-on: ${{ matrix.os }}
-    env:
-      BUILD_BIR_SHELL_SETUP: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.windows_pkg == 'true' }}
 
     steps:
     - uses: actions/checkout@v4
@@ -258,44 +256,11 @@ jobs:
     - name: Check validation-rules production boundaries
       run: cargo run -q --locked -p bir-rules-codegen -- status --boundaries-only
 
-    - name: Install Windows packaging tools
-      if: runner.os == 'Windows' && env.BUILD_BIR_SHELL_SETUP == 'true'
-      shell: pwsh
-      run: |
-        choco install innosetup -y --no-progress
-        $installExitCode = $LASTEXITCODE
-        if ($installExitCode -eq 3010) {
-          Write-Warning "Chocolatey reports a reboot is required (3010); continuing."
-        } elseif ($installExitCode -ne 0) {
-          [Console]::Error.WriteLine("Inno Setup installation failed (exit code $installExitCode).")
-          exit $installExitCode
-        }
-
-    - name: Build and audit unsigned public Windows Setup
-      if: runner.os == 'Windows' && env.BUILD_BIR_SHELL_SETUP == 'true'
-      shell: pwsh
-      run: |
-        just exe
-        $buildExitCode = $LASTEXITCODE
-        if ($buildExitCode -ne 0) { exit $buildExitCode }
-        $installers = @(Get-ChildItem "target/release-artifacts/*-Setup.exe")
-        if ($installers.Count -ne 1) {
-          throw "Expected exactly one Setup.exe after just exe; found $($installers.Count)."
-        }
-        & pwsh -NoProfile -File scripts/audit_final_setup.ps1 -Installer $installers[0].FullName -Python python
-        $auditExitCode = $LASTEXITCODE
-        if ($auditExitCode -ne 0) { exit $auditExitCode }
-
-    - name: Verify shipped bir.exe PE stack reserve
-      if: runner.os == 'Windows' && env.BUILD_BIR_SHELL_SETUP == 'true'
-      shell: pwsh
-      run: |
-        python scripts/check_pe_stack_reserve.py crates/bir-shell/target/x86_64-pc-windows-msvc/release/bir.exe
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-        cargo build --locked --manifest-path crates/bir-shell/Cargo.toml --bin bir-shell
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-        python scripts/check_pe_stack_reserve.py crates/bir-shell/target/debug/bir-shell.exe
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+  windows-legacy:
+    name: Build and audit unsigned GPUI Windows installers
+    needs: changes
+    if: needs.changes.outputs.windows_legacy == 'true'
+    uses: ./.github/workflows/release-windows.yml
 
   windows-setup:
     name: Build and audit unsigned NSH Windows installers
@@ -307,7 +272,7 @@ jobs:
   #   - check / check_matrix: the systems `check` runs on. All three when any
   #     app file changed - any path not in the classes below, which is the
   #     safe default. Windows alone when the only other changes are Windows
-  #     installer files (that leg builds and audits the Setup.exe). None for
+  #     installer files (installer audits run in separate jobs). None for
   #     docs, macOS or Linux packaging, setup scripts, release workflows and
   #     the Python tests themselves.
   #   - app: app code changed.
@@ -349,6 +314,7 @@ jobs:
       scripts: ${{ steps.decide.outputs.scripts }}
       linux_pkg: ${{ steps.decide.outputs.linux_pkg }}
       windows_pkg: ${{ steps.decide.outputs.windows_pkg }}
+      windows_legacy: ${{ steps.decide.outputs.windows_legacy }}
       macos_pkg: ${{ steps.decide.outputs.macos_pkg }}
       shell: ${{ steps.decide.outputs.shell }}
       shell_matrix: ${{ steps.decide.outputs.shell_matrix }}
@@ -483,6 +449,11 @@ jobs:
             run=true; reason="validation-rules paths changed"
           fi
         fi
+        windows_legacy="$windows_pkg"
+        if [[ "$changed_known" != true || -z "$changed" ]] ||
+          grep -qE '^(crates/bir-shell/((build\.rs|Cargo\.(toml|lock))$|\.cargo/)|\.cargo/|rust-toolchain(\.toml)?$|\.github/workflows/ci\.yml$)' <<<"$changed"; then
+          windows_legacy=true
+        fi
         {
           echo "validation=$run"
           echo "check=$check"
@@ -491,6 +462,7 @@ jobs:
           echo "scripts=$scripts"
           echo "linux_pkg=$linux_pkg"
           echo "windows_pkg=$windows_pkg"
+          echo "windows_legacy=$windows_legacy"
           echo "macos_pkg=$macos_pkg"
           echo "shell=$shell"
           echo "shell_matrix=$shell_matrix"
@@ -825,7 +797,7 @@ jobs:
   # validation-rules summary passed, and legacy-guard passed. A job skipped
   # because something it needs failed is a failure here, not a skip.
   ci-ok:
-    needs: [ changes, check, windows-setup, shell-check, scripts, validation-rules, legacy-guard ]
+    needs: [ changes, check, windows-setup, windows-legacy, shell-check, scripts, validation-rules, legacy-guard ]
     if: always()
     runs-on: ubuntu-22.04
     steps:
@@ -837,6 +809,8 @@ jobs:
         WANT_CHECK: ${{ needs.changes.outputs.check }}
         WINDOWS_SETUP: ${{ needs.windows-setup.result }}
         WANT_WINDOWS_SETUP: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.windows_pkg == 'true' }}
+        WINDOWS_LEGACY: ${{ needs.windows-legacy.result }}
+        WANT_WINDOWS_LEGACY: ${{ needs.changes.outputs.windows_legacy }}
         SCRIPTS: ${{ needs.scripts.result }}
         WANT_SCRIPTS: ${{ needs.changes.outputs.scripts }}
         SHELL_CHECK: ${{ needs.shell-check.result }}
@@ -857,6 +831,7 @@ jobs:
         }
         expect check "$CHECK" "$WANT_CHECK"
         expect windows-setup "$WINDOWS_SETUP" "$WANT_WINDOWS_SETUP"
+        expect windows-legacy "$WINDOWS_LEGACY" "$WANT_WINDOWS_LEGACY"
         expect scripts "$SCRIPTS" "$WANT_SCRIPTS"
         expect shell-check "$SHELL_CHECK" "$WANT_SHELL"
         [[ "$VALIDATION" == success ]] || fail "validation-rules finished: $VALIDATION"
