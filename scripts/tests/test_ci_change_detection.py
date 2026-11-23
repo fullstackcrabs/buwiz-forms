@@ -286,8 +286,8 @@ class CiChangeDetectionTests(unittest.TestCase):
     def test_script_markdown_is_app_code(self) -> None:
         self.assert_decisions(
             systems=self.ALL_SYSTEMS,
-            check_reason="app file changed: scripts/linux_candidate_certification.md",
-            changed=("scripts/linux_candidate_certification.md",),
+            check_reason="app file changed: scripts/some_tool.md",
+            changed=("scripts/some_tool.md",),
         )
 
     def test_core_manifest_is_app_code(self) -> None:
@@ -386,7 +386,6 @@ class CiChangeDetectionTests(unittest.TestCase):
                 ".github/workflows/release.yml",
                 ".github/workflows/release-linux.yml",
                 ".github/workflows/bir.yml",
-                ".github/workflows/html-candidate-certification.yml",
                 "scripts/setup-linux.sh",
                 "scripts/setup-windows.ps1",
                 "scripts/tests/test_release_workflow_policy.py",
