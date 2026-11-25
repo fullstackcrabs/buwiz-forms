@@ -1,0 +1,20 @@
+# genp attribute rows — keychain retake at ad1ff9f3, device A (iPhone 17, E0224A22-F874-4B8C-83FB-EB084492C493)
+# query: select rowid, pdmn, agrp, svce from genp — NEVER the data column
+# NOTE: svce/acct for system rows are binary/hashed; this app's rows would read svce=com.buwiz.bir in clear
+
+== STEP 1, after fresh-install scratch launch + relaunch with db path + SIGN-IN COMPLETED (06:35 UTC+8) ==
+-- rows where svce = 'com.buwiz.bir' (the sign-in item, expected pdmn cku):
+(zero rows)
+-- rows in any non-apple access group:
+(zero rows)
+-- total genp rows: 34  (all apple-system access groups)
+-- distinct access groups present:
+apple
+com.apple.cfnetwork
+com.apple.cloudd
+com.apple.continuity.encryption
+com.apple.findmy.findmylocated
+com.apple.pairing
+com.apple.rapport
+com.apple.security.securityd
+com.apple.telephonyutilities.callservicesd

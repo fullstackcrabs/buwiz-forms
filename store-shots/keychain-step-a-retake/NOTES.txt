@@ -1,0 +1,146 @@
+Keychain check RETAKE — hexuria/buwiz-forms PR #335 at ad1ff9f3 (detached), the owner's ONE allowed
+Simulator run with the Keychain ON. STOPPED AT STEP 1 per the owner's rule: "If the Keychain doesn't come
+on (zero rows after sign-in) stop at step 1 and report the door.rs lines that decide it — don't improvise
+other variables."
+
+Result in one line: the launch environment was exactly as mandated and the door.rs logic should have kept
+the Keychain ON, yet after a completed sign-in the Simulator's Keychain holds ZERO rows for this app and
+no install marker was ever written. Steps 2-5 were NOT run (stop rule). Findings point at the dev host
+binary, not the door logic: NshDev.app is ADHOC-SIGNED WITH NO ENTITLEMENTS, so every SecItem call fails
+in the Simulator (writes silently swallowed, deletes fail so the marker is never written).
+
+=====================================================================
+1. The door.rs lines that decide it (nsh/src/door.rs at ad1ff9f3)
+=====================================================================
+
+Call order — set_up(), door.rs lines 85-89:
+    fn set_up(send_guard: impl FnOnce() -> SendMode) -> Process {
+        #[cfg(not(target_os = "android"))]
+        switch_off_keychain(cfg!(debug_assertions));
+        // iOS: the data folder out of backups and a fresh install's Keychain cleared, after the keychain switch and
+        // before any database or Keychain item is opened. Nothing elsewhere.
+        bir_core::platform::prepare_app_storage();
+
+The switch — door.rs lines 116-127:
+    fn switch_off_keychain(debug_build: bool) {
+        let facts = KeychainFacts {
+            debug_build,
+            test_environment: test_environment(),
+            switched_off: bir_core::platform::keychain_disabled(),
+            check_asked: std::env::var(KEYCHAIN_CHECK_ENV).is_ok_and(|value| value.trim() == "1"),
+            ios: cfg!(target_os = "ios"),
+        };
+        if (debug_build || facts.test_environment) && !keychain_used(facts) {
+            // SAFETY: called from [`process`], once, before NSH or this crate starts a thread (see there).
+            unsafe { std::env::set_var(bir_core::platform::NO_KEYCHAIN_ENV, "1") };
+        }
+    }
+
+The decision — door.rs lines 153-161:
+    fn keychain_used(facts: KeychainFacts) -> bool {
+        if facts.switched_off {
+            return false;
+        }
+        if !facts.debug_build && !facts.test_environment {
+            return true;
+        }
+        facts.ios && facts.check_asked
+    }
+
+KEYCHAIN_CHECK_ENV — door.rs line 134: const KEYCHAIN_CHECK_ENV: &str = "BUWIZ_KEYCHAIN";
+
+Applied to this run: debug_build = FALSE (CARGO_PROFILE_DEV_DEBUG=0 strips debug assertions),
+test_environment = TRUE (EBIR_TEST_ENV=1), switched_off = FALSE (no BUWIZ_NO_KEYCHAIN anywhere),
+check_asked = TRUE (BUWIZ_KEYCHAIN=1 verified in the process environment, see below),
+ios = TRUE (the host is built for aarch64-apple-ios-sim — target_os IS "ios").
+=> keychain_used = true => the force-off NEVER fires. The door logic did what the owner intended.
+The failure is downstream of this logic, in the Keychain calls themselves.
+
+=====================================================================
+2. What was verified in the running process (pid 62324, ps eww)
+=====================================================================
+BIR_AGENT_TOKEN=..., BIR_DATABASE_PATH=<container>/Documents/buwiz-keychain-check/bir_data.db,
+BIR_SFTP_DRY_RUN=1, BUWIZ_KEYCHAIN=1, BUWIZ_SERVER_URL=http://localhost:3008, EBIR_TEST_ENV=1,
+GPUI_AGENT=1, GPUI_AGENT_ADDR=127.0.0.1:17421.
+ABSENT as mandated: BUWIZ_NO_KEYCHAIN, BIR_AUTH_BYPASS, BIR_SFTP_LIVE, BUWIZ_TRUST_KEYS, BUWIZ_RELAY_SEND.
+The launch variables reached the process exactly as ordered — this is NOT a launch-environment mistake.
+(The agent's own three SIMCTL_CHILD_ vars — GPUI_AGENT, GPUI_AGENT_ADDR, BIR_AGENT_TOKEN — were explicitly
+sanctioned by the owner.)
+
+=====================================================================
+3. Step-1 empirical record
+=====================================================================
+Devices: A = iPhone 17 E0224A22-F874-4B8C-83FB-EB084492C493 (shutdown + erased first, iOS 27.0),
+B = iPhone 17e ED5EC543-AF95-44FA-89C8-89F54637F123 (throwaway build device, only B booted during the build).
+Build: GPUI_AGENT_TOKEN/++ BIR_DATABASE_PATH=/tmp/bir-kc-retake-b.db CARGO_INCREMENTAL=0
+CARGO_PROFILE_DEV_DEBUG=0 just nsh-run-agent ios — 1m20s+37s incremental, installed/launched on B only.
+NshDev.app copied aside to /tmp/bir-kc335.app; B shut down; A booted; app installed on A. The recipe
+never launched on A. Bundle id com.longbridge.nsh.host confirmed (container lookups, ps).
+Data container on A: 591AE19E-CF78-4999-926D-1A507A355F57.
+Mock: just mock-account --port 3008 --auto-approve (never pressed Queue anywhere).
+Window-plane token handoff: bash nsh/agent/ios-handoff.sh token 59441 <A> in the background.
+Driving: gpui-agent semantic plane on 127.0.0.1:17421 (agent driving, not window clicks).
+
+Launch 1 (scratch, 4+3 vars, no BIR_DATABASE_PATH): pid 59736.
+  - xattr on Library/Application Support/dev.goldcoders.bir: PRESENT —
+    com.apple.metadata:com_apple_backup_excludeItem: com.apple.MobileBackup (so prepare_ios_storage DID run).
+  - marker keychain-install-marker: ABSENT (folder empty).
+  - log line "Keychain at launch: ...": ABSENT — and structurally invisible in this host, see finding (4).
+Terminate, relaunch with SIMCTL_CHILD_BIR_DATABASE_PATH added (pid 62324): the gate showed
+("Welcome to eBIRForms" — screenshot step1-gate.png); pressed "Sign in" (gpui-agent click,
+delivered_verified). The mock auto-approved; the app advanced past the gate to the device-setup screen
+("Who will use eBIRForms on this device?") — sign-in COMPLETED BY AUTO-APPROVE, no openurl needed
+(screenshot step1-signed-in-setup.png, taken after the fact).
+  - buwiz-cloud-account.json: PRESENT beside the database (322 bytes, mode 0600) — the file fallback
+    write path works; the sign-in save ran.
+  - genp rows for this app: ZERO (see genp.txt — live direct sqlite query on the device's keychain-2-debug.db,
+    34 rows total, every one in an apple-system access group; no svce=com.buwiz.bir, no non-apple agrp).
+  - marker: STILL ABSENT after the second launch.
+STOP condition met: zero rows after sign-in. Steps 2-5 not run.
+
+=====================================================================
+4. Why the Keychain never came on — the evidence chain
+=====================================================================
+a) Not the launch env (section 2) and not the door logic (section 1 — with ios=true and check_asked=true
+   the force-off cannot fire, and keychain_disabled() is re-evaluated at every operation with nothing in
+   the environment or the config layer that would switch it off: dev_env.rs is Android-only,
+   desktop.rs:988/1407 and door.rs:588 are desktop/test-only).
+b) The dev host binary: codesign -d --entitlements on /tmp/bir-kc335.app shows NO ENTITLEMENTS at all;
+   the signature is adhoc (codesign -dv: flags=0x2(adhoc), Signature=adhoc). On current iOS Simulator
+   runtimes SecItem* calls from a binary with no application-identifier/keychain-access-groups
+   entitlement fail (errSecMissingEntitlement class of failure).
+c) That single cause explains every observation:
+   - keyring_save: set(&OsKeychain, &SIGN_IN, raw) fails -> keyring_save returns false -> the caller
+     discards it (cloud_account.rs line 767: let _ = keyring_save(&raw);) -> no cku row, no error anywhere.
+   - clear_on_fresh_install: all three deletes fail -> FreshInstall::Incomplete -> the marker is written
+     only when nothing failed (ios_storage.rs lines 197-211), so NO marker on either launch.
+   - exclude_from_backup is a plain filesystem xattr call — unaffected, which is why the xattr is present.
+d) Contributing observability bug in the dev host: prepare_app_storage() runs inside door::prepare_process()
+   at module registration (nsh/src/lib.rs line 46), BEFORE logging is installed (install_logging runs on the
+   first Door call, lib.rs line 125 / door.rs line 51). tracing has no subscriber yet when
+   tracing::info!("Keychain at launch: {outcome:?}") fires (crates/bir-core/src/platform/ios.rs), so the
+   line the recipe tells you to expect is DROPPED on every dev-host launch — it can never appear in
+   tmp/ebirforms-logs-<pid>/logs/. Even a perfect run cannot produce the log line the check asks for.
+e) The gpui-agent log line "gpui-agent listening (platform=desktop, app=bir-shell ...)" in an iOS-sim
+   process is a misreported constant, unrelated but confusing.
+
+What this run does NOT show (per the owner's standing note): the device key and device id rows — nothing
+was ever sent or registered (no Queue, no device registration); and the shipped app's own access group —
+this is the dev host com.longbridge.nsh.host, whose rows (had any been written) would sit in the host's
+access group, not the shipped app's.
+
+=====================================================================
+5. Recordings — owner rule applied mid-run
+=====================================================================
+The video rule arrived after step 1 had already completed. The sign-in through the gate happened WITHOUT
+a recording — noted here per the rule, not repeated. There are no remaining steps: the stop-at-step-1
+rule fired, so the relaunch-stays-signed-in and delete-reinstall videos the rule names could never be
+recorded — those steps were not run at all. No .mp4 files exist for this run; README.md in this folder
+says the same.
+
+=====================================================================
+6. Housekeeping record
+=====================================================================
+(one-shot env prefixes only; no lingering BUWIZ_KEYCHAIN/BUWIZ_NO_KEYCHAIN exports — verified at cleanup;
+mock-account stopped; app on A terminated; handoff + sleeper + recipe shells stopped; scratch DBs and
+/tmp/bir-kc335.app deleted; evidence left in this folder. Repo left detached at ad1ff9f3, worktree clean.)
