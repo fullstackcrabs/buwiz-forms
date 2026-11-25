@@ -1,0 +1,103 @@
+Keychain Step A — null-result proof notes
+==========================================
+Devices: A = iPhone 17 (E0224A22-F874-4B8C-83FB-EB084492C493, iOS 27.0, erased first),
+B = iPhone 17e (ED5EC543-AF95-44FA-89C8-89F54637F123, throwaway build target).
+Builds: main d7fc83be and PR head d6261aff (feat/relay-filing-keychain), each built with
+`just nsh-run-agent ios` (only B booted), .app copied aside and installed on A.
+Real bundle id: com.longbridge.nsh.host (app binary NshDev.app; dev.goldcoders.bir is NOT the bundle id).
+Device-A launches always exactly: SIMCTL_CHILD_EBIR_TEST_ENV=1 SIMCTL_CHILD_BIR_SFTP_DRY_RUN=1
+SIMCTL_CHILD_BUWIZ_SERVER_URL=http://localhost:3008 xcrun simctl launch <A> com.longbridge.nsh.host
+Never BIR_AUTH_BYPASS / BIR_SFTP_LIVE / BUWIZ_TRUST_KEYS / BUWIZ_RELAY_SEND. Queue never pressed.
+
+1) WHY THE KEYCHAIN CAN NEVER BE TOUCHED IN THIS CONFIGURATION
+   nsh/src/door.rs force-disables the OS keychain for debug builds AND test environments,
+   on BOTH commits. The nsh-run-agent dev host is a debug build (debug_assertions on),
+   and the mandated SIMCTL_CHILD_EBIR_TEST_ENV=1 makes test_environment() true — either
+   condition alone suffices.
+
+   d7fc83be (main), nsh/src/door.rs:112-116:
+     fn switch_off_keychain(debug_build: bool) {
+         if debug_build || test_environment() {
+             // SAFETY: called from [`process`], once, before NSH or this crate starts a thread (see there).
+             unsafe { std::env::set_var(bir_core::platform::NO_KEYCHAIN_ENV, "1") };
+         }
+     }
+   (called at line 86: switch_off_keychain(cfg!(debug_assertions));)
+
+   d6261aff (#335), nsh/src/door.rs:115-119 — identical body:
+     fn switch_off_keychain(debug_build: bool) {
+         if debug_build || test_environment() {
+             // SAFETY: called from [`process`], once, before NSH or this crate starts a thread (see there).
+             unsafe { std::env::set_var(bir_core::platform::NO_KEYCHAIN_ENV, "1") };
+         }
+     }
+   (called at line 86, immediately before line 89 bir_core::platform::prepare_app_storage();)
+
+   Effect per bir_submit::ios_storage::clear_on_fresh_install docs: "With the Keychain off
+   (BUWIZ_NO_KEYCHAIN=1) nothing is called and no marker is written". All keyring/keychain
+   reads return nothing and writes report failure without touching the OS keychain.
+
+2) ZERO com.buwiz.bir genp ROWS AFTER EACH SIGN-IN
+   Keychain db queried read-only (plus once via a db+wal+shm copy, same result):
+   ~/Library/Developer/CoreSimulator/Devices/<A>/data/Library/Keychains/keychain-2-debug.db
+   Query per protocol: SELECT rowid, agrp, svce, pdmn FROM genp;  (data column never selected)
+   - Baseline after erase+first boot: 17 rows, all apple/com.apple system items.
+   - After main (d7fc83be) sign-in: 34 rows, ALL apple/system. Hex scan for 'buwiz' bytes
+     (627577697a) in svce: empty. No non-apple agrp exists at all. NO pdmn 'ak' app rows.
+   - After #335 (d6261aff) install-over launch AND second sign-in: same — zero buwiz rows,
+     zero non-apple rows. No pdmn 'cku' (or 'aku') app rows.
+   - After step-3 uninstall+reinstall launch: unchanged (BEFORE/AFTER blocks in genp.txt identical
+     apart from system-row churn).
+   Full attribute dumps per step: genp.txt in this folder.
+
+3) NO keychain-install-marker FILE, EVER
+   Library/Application Support/dev.goldcoders.bir inside the app's data container existed
+   but stayed EMPTY (only . and ..) after every launch on both commits — consistent with
+   clear_on_fresh_install returning KeychainOff. Marker name in source: "keychain-install-marker"
+   (crates/bir-submit/src/ios_storage.rs, INSTALL_MARKER), written under
+   $HOME/Library/Application Support/dev.goldcoders.bir/ (crates/bir-core/src/platform/ios.rs).
+
+4) BACKUP-EXCLUSION xattr — PRESENT AFTER #335's LAUNCH (the one piece that did run)
+   Folder: <data container>/Library/Application Support/dev.goldcoders.bir
+   Attribute: com.apple.metadata:com_apple_backup_excludeItem: com.apple.MobileBackup
+   Absent on main (d7fc83be), present after the first #335 launch AND present again on the
+   fresh container after step-3 reinstall — proof prepare_ios_storage() ran each time and
+   stopped only at the keychain switch. (exclude_from_backup runs before the keychain check
+   in crates/bir-core/src/platform/ios.rs.)
+
+5) SIGN-IN PERSISTENCE FILE LIVES IN PER-PROCESS SCRATCH tmp — EVERY RELAUNCH IS SIGNED OUT
+   The account file landed at tmp/ebirforms-door/<pid>-0/buwiz-cloud-account.json inside the
+   data container (observed pid 84615 for the main launch) because EBIR_TEST_ENV gives every
+   process a fresh scratch database in tmp and the account file sits beside the database.
+   A new pid on relaunch means a new empty scratch dir, so even the file fallback cannot
+   survive. Observed behavior, both commits:
+   - step 2: terminate + relaunch twice on #335 — gate both times (signed out).
+     (step2-relaunch1-signed-out.png, step2-relaunch2-signed-out.png)
+   - step 3: uninstall + reinstall same #335 .app + launch — gate (signed out).
+     (step3-signed-out.png; new data container, empty marker folder, xattr re-applied)
+   - step 1 install-over of #335 on main's install — gate (signed out once), step2-signed-out.png.
+   Expected "still signed in" outcomes are impossible in this configuration by construction (1).
+
+6) SIGN-IN COMPLETION PATH: AUTO-APPROVE, NO openurl NEEDED
+   Pressing Sign in on iPhone never opened a browser (expected per orchestrator). With
+   `just mock-account --auto-approve` on 127.0.0.1:3008 both sign-ins (main and #335)
+   completed on their own within seconds — the gate flipped straight to the
+   "Who will use eBIRForms on this device?" setup screen. Mock log shows POST /auth/device/start.
+   xcrun simctl openurl was never needed. Signed-in state verified on main in
+   Settings > Account: "dev@buwiz.local / Signed in as dev@buwiz.local." + Delete account row;
+   server shown as "From BUWIZ_SERVER_URL for this run. http://localhost:3008".
+   step1-signed-in.png = Home of the signed-in main build after demo-taxpayer onboarding.
+
+7) THIS RUN NEVER CREATES THE DEVICE KEY
+   The device key is made at first send; Queue was never pressed (no return was even created),
+   so no device-key/device-id keychain items could exist regardless of the keychain switch.
+   Everything measured here concerns the sign-in item (service com.buwiz.bir,
+   account desktop-refresh) only.
+
+CONCLUSION
+   As configured (dev-host debug build + mandated EBIR_TEST_ENV=1), the keychain is
+   force-disabled by the app itself on both commits, no keychain item is ever written,
+   no install marker is ever written, and every relaunch/reinstall comes back signed out.
+   The only #335 behavior observable in this configuration is the backup-exclusion xattr,
+   which IS applied. Exercising the keychain paths needs a configuration the owner did not
+   approve for this run (no EBIR_TEST_ENV and/or a non-debug build).

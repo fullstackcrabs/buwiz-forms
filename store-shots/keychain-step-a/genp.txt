@@ -1,0 +1,210 @@
+=== baseline genp (erased, pre-launch) ===
+1|com.apple.rapport|^M4‰⁄f‡åO⁄_&ZÄï^S`zˇS∫|cku
+2|com.apple.security.securityd|^E^H_Ö8las/^M´⁄0“^KüªÎcÑ|ak
+3|apple|®õ^Q^Léˆ^Ej6çE-ë¬¶Ü≠Wu…|cku
+4|apple|.[NØaΩ/∑K$…#™^Y¿Í£ç^L‚|dku
+5|apple|.[NØaΩ/∑K$…#™^Y¿Í£ç^L‚|dku
+6|apple|.[NØaΩ/∑K$…#™^Y¿Í£ç^L‚|dku
+7|apple|.[NØaΩ/∑K$…#™^Y¿Í£ç^L‚|dku
+8|com.apple.findmy.findmylocated|	Ø®¡^Rñ^[0^Cç	º∞⁄∏OT¥ëM|cku
+9|apple|laîî˛ëñù≈&zoË-éhê‘2^N|ck
+10|com.apple.pairing|”à ^Eﬁ	çë4^OÂü–ÚYR^U›7w|dk
+11|apple|laîî˛ëñù≈&zoË-éhê‘2^N|ck
+12|apple|.[NØaΩ/∑K$…#™^Y¿Í£ç^L‚|dku
+13|com.apple.telephonyutilities.callservicesd|q0÷('Géf≤^^LD+r=ØÆW"|ak
+14|com.apple.cloudd|ÆÄCÁ^K^RGXÂ)Ò^\|^Mïƒˆ|¶|dku
+15|com.apple.cloudd|ÆÄCÁ^K^RGXÂ)Ò^\|^Mïƒˆ|¶|dku
+16|com.apple.cloudd|ÆÄCÁ^K^RGXÂ)Ò^\|^Mïƒˆ|¶|dku
+17|com.apple.continuity.encryption|3âãÁ˚Ω• zÜNÉ&i’Ñ^CçÛ§|cku
+(end baseline)
+
+=== step1: after main (d7fc83be) sign-in ===
+1|com.apple.rapport|^M4M-dM-ZfM-`M-^LOM-Z_&ZM-^@M-^U^S`zM-^?SM-:|cku
+2|com.apple.security.securityd|^E^H_M-^E8las/^MM-+M-Z0M-R^KM-^_M-;M-kcM-^D|ak
+3|apple|M-(M-^[^Q^LM-^NM-v^Ej6M-^ME-M-^QM-BM-&M-^FM--WuM-I|cku
+4|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+5|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+6|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+7|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+8|com.apple.findmy.findmylocated|	M-/M-(M-A^RM-^V^[0^CM-^M	M-<M-0M-ZM-8OTM-4M-^QM|cku
+10|com.apple.pairing|M-SM-^H ^EM-^	M-^MM-^Q4^OM-eM-^_M-PM-rYR^UM-]7w|dk
+12|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+13|com.apple.telephonyutilities.callservicesd|q0M-V('GM-^NM-pfM-2^^LD+r=M-/M-.W"|ak
+14|com.apple.cloudd|M-.M-^@CM-g^K^RGXM-e)M-q^\|^MM-^UM-DM-v^?|M-&|dku
+15|com.apple.cloudd|M-.M-^@CM-g^K^RGXM-e)M-q^\|^MM-^UM-DM-v^?|M-&|dku
+16|com.apple.cloudd|M-.M-^@CM-g^K^RGXM-e)M-q^\|^MM-^UM-DM-v^?|M-&|dku
+17|com.apple.continuity.encryption|3M-^IM-^KM-gM-{M-=M-% zM-^FNM-^C&iM-UM-^D^CM-^MM-sM-$|cku
+18|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+19|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+20|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+21|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+22|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+27|apple|vM-^J:M-^AM-`M-^Z\^UM-^EM-]++nM-+^RM-3^Ki,G|ck
+30|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+31|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+32|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+36|com.apple.cloudd|M-.M-^@CM-g^K^RGXM-e)M-q^\|^MM-^UM-DM-v^?|M-&|dku
+37|apple|vM-^J:M-^AM-`M-^Z\^UM-^EM-]++nM-+^RM-3^Ki,G|ck
+38|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+39|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+40|com.apple.cfnetwork|M-oM-YM-^RM-(^?#M-pM-^G^[
+M->^BPM-9BM-^@M-gM-0M-eM-]|cku
+45|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+46|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+47|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+48|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+49|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+
+--- step1 analysis:
+sign-in verified in UI: "Signed in as dev@buwiz.local" (Settings > Account)
+NO com.buwiz.bir / desktop-refresh rows in genp (hex scan for 627577697a 'buwiz' empty).
+genp count 34, all rows apple/system. Account file exists only at tmp/ebirforms-door/<pid>-0/buwiz-cloud-account.json (per-process scratch, EBIR_TEST_ENV).
+marker: Application Support/dev.goldcoders.bir exists but EMPTY (no marker files) - matches pre-#335 expectation.
+
+=== step2: after #335 (d6261aff) install-over launch, signed out, before re-signin ===
+1|com.apple.rapport|^M4M-dM-ZfM-`M-^LOM-Z_&ZM-^@M-^U^S`zM-^?SM-:|cku
+2|com.apple.security.securityd|^E^H_M-^E8las/^MM-+M-Z0M-R^KM-^_M-;M-kcM-^D|ak
+3|apple|M-(M-^[^Q^LM-^NM-v^Ej6M-^ME-M-^QM-BM-&M-^FM--WuM-I|cku
+4|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+5|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+6|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+7|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+8|com.apple.findmy.findmylocated|	M-/M-(M-A^RM-^V^[0^CM-^M	M-<M-0M-ZM-8OTM-4M-^QM|cku
+10|com.apple.pairing|M-SM-^H ^EM-^	M-^MM-^Q4^OM-eM-^_M-PM-rYR^UM-]7w|dk
+12|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+13|com.apple.telephonyutilities.callservicesd|q0M-V('GM-^NM-pfM-2^^LD+r=M-/M-.W"|ak
+14|com.apple.cloudd|M-.M-^@CM-g^K^RGXM-e)M-q^\|^MM-^UM-DM-v^?|M-&|dku
+15|com.apple.cloudd|M-.M-^@CM-g^K^RGXM-e)M-q^\|^MM-^UM-DM-v^?|M-&|dku
+16|com.apple.cloudd|M-.M-^@CM-g^K^RGXM-e)M-q^\|^MM-^UM-DM-v^?|M-&|dku
+17|com.apple.continuity.encryption|3M-^IM-^KM-gM-{M-=M-% zM-^FNM-^C&iM-UM-^D^CM-^MM-sM-$|cku
+18|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+19|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+20|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+21|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+22|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+27|apple|vM-^J:M-^AM-`M-^Z\^UM-^EM-]++nM-+^RM-3^Ki,G|ck
+30|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+31|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+32|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+36|com.apple.cloudd|M-.M-^@CM-g^K^RGXM-e)M-q^\|^MM-^UM-DM-v^?|M-&|dku
+37|apple|vM-^J:M-^AM-`M-^Z\^UM-^EM-]++nM-+^RM-3^Ki,G|ck
+40|com.apple.cfnetwork|M-oM-YM-^RM-(^?#M-pM-^G^[
+M->^BPM-9BM-^@M-gM-0M-eM-]|cku
+50|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+51|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+56|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+57|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+58|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+59|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+60|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+
+=== step2: after #335 sign-in (expect cku rows) ===
+1|com.apple.rapport|^M4M-dM-ZfM-`M-^LOM-Z_&ZM-^@M-^U^S`zM-^?SM-:|cku
+2|com.apple.security.securityd|^E^H_M-^E8las/^MM-+M-Z0M-R^KM-^_M-;M-kcM-^D|ak
+3|apple|M-(M-^[^Q^LM-^NM-v^Ej6M-^ME-M-^QM-BM-&M-^FM--WuM-I|cku
+4|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+5|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+6|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+7|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+8|com.apple.findmy.findmylocated|	M-/M-(M-A^RM-^V^[0^CM-^M	M-<M-0M-ZM-8OTM-4M-^QM|cku
+10|com.apple.pairing|M-SM-^H ^EM-^	M-^MM-^Q4^OM-eM-^_M-PM-rYR^UM-]7w|dk
+12|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+13|com.apple.telephonyutilities.callservicesd|q0M-V('GM-^NM-pfM-2^^LD+r=M-/M-.W"|ak
+14|com.apple.cloudd|M-.M-^@CM-g^K^RGXM-e)M-q^\|^MM-^UM-DM-v^?|M-&|dku
+15|com.apple.cloudd|M-.M-^@CM-g^K^RGXM-e)M-q^\|^MM-^UM-DM-v^?|M-&|dku
+16|com.apple.cloudd|M-.M-^@CM-g^K^RGXM-e)M-q^\|^MM-^UM-DM-v^?|M-&|dku
+17|com.apple.continuity.encryption|3M-^IM-^KM-gM-{M-=M-% zM-^FNM-^C&iM-UM-^D^CM-^MM-sM-$|cku
+18|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+19|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+20|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+21|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+22|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+27|apple|vM-^J:M-^AM-`M-^Z\^UM-^EM-]++nM-+^RM-3^Ki,G|ck
+30|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+31|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+32|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+36|com.apple.cloudd|M-.M-^@CM-g^K^RGXM-e)M-q^\|^MM-^UM-DM-v^?|M-&|dku
+37|apple|vM-^J:M-^AM-`M-^Z\^UM-^EM-]++nM-+^RM-3^Ki,G|ck
+40|com.apple.cfnetwork|M-oM-YM-^RM-(^?#M-pM-^G^[
+M->^BPM-9BM-^@M-gM-0M-eM-]|cku
+50|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+51|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+56|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+57|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+58|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+59|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+60|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+
+=== step2 relaunch1+2: BOTH SIGNED OUT (gate) - keychain off in test env/debug build, scratch file per-process ===
+=== step3: genp BEFORE uninstall+reinstall launch ===
+1|com.apple.rapport|^M4M-dM-ZfM-`M-^LOM-Z_&ZM-^@M-^U^S`zM-^?SM-:|cku
+2|com.apple.security.securityd|^E^H_M-^E8las/^MM-+M-Z0M-R^KM-^_M-;M-kcM-^D|ak
+3|apple|M-(M-^[^Q^LM-^NM-v^Ej6M-^ME-M-^QM-BM-&M-^FM--WuM-I|cku
+4|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+5|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+6|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+7|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+8|com.apple.findmy.findmylocated|	M-/M-(M-A^RM-^V^[0^CM-^M	M-<M-0M-ZM-8OTM-4M-^QM|cku
+10|com.apple.pairing|M-SM-^H ^EM-^	M-^MM-^Q4^OM-eM-^_M-PM-rYR^UM-]7w|dk
+12|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+13|com.apple.telephonyutilities.callservicesd|q0M-V('GM-^NM-pfM-2^^LD+r=M-/M-.W"|ak
+14|com.apple.cloudd|M-.M-^@CM-g^K^RGXM-e)M-q^\|^MM-^UM-DM-v^?|M-&|dku
+15|com.apple.cloudd|M-.M-^@CM-g^K^RGXM-e)M-q^\|^MM-^UM-DM-v^?|M-&|dku
+16|com.apple.cloudd|M-.M-^@CM-g^K^RGXM-e)M-q^\|^MM-^UM-DM-v^?|M-&|dku
+17|com.apple.continuity.encryption|3M-^IM-^KM-gM-{M-=M-% zM-^FNM-^C&iM-UM-^D^CM-^MM-sM-$|cku
+18|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+19|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+20|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+21|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+22|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+27|apple|vM-^J:M-^AM-`M-^Z\^UM-^EM-]++nM-+^RM-3^Ki,G|ck
+30|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+31|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+32|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+36|com.apple.cloudd|M-.M-^@CM-g^K^RGXM-e)M-q^\|^MM-^UM-DM-v^?|M-&|dku
+37|apple|vM-^J:M-^AM-`M-^Z\^UM-^EM-]++nM-+^RM-3^Ki,G|ck
+40|com.apple.cfnetwork|M-oM-YM-^RM-(^?#M-pM-^G^[
+M->^BPM-9BM-^@M-gM-0M-eM-]|cku
+50|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+51|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+56|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+57|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+58|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+59|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+60|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+=== step3: genp AFTER uninstall+reinstall launch ===
+1|com.apple.rapport|^M4M-dM-ZfM-`M-^LOM-Z_&ZM-^@M-^U^S`zM-^?SM-:|cku
+2|com.apple.security.securityd|^E^H_M-^E8las/^MM-+M-Z0M-R^KM-^_M-;M-kcM-^D|ak
+3|apple|M-(M-^[^Q^LM-^NM-v^Ej6M-^ME-M-^QM-BM-&M-^FM--WuM-I|cku
+4|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+5|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+6|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+7|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+8|com.apple.findmy.findmylocated|	M-/M-(M-A^RM-^V^[0^CM-^M	M-<M-0M-ZM-8OTM-4M-^QM|cku
+10|com.apple.pairing|M-SM-^H ^EM-^	M-^MM-^Q4^OM-eM-^_M-PM-rYR^UM-]7w|dk
+12|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+13|com.apple.telephonyutilities.callservicesd|q0M-V('GM-^NM-pfM-2^^LD+r=M-/M-.W"|ak
+14|com.apple.cloudd|M-.M-^@CM-g^K^RGXM-e)M-q^\|^MM-^UM-DM-v^?|M-&|dku
+15|com.apple.cloudd|M-.M-^@CM-g^K^RGXM-e)M-q^\|^MM-^UM-DM-v^?|M-&|dku
+16|com.apple.cloudd|M-.M-^@CM-g^K^RGXM-e)M-q^\|^MM-^UM-DM-v^?|M-&|dku
+17|com.apple.continuity.encryption|3M-^IM-^KM-gM-{M-=M-% zM-^FNM-^C&iM-UM-^D^CM-^MM-sM-$|cku
+18|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+19|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+20|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+21|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+22|apple|.[NM-/aM-=/M-7K$M-I#M-*^YM-@M-jM-#M-^M^LM-b|dku
+27|apple|vM-^J:M-^AM-`M-^Z\^UM-^EM-]++nM-+^RM-3^Ki,G|ck
+30|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+31|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+32|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+36|com.apple.cloudd|M-.M-^@CM-g^K^RGXM-e)M-q^\|^MM-^UM-DM-v^?|M-&|dku
+37|apple|vM-^J:M-^AM-`M-^Z\^UM-^EM-]++nM-+^RM-3^Ki,G|ck
+40|com.apple.cfnetwork|M-oM-YM-^RM-(^?#M-pM-^G^[
+M->^BPM-9BM-^@M-gM-0M-eM-]|cku
+50|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+51|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+56|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+57|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+58|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+59|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
+60|apple|laM-^TM-^TM-~M-^QM-^VM-^]M-E&zoM-h-M-^NhM-^PM-T2^N|ck
